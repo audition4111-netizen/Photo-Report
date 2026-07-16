@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>사진대장</title>
+<style>
+  :root{
+    --primary:#2563eb;
+    --danger:#dc2626;
+    --text:#111827;
+    --sub:#374151;
+    --border:#000;
+    --line:#e5e7eb;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"Malgun Gothic","맑은 고딕",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+    background:#f3f4f6;
+    color:var(--text);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app-shell{
+    max-width:480px;
+    margin:0 auto;
+    background:#fff;
+    min-height:100vh;
+    position:relative;
+    box-shadow:0 0 0 1px var(--line);
+  }
+  @media (min-width:700px){
+    .app-shell{ max-width:640px; }
+  }
+  .app-header{ padding:18px 16px 8px; border-bottom:1px solid var(--line); }
+  .app-title{ font-size:21px; font-weight:700; margin:0 0 16px; text-align:center; color:var(--text); }
+  .field-group{ margin-bottom:12px; }
+  .field-label{ display:block; font-size:13px; margin-bottom:6px; color:var(--sub); font-weight:600; }
+  .field-input{ width:100%; padding:11px 12px; border:1px solid #9ca3af; border-radius:4px; font-size:15px; }
+  .field-input:focus{ outline:none; border-color:var(--primary); }
+  .count-row{ display:flex; align-items:center; justify-content:space-between; margin:12px 0 10px; }
+  .count-badge{ font-size:14px; color:var(--sub); font-weight:600; }
+  .add-btn{ width:100%; padding:13px; font-size:15px; font-weight:700; border:none; border-radius:4px; background:var(--primary); color:#fff; cursor:pointer; margin-bottom:14px; }
+  .add-btn:disabled{ background:#9ca3af; cursor:not-allowed; }
+  .add-hint{ font-size:12px; color:#6b7280; margin:-8px 0 14px; line-height:1.5; }
+
+  details.guide{ margin:0 0 14px; border:1px solid var(--line); border-radius:4px; background:#f9fafb; }
+  details.guide summary{ cursor:pointer; padding:10px 12px; font-size:13px; font-weight:600; color:var(--sub); }
+  details.guide .guide-body{ padding:0 14px 14px; font-size:12.5px; color:#4b5563; line-height:1.7; }
+  details.guide ol,details.guide ul{ margin:6px 0; padding-left:18px; }
+
+  .content-scroll{ padding:14px 14px 110px; }
+
+  .empty-state{ text-align:center; color:#6b7280; font-size:13.5px; padding:40px 10px; border:1px dashed #d1d5db; border-radius:6px; }
+
+  .photo-item{ border:1px solid #e2e2e2; border-radius:6px; padding:14px; margin-bottom:14px; background:#fafafa; }
+  .photo-item.sortable-ghost{ opacity:.4; }
+  .photo-item.sortable-chosen{ box-shadow:0 0 0 2px var(--primary); }
+  .item-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .drag-handle{ display:inline-flex; align-items:center; gap:4px; padding:7px 12px; background:#e5e7eb; border-radius:4px; font-size:13px; color:#374151; cursor:grab; user-select:none; touch-action:none; }
+  .item-index{ font-size:12px; color:#9ca3af; }
+  .thumb-wrap{ width:100%; height:220px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #000; margin-bottom:10px; overflow:hidden; }
+  .thumb-wrap img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
+  textarea.desc-input{ width:100%; border:1px solid #000; padding:9px 10px; font-size:14px; line-height:1.5; resize:none; overflow:hidden; font-family:inherit; margin-bottom:10px; min-height:44px; }
+  textarea.desc-input:focus{ outline:none; border-color:var(--primary); }
+  .btn-row{ display:flex; gap:8px; }
+  .btn{ flex:1; padding:11px 0; font-size:13.5px; font-weight:600; border-radius:4px; border:1px solid #9ca3af; background:#fff; color:var(--text); cursor:pointer; }
+  .btn-outline{ border-color:var(--primary); color:var(--primary); }
+  .btn-danger{ border-color:var(--danger); color:var(--danger); }
+
+  .footer-bar{ position:fixed; left:0; right:0; bottom:0; margin:0 auto; max-width:480px; background:#fff; border-top:1px solid var(--line); padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:8px; z-index:40; }
+  @media (min-width:700px){ .footer-bar{ max-width:640px; } }
+  .footer-btn{ flex:1; padding:13px 0; font-size:13.5px; font-weight:700; border-radius:4px; border:1px solid #9ca3af; background:#fff; color:var(--text); cursor:pointer; }
+  .footer-btn.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+  .footer-btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+  .toast{ position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-16px); background:#111827; color:#fff; padding:12px 18px; border-radius:6px; font-size:13.5px; opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:300; max-width:88%; text-align:center; line-height:1.5; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .preview-modal{ position:fixed; inset:0; background:#e5e7eb; z-index:100; display:none; flex-direction:column; }
+  .preview-modal.open{ display:flex; }
+  .preview-topbar{ display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#fff; border-bottom:1px solid var(--line); }
+  .preview-topbar .title{ font-weight:700; font-size:15px; }
+  .preview-topbar .count{ font-size:13px; color:var(--sub); }
+  .close-btn{ padding:8px 14px; font-size:13.5px; font-weight:600; border-radius:4px; border:1px solid #9ca3af; background:#fff; cursor:pointer; }
+  .preview-pages{ flex:1; overflow:auto; padding:20px 12px 40px; -webkit-overflow-scrolling:touch; }
+  .page-wrapper{ margin:0 auto 20px; box-shadow:0 0 6px rgba(0,0,0,.25); background:#fff; }
+
+  .a4-page{ width:210mm; min-height:297mm; background:#fff; box-sizing:border-box; padding:14mm 10mm; position:relative; transform-origin:top left; }
+  .page-title{ text-align:center; font-weight:700; font-size:19px; margin:0 0 9mm; color:#000; }
+  .page-grid{ display:grid; grid-template-columns:1fr 1fr; column-gap:0; row-gap:0; }
+  .photo-set{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; }
+  .photo-box{ height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
+  .photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
+  .desc-box{ min-height:26mm; padding:3mm 4mm; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:11.5px; line-height:1.55; box-sizing:border-box; }
+
+  .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell" id="appShell">
+
+  <div class="app-header">
+    <h1 class="app-title">사진대장</h1>
+
+    <div class="field-group">
+      <label class="field-label" for="fileNameInput">파일명</label>
+      <input type="text" id="fileNameInput" class="field-input" placeholder="예: 현장사진">
+    </div>
+
+    <div class="count-row">
+      <span class="count-badge" id="countBadge">등록 사진 0 / 30</span>
+    </div>
+
+    <button type="button" class="add-btn" id="addBtn">사진 추가</button>
+    <div class="add-hint">스마트폰 사진 앱에서 사진을 한 장씩 선택해 주세요. (한 번에 한 장만 선택 가능)</div>
+
+    <details class="guide">
+      <summary>사용 방법 안내 / 라이브러리 정보</summary>
+      <div class="guide-body">
+        <b>사용 순서</b>
+        <ol>
+          <li>파일명을 입력합니다.</li>
+          <li>[사진 추가]를 눌러 스마트폰 사진 앱에서 사진을 한 장 선택합니다.</li>
+          <li>사진 아래 설명을 입력합니다.</li>
+          <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
+          <li>사진 변경 / 회전 / 삭제, 드래그로 순서 변경이 가능합니다.</li>
+          <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
+          <li>[PDF 출력] 또는 [DOCX 출력]으로 문서를 내려받습니다.</li>
+        </ol>
+        <b>사용 라이브러리</b>
+        <ul>
+          <li>SortableJS - 사진 순서 드래그 변경</li>
+          <li>html2canvas + jsPDF - A4 페이지를 이미지로 캡처해 PDF 생성</li>
+          <li>docx.js - 실제 편집 가능한 Word(.docx) 문서 생성</li>
+        </ul>
+        <b>안내</b>
+        <ul>
+          <li>모든 사진/문서 처리는 이 브라우저 안에서만 이루어지며 외부 서버로 전송되지 않습니다.</li>
+          <li>새로고침하거나 화면을 닫으면 등록한 내용은 사라집니다.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="content-scroll">
+    <div id="photoList"></div>
+  </div>
+
+  <div class="footer-bar">
+    <button type="button" class="footer-btn" id="previewBtn">미리보기</button>
+    <button type="button" class="footer-btn" id="pdfBtn">PDF 출력</button>
+    <button type="button" class="footer-btn primary" id="docxBtn">DOCX 출력</button>
+  </div>
+
+  <input type="file" accept="image/*" id="addFileInput" style="display:none">
+  <input type="file" accept="image/*" id="replaceFileInput" style="display:none">
+</div>
+
+<div class="preview-modal" id="previewModal">
+  <div class="preview-topbar">
+    <span class="title">A4 미리보기</span>
+    <span class="count" id="previewCount"></span>
+    <button type="button" class="close-btn" id="closePreviewBtn">닫기</button>
+  </div>
+  <div class="preview-pages" id="previewPages"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  var MAX_PHOTOS = 30;
+  var MAX_DIM = 1800;
+  var MAX_FILE_SIZE = 30 * 1024 * 1024;
+  var PX_PER_MM = 96 / 25.4;
+
+  var photos = [];
+  var idCounter = 0;
+  var replaceTargetId = null;
+  var isGenerating = false;
+
+  var fileNameInputEl = document.getElementById('fileNameInput');
+  var countBadgeEl = document.getElementById('countBadge');
+  var addBtn = document.getElementById('addBtn');
+  var addFileInputEl = document.getElementById('addFileInput');
+  var replaceFileInputEl = document.getElementById('replaceFileInput');
+  var photoListEl = document.getElementById('photoList');
+  var previewBtn = document.getElementById('previewBtn');
+  var pdfBtn = document.getElementById('pdfBtn');
+  var docxBtn = document.getElementById('docxBtn');
+  var previewModalEl = document.getElementById('previewModal');
+  var previewPagesEl = document.getElementById('previewPages');
+  var previewCountEl = document.getElementById('previewCount');
+  var closePreviewBtn = document.getElementById('closePreviewBtn');
+  var toastEl = document.getElementById('toast');
+
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 3200);
+  }
+
+  function isLikelyHeic(file){
+    var t = (file.type || '').toLowerCase();
+    var n = (file.name || '').toLowerCase();
+    return t.indexOf('heic') !== -1 || t.indexOf('heif') !== -1 || n.slice(-5) === '.heic' || n.slice(-5) === '.heif';
+  }
+
+  function loadImageFromFile(file){
+    return new Promise(function(resolve, reject){
+      if(!file){ reject({code:'not-image'}); return; }
+      if(file.size && file.size > MAX_FILE_SIZE){ reject({code:'too-large'}); return; }
+      if(!file.type || file.type.indexOf('image/') !== 0){ reject({code:'not-image'}); return; }
+      if(isLikelyHeic(file)){ reject({code:'unsupported-format'}); return; }
+      var reader = new FileReader();
+      reader.onerror = function(){ reject({code:'read-fail'}); };
+      reader.onload = function(e){
+        var img = new Image();
+        img.onerror = function(){ reject({code:'decode-fail'}); };
+        img.onload = function(){
+          try{
+            var w = img.naturalWidth, h = img.naturalHeight;
+            if(!w || !h){ reject({code:'decode-fail'}); return; }
+            var scale = 1;
+            if(Math.max(w, h) > MAX_DIM) scale = MAX_DIM / Math.max(w, h);
+            var outW = Math.max(1, Math.round(w * scale));
+            var outH = Math.max(1, Math.round(h * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = outW; canvas.height = outH;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, outW, outH);
+            ctx.drawImage(img, 0, 0, outW, outH);
+            var dataURL = canvas.toDataURL('image/jpeg', 0.85);
+            resolve({ dataURL: dataURL, width: outW, height: outH });
+          }catch(err){ reject({code:'decode-fail'}); }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleImageError(err){
+    var map = {
+      'not-image': '이미지 파일만 선택할 수 있습니다.',
+      'unsupported-format': '이 이미지 형식은 현재 브라우저에서 지원되지 않습니다. JPG 또는 PNG 이미지로 다시 선택해 주세요.',
+      'read-fail': '이미지를 불러오지 못했습니다. 다른 사진을 선택해 주세요.',
+      'decode-fail': '이미지를 불러오지 못했습니다. 다른 사진을 선택해 주세요.',
+      'too-large': '사진 용량이 너무 큽니다. 더 작은 이미지를 선택하거나 등록 사진 수를 줄여 주세요.'
+    };
+    showToast(map[err && err.code] || '이미지를 불러오지 못했습니다. 다른 사진을 선택해 주세요.');
+  }
+
+  function computeRotatedCache(item){
+    return new Promise(function(resolve){
+      if(item.rotation === 0){
+        item.rotatedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+        resolve();
+        return;
+      }
+      var img = new Image();
+      img.onload = function(){
+        try{
+          var w = item.naturalW, h = item.naturalH;
+          var cw = w, ch = h;
+          if(item.rotation === 90 || item.rotation === 270){ cw = h; ch = w; }
+          var canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, cw, ch);
+          ctx.save();
+          ctx.translate(cw / 2, ch / 2);
+          ctx.rotate(item.rotation * Math.PI / 180);
+          ctx.drawImage(img, -w / 2, -h / 2, w, h);
+          ctx.restore();
+          item.rotatedCache = { dataURL: canvas.toDataURL('image/jpeg', 0.9), width: cw, height: ch };
+        }catch(err){
+          item.rotatedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+        }
+        resolve();
+      };
+      img.onerror = function(){
+        item.rotatedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+        resolve();
+      };
+      img.src = item.baseDataURL;
+    });
+  }
+
+  function updateCountDisplay(){
+    countBadgeEl.textContent = '등록 사진 ' + photos.length + ' / ' + MAX_PHOTOS;
+    addBtn.disabled = photos.length >= MAX_PHOTOS;
+  }
+
+  function autoResizeTextarea(ta){
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  function renderList(){
+    photoListEl.innerHTML = '';
+    if(photos.length === 0){
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = "등록된 사진이 없습니다. '사진 추가' 버튼을 눌러 사진을 등록해 주세요.";
+      photoListEl.appendChild(empty);
+      return;
+    }
+    photos.forEach(function(item, idx){
+      var el = document.createElement('div');
+      el.className = 'photo-item';
+      el.dataset.id = String(item.id);
+      el.innerHTML =
+        '<div class="item-top">' +
+          '<span class="drag-handle">≡ 순서 이동</span>' +
+          '<span class="item-index">' + (idx + 1) + '번</span>' +
+        '</div>' +
+        '<div class="thumb-wrap"><img alt="등록 사진 ' + (idx + 1) + '"></div>' +
+        '<textarea class="desc-input" placeholder="사진 설명을 입력하세요." rows="2"></textarea>' +
+        '<div class="btn-row">' +
+          '<button type="button" class="btn btn-outline" data-action="replace">변경</button>' +
+          '<button type="button" class="btn btn-outline" data-action="rotate">회전</button>' +
+          '<button type="button" class="btn btn-danger" data-action="delete">삭제</button>' +
+        '</div>';
+      var rc = item.rotatedCache || { dataURL: item.baseDataURL };
+      el.querySelector('img').src = rc.dataURL;
+      var ta = el.querySelector('textarea');
+      ta.value = item.description || '';
+      photoListEl.appendChild(el);
+      autoResizeTextarea(ta);
+    });
+  }
+
+  function findPhoto(id){
+    for(var i = 0; i < photos.length; i++){ if(photos[i].id === id) return photos[i]; }
+    return null;
+  }
+
+  function addPhotoFromResult(result){
+    photos.push({
+      id: ++idCounter,
+      baseDataURL: result.dataURL,
+      naturalW: result.width,
+      naturalH: result.height,
+      rotation: 0,
+      description: '',
+      rotatedCache: { dataURL: result.dataURL, width: result.width, height: result.height }
+    });
+    renderList();
+    updateCountDisplay();
+  }
+
+  addBtn.addEventListener('click', function(){
+    if(photos.length >= MAX_PHOTOS){
+      showToast('사진은 최대 30장까지 등록할 수 있습니다.');
+      return;
+    }
+    addFileInputEl.value = '';
+    addFileInputEl.click();
+  });
+
+  addFileInputEl.addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    if(photos.length >= MAX_PHOTOS){
+      showToast('사진은 최대 30장까지 등록할 수 있습니다.');
+      return;
+    }
+    loadImageFromFile(file).then(addPhotoFromResult).catch(handleImageError);
+  });
+
+  replaceFileInputEl.addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    var targetId = replaceTargetId;
+    replaceTargetId = null;
+    if(!file || targetId === null) return;
+    loadImageFromFile(file).then(function(result){
+      var item = findPhoto(targetId);
+      if(!item) return;
+      item.baseDataURL = result.dataURL;
+      item.naturalW = result.width;
+      item.naturalH = result.height;
+      item.rotation = 0;
+      item.rotatedCache = { dataURL: result.dataURL, width: result.width, height: result.height };
+      renderList();
+    }).catch(handleImageError);
+  });
+
+  function triggerReplace(id){
+    replaceTargetId = id;
+    replaceFileInputEl.value = '';
+    replaceFileInputEl.click();
+  }
+
+  function rotatePhoto(id){
+    var item = findPhoto(id);
+    if(!item) return;
+    item.rotation = (item.rotation + 90) % 360;
+    computeRotatedCache(item).then(renderList);
+  }
+
+  function confirmDeletePhoto(id){
+    if(window.confirm('이 사진과 설명을 삭제하시겠습니까?')){
+      photos = photos.filter(function(p){ return p.id !== id; });
+      renderList();
+      updateCountDisplay();
+    }
+  }
+
+  photoListEl.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('button[data-action]') : null;
+    if(!btn) return;
+    var itemEl = btn.closest('.photo-item');
+    if(!itemEl) return;
+    var id = Number(itemEl.dataset.id);
+    var action = btn.dataset.action;
+    if(action === 'rotate') rotatePhoto(id);
+    else if(action === 'delete') confirmDeletePhoto(id);
+    else if(action === 'replace') triggerReplace(id);
+  });
+
+  photoListEl.addEventListener('input', function(e){
+    if(e.target && e.target.matches && e.target.matches('textarea.desc-input')){
+      var itemEl = e.target.closest('.photo-item');
+      if(!itemEl) return;
+      var id = Number(itemEl.dataset.id);
+      var item = findPhoto(id);
+      if(item) item.description = e.target.value;
+      autoResizeTextarea(e.target);
+    }
+  });
+
+  if(typeof Sortable !== 'undefined'){
+    Sortable.create(photoListEl, {
+      handle: '.drag-handle',
+      animation: 150,
+      filter: 'textarea',
+      preventOnFilter: false,
+      chosenClass: 'sortable-chosen',
+      ghostClass: 'sortable-ghost',
+      onEnd: function(){
+        var newOrder = Array.from(photoListEl.children).map(function(el){ return Number(el.dataset.id); });
+        photos.sort(function(a, b){ return newOrder.indexOf(a.id) - newOrder.indexOf(b.id); });
+        photoListEl.querySelectorAll('.item-index').forEach(function(span, idx){
+          span.textContent = (idx + 1) + '번';
+        });
+      }
+    });
+  }
+
+  function sanitizeFileName(name){
+    return name.replace(/[\\\/:*?"<>|]/g, '_').trim();
+  }
+
+  function getValidatedFileName(){
+    var raw = fileNameInputEl.value.trim();
+    if(!raw){
+      showToast('출력할 파일명을 입력해 주세요.');
+      fileNameInputEl.focus();
+      return null;
+    }
+    var name = raw.replace(/\.(pdf|docx)$/i, '');
+    name = sanitizeFileName(name);
+    if(!name){
+      showToast('출력할 파일명을 입력해 주세요.');
+      return null;
+    }
+    return name;
+  }
+
+  function computePages(){
+    var pages = [];
+    for(var i = 0; i < photos.length; i += 4){ pages.push(photos.slice(i, i + 4)); }
+    return pages;
+  }
+
+  function buildPageElement(pageItems){
+    var page = document.createElement('div');
+    page.className = 'a4-page';
+
+    var title = document.createElement('div');
+    title.className = 'page-title';
+    title.textContent = '사진대장';
+    page.appendChild(title);
+
+    var grid = document.createElement('div');
+    grid.className = 'page-grid';
+    pageItems.forEach(function(item){
+      var box = document.createElement('div');
+      box.className = 'photo-set';
+
+      var photoBox = document.createElement('div');
+      photoBox.className = 'photo-box';
+      var img = document.createElement('img');
+      var rc = item.rotatedCache || { dataURL: item.baseDataURL };
+      img.src = rc.dataURL;
+      img.alt = '등록 사진';
+      photoBox.appendChild(img);
+
+      var descBox = document.createElement('div');
+      descBox.className = 'desc-box';
+      descBox.textContent = item.description || '';
+
+      box.appendChild(photoBox);
+      box.appendChild(descBox);
+      grid.appendChild(box);
+    });
+    page.appendChild(grid);
+    return page;
+  }
+
+  function fitPreviewScale(){
+    var pagePxWidth = 210 * PX_PER_MM;
+    var available = Math.min(window.innerWidth - 24, 820);
+    var scale = Math.min(1, available / pagePxWidth);
+    var wrappers = previewPagesEl.querySelectorAll('.page-wrapper');
+    wrappers.forEach(function(wrapper){
+      var pageEl = wrapper.firstElementChild;
+      pageEl.style.transform = 'scale(' + scale + ')';
+      var rect = pageEl.getBoundingClientRect();
+      wrapper.style.width = rect.width + 'px';
+      wrapper.style.height = rect.height + 'px';
+    });
+  }
+
+  function openPreview(){
+    if(photos.length === 0){
+      showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
+      return;
+    }
+    var pages = computePages();
+    previewPagesEl.innerHTML = '';
+    var countLine = document.createElement('div');
+    countLine.className = 'page-count-line';
+    countLine.textContent = '전체 ' + pages.length + ' 페이지 / 사진 ' + photos.length + '장';
+    previewPagesEl.appendChild(countLine);
+    pages.forEach(function(pageItems){
+      var pageEl = buildPageElement(pageItems);
+      var wrapper = document.createElement('div');
+      wrapper.className = 'page-wrapper';
+      wrapper.appendChild(pageEl);
+      previewPagesEl.appendChild(wrapper);
+    });
+    previewCountEl.textContent = '전체 ' + pages.length + ' 페이지';
+    previewModalEl.classList.add('open');
+    fitPreviewScale();
+    setTimeout(fitPreviewScale, 50);
+  }
+
+  function closePreview(){
+    previewModalEl.classList.remove('open');
+    previewPagesEl.innerHTML = '';
+  }
+
+  previewBtn.addEventListener('click', openPreview);
+  closePreviewBtn.addEventListener('click', closePreview);
+  window.addEventListener('resize', function(){
+    if(previewModalEl.classList.contains('open')) fitPreviewScale();
+  });
+
+  function setGenerating(flag, pdfLabel, docxLabel){
+    isGenerating = flag;
+    previewBtn.disabled = flag;
+    pdfBtn.disabled = flag;
+    docxBtn.disabled = flag;
+    if(flag){
+      pdfBtn.dataset.orig = pdfBtn.dataset.orig || pdfBtn.textContent;
+      docxBtn.dataset.orig = docxBtn.dataset.orig || docxBtn.textContent;
+      if(pdfLabel) pdfBtn.textContent = pdfLabel;
+      if(docxLabel) docxBtn.textContent = docxLabel;
+    }else{
+      if(pdfBtn.dataset.orig) pdfBtn.textContent = pdfBtn.dataset.orig;
+      if(docxBtn.dataset.orig) docxBtn.textContent = docxBtn.dataset.orig;
+    }
+  }
+
+  function waitForImages(container){
+    var imgs = Array.from(container.querySelectorAll('img'));
+    return Promise.all(imgs.map(function(img){
+      if(img.complete) return Promise.resolve();
+      return new Promise(function(res){ img.onload = res; img.onerror = res; });
+    }));
+  }
+
+  function generatePDF(){
+    if(isGenerating) return;
+    if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
+      showToast('브라우저 호환성 문제로 PDF를 생성할 수 없습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+      return;
+    }
+    var filename = getValidatedFileName();
+    if(!filename) return;
+    if(photos.length === 0){
+      showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
+      return;
+    }
+    setGenerating(true, '생성 중...', null);
+
+    var offscreen = document.createElement('div');
+    offscreen.style.position = 'fixed';
+    offscreen.style.left = '-10000px';
+    offscreen.style.top = '0';
+    offscreen.style.zIndex = '-1';
+    offscreen.style.background = '#ffffff';
+    document.body.appendChild(offscreen);
+
+    var pages = computePages();
+    var pdf = null;
+
+    (function processPage(i){
+      if(i >= pages.length){
+        try{
+          pdf.save(filename + '.pdf');
+        }catch(err){
+          showToast('다운로드가 차단되었습니다. 브라우저 설정을 확인해 주세요.');
+        }
+        document.body.removeChild(offscreen);
+        setGenerating(false);
+        return;
+      }
+      var pageEl = buildPageElement(pages[i]);
+      offscreen.appendChild(pageEl);
+      waitForImages(pageEl).then(function(){
+        var rect = pageEl.getBoundingClientRect();
+        var heightMM = Math.max(297, rect.height / PX_PER_MM);
+        return html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          height: pageEl.scrollHeight,
+          windowHeight: pageEl.scrollHeight
+        }).then(function(canvas){
+          var imgData = canvas.toDataURL('image/jpeg', 0.92);
+          if(!pdf){
+            pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [210, heightMM], orientation: 'portrait' });
+          }else{
+            pdf.addPage([210, heightMM], 'portrait');
+          }
+          pdf.addImage(imgData, 'JPEG', 0, 0, 210, heightMM);
+          canvas.width = 0; canvas.height = 0;
+          offscreen.removeChild(pageEl);
+          processPage(i + 1);
+        });
+      }).catch(function(err){
+        console.error(err);
+        showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        if(offscreen.parentNode) document.body.removeChild(offscreen);
+        setGenerating(false);
+      });
+    })(0);
+  }
+
+  pdfBtn.addEventListener('click', generatePDF);
+
+  function dataURLToArrayBuffer(dataURL){
+    return fetch(dataURL).then(function(r){ return r.arrayBuffer(); });
+  }
+
+  function buildDocxSetTable(item){
+    var rc = item.rotatedCache || { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+    var maxW = 260, maxH = 190;
+    var w = rc.width, h = rc.height;
+    var scale = Math.min(maxW / w, maxH / h, 1);
+    var drawW = Math.max(1, Math.round(w * scale));
+    var drawH = Math.max(1, Math.round(h * scale));
+
+    return dataURLToArrayBuffer(rc.dataURL).then(function(arrayBuffer){
+      var imageRun = new docx.ImageRun({ data: arrayBuffer, transformation: { width: drawW, height: drawH } });
+      var imageCellPara = new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children: [imageRun] });
+
+      var descLines = (item.description || '').split('\n');
+      var descParas = descLines.map(function(line){
+        return new docx.Paragraph({ children: [ new docx.TextRun(line) ] });
+      });
+      if(descParas.length === 0) descParas = [ new docx.Paragraph({ text: '' }) ];
+
+      var borderStyle = { style: docx.BorderStyle.SINGLE, size: 4, color: '000000' };
+      var borders = { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle };
+
+      var imageCell = new docx.TableCell({
+        children: [imageCellPara],
+        borders: borders,
+        margins: { top: 100, bottom: 100, left: 100, right: 100 },
+        verticalAlign: docx.VerticalAlign.CENTER
+      });
+      var descCell = new docx.TableCell({
+        children: descParas,
+        borders: borders,
+        margins: { top: 100, bottom: 100, left: 140, right: 140 }
+      });
+
+      return new docx.Table({
+        width: { size: 100, type: docx.WidthType.PERCENTAGE },
+        rows: [
+          new docx.TableRow({ children: [imageCell] }),
+          new docx.TableRow({ children: [descCell] })
+        ]
+      });
+    });
+  }
+
+  function downloadBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function generateDOCX(){
+    if(isGenerating) return;
+    if(typeof docx === 'undefined'){
+      showToast('브라우저 호환성 문제로 DOCX를 생성할 수 없습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+      return;
+    }
+    var filename = getValidatedFileName();
+    if(!filename) return;
+    if(photos.length === 0){
+      showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
+      return;
+    }
+    setGenerating(true, null, '생성 중...');
+
+    var pages = computePages();
+    var sectionsChildren = [];
+
+    var pagePromise = Promise.resolve();
+    pages.forEach(function(pageItems, p){
+      pagePromise = pagePromise.then(function(){
+        var titlePara = new docx.Paragraph({
+          alignment: docx.AlignmentType.CENTER,
+          pageBreakBefore: p > 0,
+          spacing: { after: 250 },
+          children: [ new docx.TextRun({ text: '사진대장', bold: true, size: 32 }) ]
+        });
+        sectionsChildren.push(titlePara);
+
+        var rowPromise = Promise.resolve();
+        var rows = [];
+        for(var r = 0; r < pageItems.length; r += 2){
+          (function(rowItems){
+            rowPromise = rowPromise.then(function(){
+              return Promise.all(rowItems.map(buildDocxSetTable)).then(function(cellTables){
+                var cells = cellTables.map(function(cellTable){
+                  return new docx.TableCell({
+                    width: { size: 50, type: docx.WidthType.PERCENTAGE },
+                    margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                    children: [cellTable]
+                  });
+                });
+                rows.push(new docx.TableRow({ children: cells }));
+              });
+            });
+          })(pageItems.slice(r, r + 2));
+        }
+        return rowPromise.then(function(){
+          var outerTable = new docx.Table({
+            width: { size: 100, type: docx.WidthType.PERCENTAGE },
+            rows: rows
+          });
+          sectionsChildren.push(outerTable);
+          sectionsChildren.push(new docx.Paragraph({ text: '' }));
+        });
+      });
+    });
+
+    pagePromise.then(function(){
+      var doc = new docx.Document({
+        styles: { default: { document: { run: { font: '맑은 고딕', size: 20 } } } },
+        sections: [{
+          properties: {
+            page: {
+              size: { width: docx.convertMillimetersToTwip(210), height: docx.convertMillimetersToTwip(297) },
+              margin: {
+                top: docx.convertMillimetersToTwip(15),
+                bottom: docx.convertMillimetersToTwip(15),
+                left: docx.convertMillimetersToTwip(15),
+                right: docx.convertMillimetersToTwip(15)
+              }
+            }
+          },
+          children: sectionsChildren
+        }]
+      });
+      return docx.Packer.toBlob(doc);
+    }).then(function(blob){
+      downloadBlob(blob, filename + '.docx');
+      setGenerating(false);
+    }).catch(function(err){
+      console.error(err);
+      showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      setGenerating(false);
+    });
+  }
+
+  docxBtn.addEventListener('click', generateDOCX);
+
+  updateCountDisplay();
+  renderList();
+})();
+</script>
+</body>
+</html>
