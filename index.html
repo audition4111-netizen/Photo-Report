@@ -127,17 +127,17 @@
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 변경 / 회전 / 삭제, 드래그로 순서 변경이 가능합니다.</li>
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
-          <li>[PDF 출력] 또는 [DOCX 출력]으로 문서를 내려받습니다.</li>
+          <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 바로 공유합니다.</li>
         </ol>
         <b>사용 라이브러리</b>
         <ul>
           <li>SortableJS - 사진 순서 드래그 변경</li>
           <li>html2canvas + jsPDF - A4 페이지를 이미지로 캡처해 PDF 생성</li>
-          <li>docx.js - 실제 편집 가능한 Word(.docx) 문서 생성</li>
         </ul>
         <b>안내</b>
         <ul>
           <li>모든 사진/문서 처리는 이 브라우저 안에서만 이루어지며 외부 서버로 전송되지 않습니다.</li>
+          <li>[메일로 전송]은 기기의 공유 기능을 지원하는 경우 PDF가 자동 첨부된 공유창을 띄우고, 지원하지 않으면 PDF를 다운로드한 뒤 Gmail 작성 화면을 열어줍니다(이 경우 첨부파일은 직접 추가해야 합니다 - 브라우저 보안 정책상 외부 웹사이트가 Gmail에 파일을 자동으로 넣을 수는 없습니다).</li>
           <li>새로고침하거나 화면을 닫으면 등록한 내용은 사라집니다.</li>
           <li>만든이: Steven Kim</li>
         </ul>
@@ -152,7 +152,7 @@
   <div class="footer-bar">
     <button type="button" class="footer-btn" id="previewBtn">미리보기</button>
     <button type="button" class="footer-btn" id="pdfBtn">PDF 출력</button>
-    <button type="button" class="footer-btn primary" id="docxBtn">DOCX 출력</button>
+    <button type="button" class="footer-btn primary" id="mailBtn">메일로 전송</button>
   </div>
 
   <input type="file" accept="image/*" id="addFileInput" multiple style="display:none">
@@ -173,7 +173,6 @@
 <script src="libs/Sortable.min.js"></script>
 <script src="libs/html2canvas.min.js"></script>
 <script src="libs/jspdf.umd.min.js"></script>
-<script src="libs/docx.umd.min.js"></script>
 
 <script>
 (function(){
@@ -197,7 +196,7 @@
   var photoListEl = document.getElementById('photoList');
   var previewBtn = document.getElementById('previewBtn');
   var pdfBtn = document.getElementById('pdfBtn');
-  var docxBtn = document.getElementById('docxBtn');
+  var mailBtn = document.getElementById('mailBtn');
   var previewModalEl = document.getElementById('previewModal');
   var previewPagesEl = document.getElementById('previewPages');
   var previewCountEl = document.getElementById('previewCount');
@@ -597,19 +596,19 @@
     if(previewModalEl.classList.contains('open')) fitPreviewScale();
   });
 
-  function setGenerating(flag, pdfLabel, docxLabel){
+  function setGenerating(flag, pdfLabel, mailLabel){
     isGenerating = flag;
     previewBtn.disabled = flag;
     pdfBtn.disabled = flag;
-    docxBtn.disabled = flag;
+    mailBtn.disabled = flag;
     if(flag){
       pdfBtn.dataset.orig = pdfBtn.dataset.orig || pdfBtn.textContent;
-      docxBtn.dataset.orig = docxBtn.dataset.orig || docxBtn.textContent;
+      mailBtn.dataset.orig = mailBtn.dataset.orig || mailBtn.textContent;
       if(pdfLabel) pdfBtn.textContent = pdfLabel;
-      if(docxLabel) docxBtn.textContent = docxLabel;
+      if(mailLabel) mailBtn.textContent = mailLabel;
     }else{
       if(pdfBtn.dataset.orig) pdfBtn.textContent = pdfBtn.dataset.orig;
-      if(docxBtn.dataset.orig) docxBtn.textContent = docxBtn.dataset.orig;
+      if(mailBtn.dataset.orig) mailBtn.textContent = mailBtn.dataset.orig;
     }
   }
 
@@ -619,6 +618,56 @@
       if(img.complete) return Promise.resolve();
       return new Promise(function(res){ img.onload = res; img.onerror = res; });
     }));
+  }
+
+  function buildPdfDocument(){
+    var offscreen = document.createElement('div');
+    offscreen.style.position = 'fixed';
+    offscreen.style.left = '-10000px';
+    offscreen.style.top = '0';
+    offscreen.style.zIndex = '-1';
+    offscreen.style.background = '#ffffff';
+    document.body.appendChild(offscreen);
+
+    var pages = computePages();
+    var pdf = null;
+
+    return new Promise(function(resolve, reject){
+      (function processPage(i){
+        if(i >= pages.length){
+          document.body.removeChild(offscreen);
+          resolve(pdf);
+          return;
+        }
+        var pageEl = buildPageElement(pages[i]);
+        offscreen.appendChild(pageEl);
+        waitForImages(pageEl).then(function(){
+          var rect = pageEl.getBoundingClientRect();
+          var heightMM = Math.max(297, rect.height / PX_PER_MM);
+          return html2canvas(pageEl, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            height: pageEl.scrollHeight,
+            windowHeight: pageEl.scrollHeight
+          }).then(function(canvas){
+            var imgData = canvas.toDataURL('image/jpeg', 0.92);
+            if(!pdf){
+              pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [210, heightMM], orientation: 'portrait' });
+            }else{
+              pdf.addPage([210, heightMM], 'portrait');
+            }
+            pdf.addImage(imgData, 'JPEG', 0, 0, 210, heightMM);
+            canvas.width = 0; canvas.height = 0;
+            offscreen.removeChild(pageEl);
+            processPage(i + 1);
+          });
+        }).catch(function(err){
+          if(offscreen.parentNode) document.body.removeChild(offscreen);
+          reject(err);
+        });
+      })(0);
+    });
   }
 
   function generatePDF(){
@@ -635,108 +684,21 @@
     }
     setGenerating(true, '생성 중...', null);
 
-    var offscreen = document.createElement('div');
-    offscreen.style.position = 'fixed';
-    offscreen.style.left = '-10000px';
-    offscreen.style.top = '0';
-    offscreen.style.zIndex = '-1';
-    offscreen.style.background = '#ffffff';
-    document.body.appendChild(offscreen);
-
-    var pages = computePages();
-    var pdf = null;
-
-    (function processPage(i){
-      if(i >= pages.length){
-        try{
-          pdf.save(filename + '.pdf');
-        }catch(err){
-          showToast('다운로드가 차단되었습니다. 브라우저 설정을 확인해 주세요.');
-        }
-        document.body.removeChild(offscreen);
-        setGenerating(false);
-        return;
+    buildPdfDocument().then(function(pdf){
+      try{
+        pdf.save(filename + '.pdf');
+      }catch(err){
+        showToast('다운로드가 차단되었습니다. 브라우저 설정을 확인해 주세요.');
       }
-      var pageEl = buildPageElement(pages[i]);
-      offscreen.appendChild(pageEl);
-      waitForImages(pageEl).then(function(){
-        var rect = pageEl.getBoundingClientRect();
-        var heightMM = Math.max(297, rect.height / PX_PER_MM);
-        return html2canvas(pageEl, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          height: pageEl.scrollHeight,
-          windowHeight: pageEl.scrollHeight
-        }).then(function(canvas){
-          var imgData = canvas.toDataURL('image/jpeg', 0.92);
-          if(!pdf){
-            pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [210, heightMM], orientation: 'portrait' });
-          }else{
-            pdf.addPage([210, heightMM], 'portrait');
-          }
-          pdf.addImage(imgData, 'JPEG', 0, 0, 210, heightMM);
-          canvas.width = 0; canvas.height = 0;
-          offscreen.removeChild(pageEl);
-          processPage(i + 1);
-        });
-      }).catch(function(err){
-        console.error(err);
-        showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
-        if(offscreen.parentNode) document.body.removeChild(offscreen);
-        setGenerating(false);
-      });
-    })(0);
+      setGenerating(false);
+    }).catch(function(err){
+      console.error(err);
+      showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      setGenerating(false);
+    });
   }
 
   pdfBtn.addEventListener('click', generatePDF);
-
-  function dataURLToArrayBuffer(dataURL){
-    return fetch(dataURL).then(function(r){ return r.arrayBuffer(); });
-  }
-
-  function buildDocxSetTable(item){
-    var rc = item.rotatedCache || { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
-    var maxW = 260, maxH = 190;
-    var w = rc.width, h = rc.height;
-    var scale = Math.min(maxW / w, maxH / h, 1);
-    var drawW = Math.max(1, Math.round(w * scale));
-    var drawH = Math.max(1, Math.round(h * scale));
-
-    return dataURLToArrayBuffer(rc.dataURL).then(function(arrayBuffer){
-      var imageRun = new docx.ImageRun({ data: arrayBuffer, transformation: { width: drawW, height: drawH } });
-      var imageCellPara = new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children: [imageRun] });
-
-      var descLines = (item.description || '').split('\n');
-      var descParas = descLines.map(function(line){
-        return new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children: [ new docx.TextRun(line) ] });
-      });
-      if(descParas.length === 0) descParas = [ new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, text: '' }) ];
-
-      var borderStyle = { style: docx.BorderStyle.SINGLE, size: 4, color: '000000' };
-      var borders = { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle };
-
-      var imageCell = new docx.TableCell({
-        children: [imageCellPara],
-        borders: borders,
-        margins: { top: 100, bottom: 100, left: 100, right: 100 },
-        verticalAlign: docx.VerticalAlign.CENTER
-      });
-      var descCell = new docx.TableCell({
-        children: descParas,
-        borders: borders,
-        margins: { top: 100, bottom: 100, left: 140, right: 140 }
-      });
-
-      return new docx.Table({
-        width: { size: 100, type: docx.WidthType.PERCENTAGE },
-        rows: [
-          new docx.TableRow({ children: [imageCell] }),
-          new docx.TableRow({ children: [descCell] })
-        ]
-      });
-    });
-  }
 
   function downloadBlob(blob, filename){
     var url = URL.createObjectURL(blob);
@@ -749,10 +711,23 @@
     setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
   }
 
-  function generateDOCX(){
+  function gmailComposeUrl(subject, body){
+    return 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  }
+
+  function canShareFiles(){
+    try{
+      var probe = new File([], 'probe.pdf', { type: 'application/pdf' });
+      return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [probe] }));
+    }catch(e){
+      return false;
+    }
+  }
+
+  function generateMail(){
     if(isGenerating) return;
-    if(typeof docx === 'undefined'){
-      showToast('브라우저 호환성 문제로 DOCX를 생성할 수 없습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+    if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
+      showToast('브라우저 호환성 문제로 PDF를 생성할 수 없습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.');
       return;
     }
     var filename = getValidatedFileName();
@@ -761,81 +736,58 @@
       showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
       return;
     }
-    setGenerating(true, null, '생성 중...');
 
-    var pages = computePages();
-    var sectionsChildren = [];
+    var willShare = canShareFiles();
+    var preOpenedWindow = null;
+    if(!willShare){
+      preOpenedWindow = window.open('', '_blank');
+      if(preOpenedWindow){
+        preOpenedWindow.document.write('<p style="font-family:sans-serif;padding:24px;color:#374151;">PDF를 준비하고 있습니다. 잠시만 기다려 주세요...</p>');
+      }
+    }
 
-    var pagePromise = Promise.resolve();
-    pages.forEach(function(pageItems, p){
-      pagePromise = pagePromise.then(function(){
-        var titlePara = new docx.Paragraph({
-          alignment: docx.AlignmentType.CENTER,
-          pageBreakBefore: p > 0,
-          spacing: { after: 250 },
-          children: [ new docx.TextRun({ text: '사진대장', bold: true, size: 32 }) ]
+    setGenerating(true, null, '준비 중...');
+
+    buildPdfDocument().then(function(pdf){
+      var blob = pdf.output('blob');
+      var pdfFileName = filename + '.pdf';
+
+      if(willShare){
+        var shareFile = new File([blob], pdfFileName, { type: 'application/pdf' });
+        navigator.share({ files: [shareFile], title: filename, text: '사진대장 PDF입니다.' }).catch(function(err){
+          if(!err || err.name !== 'AbortError'){
+            showToast('공유 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+          }
+        }).then(function(){
+          setGenerating(false);
         });
-        sectionsChildren.push(titlePara);
-
-        var rowPromise = Promise.resolve();
-        var rows = [];
-        for(var r = 0; r < pageItems.length; r += 2){
-          (function(rowItems){
-            rowPromise = rowPromise.then(function(){
-              return Promise.all(rowItems.map(buildDocxSetTable)).then(function(cellTables){
-                var cells = cellTables.map(function(cellTable){
-                  return new docx.TableCell({
-                    width: { size: 50, type: docx.WidthType.PERCENTAGE },
-                    margins: { top: 100, bottom: 100, left: 100, right: 100 },
-                    children: [cellTable]
-                  });
-                });
-                rows.push(new docx.TableRow({ children: cells }));
-              });
-            });
-          })(pageItems.slice(r, r + 2));
+      }else{
+        downloadBlob(blob, pdfFileName);
+        var gmailUrl = gmailComposeUrl(
+          filename,
+          'PDF 파일(' + pdfFileName + ')이 이 기기에 다운로드되었습니다.\n' +
+          'Gmail 작성 화면 하단의 첨부파일 아이콘을 눌러 방금 다운로드된 파일을 직접 첨부해 주세요.\n' +
+          '(브라우저 보안 정책상 외부 웹사이트가 Gmail에 파일을 자동으로 첨부할 수는 없습니다.)'
+        );
+        if(preOpenedWindow){
+          preOpenedWindow.location.href = gmailUrl;
+        }else{
+          window.open(gmailUrl, '_blank');
         }
-        return rowPromise.then(function(){
-          var outerTable = new docx.Table({
-            width: { size: 100, type: docx.WidthType.PERCENTAGE },
-            rows: rows
-          });
-          sectionsChildren.push(outerTable);
-          sectionsChildren.push(new docx.Paragraph({ text: '' }));
-        });
-      });
-    });
-
-    pagePromise.then(function(){
-      var doc = new docx.Document({
-        styles: { default: { document: { run: { font: '맑은 고딕', size: 20 } } } },
-        sections: [{
-          properties: {
-            page: {
-              size: { width: docx.convertMillimetersToTwip(210), height: docx.convertMillimetersToTwip(297) },
-              margin: {
-                top: docx.convertMillimetersToTwip(15),
-                bottom: docx.convertMillimetersToTwip(15),
-                left: docx.convertMillimetersToTwip(15),
-                right: docx.convertMillimetersToTwip(15)
-              }
-            }
-          },
-          children: sectionsChildren
-        }]
-      });
-      return docx.Packer.toBlob(doc);
-    }).then(function(blob){
-      downloadBlob(blob, filename + '.docx');
-      setGenerating(false);
+        showToast('PDF를 다운로드했습니다. 열린 Gmail 화면에서 첨부파일로 추가해 주세요.');
+        setGenerating(false);
+      }
     }).catch(function(err){
       console.error(err);
-      showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      if(preOpenedWindow){
+        try{ preOpenedWindow.close(); }catch(e){}
+      }
+      showToast('메일 전송 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setGenerating(false);
     });
   }
 
-  docxBtn.addEventListener('click', generateDOCX);
+  mailBtn.addEventListener('click', generateMail);
 
   updateCountDisplay();
   renderList();
