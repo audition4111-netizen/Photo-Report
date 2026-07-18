@@ -114,7 +114,7 @@
     </div>
 
     <button type="button" class="add-btn" id="addBtn">사진 추가</button>
-    <div class="add-hint">스마트폰 사진 앱에서 사진을 한 장씩 선택해 주세요. (한 번에 한 장만 선택 가능)</div>
+    <div class="add-hint">스마트폰 사진 앱에서 사진을 여러 장 한 번에 선택해 등록할 수 있습니다.</div>
 
     <details class="guide">
       <summary>사용 방법 안내 / 라이브러리 정보</summary>
@@ -122,7 +122,7 @@
         <b>사용 순서</b>
         <ol>
           <li>파일명을 입력합니다.</li>
-          <li>[사진 추가]를 눌러 스마트폰 사진 앱에서 사진을 한 장 선택합니다.</li>
+          <li>[사진 추가]를 눌러 스마트폰 사진 앱에서 사진을 한 장 또는 여러 장 선택합니다.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 변경 / 회전 / 삭제, 드래그로 순서 변경이 가능합니다.</li>
@@ -155,7 +155,7 @@
     <button type="button" class="footer-btn primary" id="docxBtn">DOCX 출력</button>
   </div>
 
-  <input type="file" accept="image/*" id="addFileInput" style="display:none">
+  <input type="file" accept="image/*" id="addFileInput" multiple style="display:none">
   <input type="file" accept="image/*" id="replaceFileInput" style="display:none">
 </div>
 
@@ -350,7 +350,7 @@
     return null;
   }
 
-  function addPhotoFromResult(result){
+  function pushPhoto(result){
     photos.push({
       id: ++idCounter,
       baseDataURL: result.dataURL,
@@ -360,8 +360,6 @@
       description: '',
       rotatedCache: { dataURL: result.dataURL, width: result.width, height: result.height }
     });
-    renderList();
-    updateCountDisplay();
   }
 
   addBtn.addEventListener('click', function(){
@@ -374,14 +372,39 @@
   });
 
   addFileInputEl.addEventListener('change', function(e){
-    var file = e.target.files && e.target.files[0];
+    var files = Array.from(e.target.files || []);
     e.target.value = '';
-    if(!file) return;
+    if(files.length === 0) return;
     if(photos.length >= MAX_PHOTOS){
       showToast('사진은 최대 30장까지 등록할 수 있습니다.');
       return;
     }
-    loadImageFromFile(file).then(addPhotoFromResult).catch(handleImageError);
+
+    var remaining = MAX_PHOTOS - photos.length;
+    var toProcess = files.slice(0, remaining);
+    var skippedCount = files.length - toProcess.length;
+    var errorCount = 0;
+
+    var chain = Promise.resolve();
+    toProcess.forEach(function(file){
+      chain = chain.then(function(){
+        return loadImageFromFile(file).then(function(result){
+          pushPhoto(result);
+        }).catch(function(){
+          errorCount++;
+        });
+      });
+    });
+
+    chain.then(function(){
+      renderList();
+      updateCountDisplay();
+      if(skippedCount > 0){
+        showToast('사진은 최대 30장까지 등록할 수 있습니다. ' + skippedCount + '장은 추가되지 않았습니다.');
+      }else if(errorCount > 0){
+        showToast('사진 ' + errorCount + '장을 불러오지 못했습니다. 지원 형식(JPG/PNG/WEBP)인지 확인해 주세요.');
+      }
+    });
   });
 
   replaceFileInputEl.addEventListener('change', function(e){
