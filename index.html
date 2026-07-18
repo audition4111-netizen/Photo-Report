@@ -92,7 +92,7 @@
   .photo-set{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; }
   .photo-box{ height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
   .photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
-  .desc-box{ min-height:26mm; padding:3mm 4mm; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:11.5px; line-height:1.55; box-sizing:border-box; }
+  .desc-box{ min-height:26mm; padding:3mm 4mm; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:11.5px; line-height:1.55; box-sizing:border-box; text-align:center; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 </style>
@@ -709,9 +709,9 @@
 
       var descLines = (item.description || '').split('\n');
       var descParas = descLines.map(function(line){
-        return new docx.Paragraph({ children: [ new docx.TextRun(line) ] });
+        return new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children: [ new docx.TextRun(line) ] });
       });
-      if(descParas.length === 0) descParas = [ new docx.Paragraph({ text: '' }) ];
+      if(descParas.length === 0) descParas = [ new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, text: '' }) ];
 
       var borderStyle = { style: docx.BorderStyle.SINGLE, size: 4, color: '000000' };
       var borders = { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle };
