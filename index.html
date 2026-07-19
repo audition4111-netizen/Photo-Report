@@ -123,18 +123,6 @@
   .sheet-btn{ display:block; width:100%; padding:16px; font-size:16px; font-weight:500; color:var(--ink); background:var(--canvas); border:none; border-bottom:1px solid var(--hairline); cursor:pointer; text-align:center; }
   .sheet-group .sheet-btn:last-child{ border-bottom:none; }
   .sheet-cancel{ display:block; width:100%; padding:16px; font-size:16px; font-weight:600; color:var(--ink); background:var(--canvas); border:none; border-radius:var(--radius-md); cursor:pointer; }
-
-  .camera-modal{ position:fixed; inset:0; background:#000; z-index:220; display:none; }
-  .camera-modal.open{ display:block; }
-  .camera-modal video{ width:100%; height:100%; object-fit:cover; display:block; transition:opacity .12s ease; }
-  .camera-topbar{ position:absolute; top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between; padding:calc(14px + env(safe-area-inset-top)) 16px 14px; background:rgba(0,0,0,.55); }
-  .camera-back-btn{ background:rgba(255,255,255,.16); color:#fff; border:none; border-radius:var(--radius-full); padding:8px 16px; font-size:14px; font-weight:500; cursor:pointer; }
-  .camera-count{ color:#fff; font-size:14px; font-weight:500; background:rgba(255,255,255,.16); padding:6px 14px; border-radius:var(--radius-full); }
-  .camera-bottombar{ position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:center; padding:20px 0 calc(28px + env(safe-area-inset-bottom)); background:rgba(0,0,0,.35); }
-  .shutter-btn{ width:74px; height:74px; border-radius:50%; background:#fff; border:4px solid rgba(255,255,255,.45); cursor:pointer; padding:0; }
-  .shutter-btn:active{ background:var(--surface-strong); }
-  .shutter-btn:disabled{ opacity:.4; cursor:not-allowed; }
-  .camera-hint{ position:absolute; left:0; right:0; bottom:calc(120px + env(safe-area-inset-bottom)); text-align:center; color:#fff; font-size:13px; text-shadow:0 1px 3px rgba(0,0,0,.6); pointer-events:none; }
 </style>
 </head>
 <body>
@@ -154,7 +142,7 @@
     </div>
 
     <button type="button" class="add-btn" id="addBtn">사진 추가</button>
-    <div class="add-hint">이미지에서 여러 장을 한 번에 선택하거나, 카메라로 바로 촬영해 등록할 수 있습니다.</div>
+    <div class="add-hint">이미지에서 여러 장을 한 번에 선택하거나, 스마트폰 기본 카메라 앱으로 바로 촬영해 등록할 수 있습니다.</div>
 
     <details class="guide">
       <summary>사용 방법 안내 / 라이브러리 정보</summary>
@@ -162,8 +150,8 @@
         <b>사용 순서</b>
         <ol>
           <li>파일명을 입력합니다.</li>
-          <li>[사진 추가]를 눌러 "이미지"(앨범에서 한 장 또는 여러 장 선택) 또는 "카메라"(바로 촬영) 중 선택합니다.</li>
-          <li>카메라 촬영 중에는 연속으로 여러 장을 찍을 수 있으며, 찍은 사진은 모두 즉시 등록됩니다. 촬영을 마치면 [뒤로가기]로 돌아옵니다.</li>
+          <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
+          <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 변경 / 회전 / 삭제, 드래그로 순서 변경이 가능합니다.</li>
@@ -197,6 +185,7 @@
   </div>
 
   <input type="file" accept="image/*" id="addFileInput" multiple style="display:none">
+  <input type="file" accept="image/*" capture="environment" id="cameraFileInput" style="display:none">
   <input type="file" accept="image/*" id="replaceFileInput" style="display:none">
 </div>
 
@@ -216,18 +205,6 @@
       <button type="button" class="sheet-btn" id="chooseCameraBtn">카메라로 촬영</button>
     </div>
     <button type="button" class="sheet-cancel" id="cancelChoiceBtn">취소</button>
-  </div>
-</div>
-
-<div class="camera-modal" id="cameraModal">
-  <video id="cameraVideo" autoplay playsinline muted></video>
-  <div class="camera-topbar">
-    <button type="button" class="camera-back-btn" id="cameraBackBtn">← 뒤로가기</button>
-    <span class="camera-count" id="cameraCount">촬영 0장</span>
-  </div>
-  <div class="camera-hint">연속으로 촬영할수록 모두 등록됩니다</div>
-  <div class="camera-bottombar">
-    <button type="button" class="shutter-btn" id="shutterBtn" aria-label="촬영"></button>
   </div>
 </div>
 
@@ -255,6 +232,7 @@
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
+  var cameraFileInputEl = document.getElementById('cameraFileInput');
   var replaceFileInputEl = document.getElementById('replaceFileInput');
   var photoListEl = document.getElementById('photoList');
   var previewBtn = document.getElementById('previewBtn');
@@ -270,13 +248,6 @@
   var chooseImageBtn = document.getElementById('chooseImageBtn');
   var chooseCameraBtn = document.getElementById('chooseCameraBtn');
   var cancelChoiceBtn = document.getElementById('cancelChoiceBtn');
-  var cameraModalEl = document.getElementById('cameraModal');
-  var cameraVideoEl = document.getElementById('cameraVideo');
-  var cameraBackBtn = document.getElementById('cameraBackBtn');
-  var cameraCountEl = document.getElementById('cameraCount');
-  var shutterBtn = document.getElementById('shutterBtn');
-  var cameraStream = null;
-  var cameraShotCount = 0;
 
   var toastTimer = null;
   function showToast(msg){
@@ -463,70 +434,27 @@
 
   chooseCameraBtn.addEventListener('click', function(){
     closeAddChoiceSheet();
-    openCamera();
-  });
-
-  function updateShutterEnabled(){
-    shutterBtn.disabled = photos.length >= MAX_PHOTOS;
-  }
-
-  function openCamera(){
-    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
-      showToast('이 브라우저에서는 카메라 촬영을 지원하지 않습니다. 이미지에서 선택해 주세요.');
-      return;
-    }
-    cameraShotCount = 0;
-    cameraCountEl.textContent = '촬영 0장';
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function(stream){
-      cameraStream = stream;
-      cameraVideoEl.srcObject = stream;
-      cameraModalEl.classList.add('open');
-      updateShutterEnabled();
-    }).catch(function(err){
-      console.error(err);
-      showToast('카메라를 사용할 수 없습니다. 카메라 접근 권한을 확인해 주세요.');
-    });
-  }
-
-  function closeCamera(){
-    if(cameraStream){
-      cameraStream.getTracks().forEach(function(track){ track.stop(); });
-      cameraStream = null;
-    }
-    cameraVideoEl.srcObject = null;
-    cameraModalEl.classList.remove('open');
-    renderList();
-    updateCountDisplay();
-  }
-  cameraBackBtn.addEventListener('click', closeCamera);
-
-  function capturePhotoFromVideo(){
-    var vw = cameraVideoEl.videoWidth, vh = cameraVideoEl.videoHeight;
-    if(!vw || !vh) return;
-    var scale = 1;
-    if(Math.max(vw, vh) > MAX_DIM) scale = MAX_DIM / Math.max(vw, vh);
-    var outW = Math.max(1, Math.round(vw * scale));
-    var outH = Math.max(1, Math.round(vh * scale));
-    var canvas = document.createElement('canvas');
-    canvas.width = outW; canvas.height = outH;
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(cameraVideoEl, 0, 0, outW, outH);
-    var dataURL = canvas.toDataURL('image/jpeg', 0.85);
-    pushPhoto({ dataURL: dataURL, width: outW, height: outH });
-    cameraShotCount++;
-    cameraCountEl.textContent = '촬영 ' + cameraShotCount + '장';
-    updateShutterEnabled();
-    cameraVideoEl.style.opacity = '0.35';
-    setTimeout(function(){ cameraVideoEl.style.opacity = '1'; }, 120);
-  }
-
-  shutterBtn.addEventListener('click', function(){
     if(photos.length >= MAX_PHOTOS){
       showToast('사진은 최대 30장까지 등록할 수 있습니다.');
-      updateShutterEnabled();
       return;
     }
-    capturePhotoFromVideo();
+    cameraFileInputEl.value = '';
+    cameraFileInputEl.click();
+  });
+
+  cameraFileInputEl.addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    if(photos.length >= MAX_PHOTOS){
+      showToast('사진은 최대 30장까지 등록할 수 있습니다.');
+      return;
+    }
+    loadImageFromFile(file).then(function(result){
+      pushPhoto(result);
+      renderList();
+      updateCountDisplay();
+    }).catch(handleImageError);
   });
 
   addFileInputEl.addEventListener('change', function(e){
