@@ -47,10 +47,10 @@
   @media (min-width:700px){
     .app-shell{ max-width:640px; border-left:1px solid var(--hairline); border-right:1px solid var(--hairline); }
   }
-  .app-header{ padding:20px 16px 8px; border-bottom:1px solid var(--hairline); }
-  .app-title-row{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; margin:0 0 18px; }
-  .app-title{ font-size:22px; font-weight:500; letter-spacing:-0.44px; text-align:center; color:var(--ink); margin:0; }
-  .app-banner{ justify-self:end; height:22px; width:auto; display:block; }
+  .app-header{ padding:14px 16px 8px; border-bottom:1px solid var(--hairline); }
+  .app-banner-row{ display:flex; justify-content:flex-end; margin:0 0 10px; }
+  .app-banner{ height:22px; width:auto; display:block; }
+  .app-title{ font-size:22px; font-weight:500; letter-spacing:-0.44px; text-align:center; color:var(--ink); margin:0 0 18px; }
   .field-group{ margin-bottom:14px; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
   .field-input{ width:100%; padding:14px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-size:16px; background:var(--canvas); color:var(--ink); height:56px; }
@@ -108,9 +108,9 @@
   .page-wrapper{ margin:0 auto 20px; box-shadow:var(--elevation); background:#fff; }
 
   .a4-page{ width:210mm; min-height:297mm; background:#fff; box-sizing:border-box; padding:14mm 10mm; position:relative; transform-origin:top left; }
-  .page-title-row{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; margin:0 0 9mm; }
-  .page-title{ text-align:center; font-weight:700; font-size:19px; color:#000; margin:0; }
-  .page-banner{ justify-self:end; height:9mm; width:auto; display:block; }
+  .page-banner-row{ display:flex; justify-content:flex-end; margin:0 0 4mm; }
+  .page-banner{ height:9mm; width:auto; display:block; }
+  .page-title{ text-align:center; font-weight:700; font-size:24px; color:#000; margin:0 0 5mm; }
   .page-grid{ display:grid; grid-template-columns:1fr 1fr; column-gap:0; row-gap:0; }
   .photo-set{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; }
   .photo-box{ height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
@@ -134,11 +134,10 @@
 <div class="app-shell" id="appShell">
 
   <div class="app-header">
-    <div class="app-title-row">
-      <span></span>
-      <h1 class="app-title">사진대장</h1>
+    <div class="app-banner-row">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
+    <h1 class="app-title">사진대장</h1>
 
     <div class="field-group">
       <label class="field-label" for="fileNameInput">파일명</label>
@@ -170,7 +169,7 @@
         <ol>
           <li>물품 구매 후 ERP 첨부의 사진대장 작성 시 사용
             <ul>
-              <li>작성된 사진대장을 [메일로 전송]을 통해 회사메일로 전송</li>
+              <li>[메일로 전송]을 통해 회사메일로 전송</li>
               <li>자료 교환 후 ERP 첨부로 사용</li>
             </ul>
           </li>
@@ -621,20 +620,19 @@
     var page = document.createElement('div');
     page.className = 'a4-page';
 
-    var titleRow = document.createElement('div');
-    titleRow.className = 'page-title-row';
-    var titleSpacer = document.createElement('span');
-    var title = document.createElement('div');
-    title.className = 'page-title';
-    title.textContent = '사진대장';
+    var bannerRow = document.createElement('div');
+    bannerRow.className = 'page-banner-row';
     var banner = document.createElement('img');
     banner.className = 'page-banner';
     banner.src = 'banner.png';
     banner.alt = '';
-    titleRow.appendChild(titleSpacer);
-    titleRow.appendChild(title);
-    titleRow.appendChild(banner);
-    page.appendChild(titleRow);
+    bannerRow.appendChild(banner);
+    page.appendChild(bannerRow);
+
+    var title = document.createElement('div');
+    title.className = 'page-title';
+    title.textContent = '사진대장';
+    page.appendChild(title);
 
     var grid = document.createElement('div');
     grid.className = 'page-grid';
