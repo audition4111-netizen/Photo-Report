@@ -111,7 +111,7 @@
   .photo-set{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; }
   .photo-box{ height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
   .photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
-  .desc-box{ min-height:26mm; padding:3mm 4mm; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:11.5px; line-height:1.55; box-sizing:border-box; text-align:center; }
+  .desc-box{ min-height:26mm; padding:3mm 4mm; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:11.5px; font-weight:700; line-height:1.55; box-sizing:border-box; text-align:center; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
@@ -145,7 +145,7 @@
     <div class="add-hint">이미지에서 여러 장을 한 번에 선택하거나, 스마트폰 기본 카메라 앱으로 바로 촬영해 등록할 수 있습니다.</div>
 
     <details class="guide">
-      <summary>사용 방법 안내 / 라이브러리 정보</summary>
+      <summary>사용 방법 안내 및 가이드</summary>
       <div class="guide-body">
         <b>사용 순서</b>
         <ol>
@@ -158,11 +158,21 @@
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
           <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 PDF 다운로드와 Gmail 작성 화면 열기를 한 번에 실행합니다.</li>
         </ol>
-        <b>사용 라이브러리</b>
-        <ul>
-          <li>SortableJS - 사진 순서 드래그 변경</li>
-          <li>html2canvas + jsPDF - A4 페이지를 이미지로 캡처해 PDF 생성</li>
-        </ul>
+        <b>사용 가이드 추천</b>
+        <ol>
+          <li>물품 구매 후 ERP 첨부의 사진대장 작성 시 사용
+            <ul>
+              <li>작성된 사진대장을 [메일로 전송]을 통해 회사메일로 전송</li>
+              <li>자료 교환 후 ERP 첨부로 사용</li>
+            </ul>
+          </li>
+          <li>모바일 홈 화면에 배치하여 사용
+            <ul>
+              <li>[브라우저]에서 실행</li>
+              <li>우측 상단 또는 하단의 [현재 페이지 추가]-[홈 화면]</li>
+            </ul>
+          </li>
+        </ol>
         <b>안내</b>
         <ul>
           <li>모든 사진/문서 처리는 이 브라우저 안에서만 이루어지며 외부 서버로 전송되지 않습니다.</li>
