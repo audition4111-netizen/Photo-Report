@@ -110,7 +110,7 @@
   .a4-page{ width:210mm; min-height:297mm; background:#fff; box-sizing:border-box; padding:14mm 10mm; position:relative; transform-origin:top left; }
   .page-banner-row{ display:flex; justify-content:flex-end; margin:0 0 4mm; }
   .page-banner{ height:9mm; width:auto; display:block; }
-  .page-title{ text-align:center; font-weight:700; font-size:24px; color:#000; margin:0 0 5mm; }
+  .page-title{ text-align:center; font-weight:700; font-size:24px; color:#000; margin:0 auto 5mm; max-width:100mm; word-break:keep-all; overflow-wrap:break-word; line-height:1.3; }
   .page-grid{ display:grid; grid-template-columns:1fr 1fr; column-gap:0; row-gap:0; }
   .photo-set{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; }
   .photo-box{ height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
@@ -616,7 +616,12 @@
     return pages;
   }
 
-  function buildPageElement(pageItems){
+  function getReportTitle(){
+    var raw = fileNameInputEl.value.trim();
+    return raw || '사진대장';
+  }
+
+  function buildPageElement(pageItems, titleText){
     var page = document.createElement('div');
     page.className = 'a4-page';
 
@@ -631,7 +636,7 @@
 
     var title = document.createElement('div');
     title.className = 'page-title';
-    title.textContent = '사진대장';
+    title.textContent = titleText || '사진대장';
     page.appendChild(title);
 
     var grid = document.createElement('div');
@@ -680,13 +685,14 @@
       return;
     }
     var pages = computePages();
+    var titleText = getReportTitle();
     previewPagesEl.innerHTML = '';
     var countLine = document.createElement('div');
     countLine.className = 'page-count-line';
     countLine.textContent = '전체 ' + pages.length + ' 페이지 / 사진 ' + photos.length + '장';
     previewPagesEl.appendChild(countLine);
     pages.forEach(function(pageItems){
-      var pageEl = buildPageElement(pageItems);
+      var pageEl = buildPageElement(pageItems, titleText);
       var wrapper = document.createElement('div');
       wrapper.className = 'page-wrapper';
       wrapper.appendChild(pageEl);
@@ -743,6 +749,7 @@
     document.body.appendChild(offscreen);
 
     var pages = computePages();
+    var titleText = getReportTitle();
     var pdf = null;
 
     return new Promise(function(resolve, reject){
@@ -752,7 +759,7 @@
           resolve(pdf);
           return;
         }
-        var pageEl = buildPageElement(pages[i]);
+        var pageEl = buildPageElement(pages[i], titleText);
         offscreen.appendChild(pageEl);
         waitForImages(pageEl).then(function(){
           var rect = pageEl.getBoundingClientRect();
