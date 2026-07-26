@@ -167,7 +167,7 @@
     <div class="app-banner-row">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
-    <h1 class="app-title" id="appTitle">사진대장 작성</h1>
+    <h1 class="app-title" id="appTitle">사진대장</h1>
 
     <div style="text-align:center;">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
@@ -175,7 +175,7 @@
 
     <div class="field-group">
       <label class="field-label" for="fileNameInput">파일명</label>
-      <input type="text" id="fileNameInput" class="field-input" placeholder="예: 현장사진">
+      <input type="text" id="fileNameInput" class="field-input" placeholder="예: 사진대장">
     </div>
 
     <div class="count-row">
@@ -309,8 +309,9 @@
 
   function updateModeIndicator(){
     var label = appMode === 'manual' ? '매뉴얼' : '사진대장';
-    appTitleEl.textContent = label + ' 작성';
+    appTitleEl.textContent = label;
     modeIndicatorEl.textContent = label + ' 모드 · 변경';
+    fileNameInputEl.placeholder = appMode === 'manual' ? '예: 현장 매뉴얼' : '예: 사진대장';
   }
   function selectMode(mode){
     appMode = mode;
