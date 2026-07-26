@@ -167,7 +167,7 @@
     <div class="app-banner-row">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
-    <h1 class="app-title">사진대장</h1>
+    <h1 class="app-title" id="appTitle">사진대장</h1>
 
     <div style="text-align:center;">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
@@ -305,9 +305,12 @@
   var chooseReportModeBtn = document.getElementById('chooseReportModeBtn');
   var chooseManualModeBtn = document.getElementById('chooseManualModeBtn');
   var modeIndicatorEl = document.getElementById('modeIndicator');
+  var appTitleEl = document.getElementById('appTitle');
 
   function updateModeIndicator(){
-    modeIndicatorEl.textContent = (appMode === 'manual' ? '매뉴얼 모드' : '사진대장 모드') + ' · 변경';
+    var label = appMode === 'manual' ? '매뉴얼' : '사진대장';
+    appTitleEl.textContent = label;
+    modeIndicatorEl.textContent = label + ' 모드 · 변경';
   }
   function selectMode(mode){
     appMode = mode;
