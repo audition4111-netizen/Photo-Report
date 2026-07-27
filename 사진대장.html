@@ -72,10 +72,9 @@
   .empty-state{ text-align:center; color:var(--muted); font-size:13.5px; padding:40px 10px; border:1px dashed var(--hairline); border-radius:var(--radius-md); }
 
   .photo-item{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:20px; margin-bottom:16px; background:var(--canvas); }
-  .photo-item.sortable-ghost{ opacity:.4; }
-  .photo-item.sortable-chosen{ box-shadow:0 0 0 2px var(--primary); }
   .item-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-  .drag-handle{ display:inline-flex; align-items:center; gap:4px; padding:8px 15px; background:var(--surface-strong); border-radius:var(--radius-full); font-size:14px; font-weight:500; color:var(--ink); cursor:grab; user-select:none; touch-action:none; }
+  .drag-handle{ display:inline-flex; align-items:center; gap:4px; padding:8px 15px; background:var(--surface-strong); border:none; border-radius:var(--radius-full); font-family:inherit; font-size:14px; font-weight:500; color:var(--ink); cursor:pointer; user-select:none; }
+  .drag-handle:active{ background:var(--hairline); }
   .item-index{ font-size:12px; color:var(--muted); }
   .thumb-wrap{ width:100%; height:220px; display:flex; align-items:center; justify-content:center; background:var(--surface-soft); border-radius:var(--radius-md); margin-bottom:12px; overflow:hidden; }
   .thumb-wrap img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
@@ -127,6 +126,11 @@
   .sheet-btn{ display:block; width:100%; padding:16px; font-size:16px; font-weight:500; color:var(--ink); background:var(--canvas); border:none; border-bottom:1px solid var(--hairline); cursor:pointer; text-align:center; }
   .sheet-group .sheet-btn:last-child{ border-bottom:none; }
   .sheet-cancel{ display:block; width:100%; padding:16px; font-size:16px; font-weight:600; color:var(--ink); background:var(--canvas); border:none; border-radius:var(--radius-md); cursor:pointer; }
+  .sheet-heading{ padding:14px 16px 10px; font-size:13.5px; font-weight:600; color:var(--muted); text-align:center; }
+  .order-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; padding:0 12px 14px; max-height:44vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .order-num{ padding:13px 0; font-family:inherit; font-size:15px; font-weight:500; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  .order-num:active{ background:var(--surface-soft); }
+  .order-num.current{ background:var(--ink); color:#fff; border-color:var(--ink); }
 
   .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:center; justify-content:center; padding:24px; }
   .mode-select-screen.closed{ display:none; }
@@ -211,7 +215,7 @@
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
-          <li>사진 스케치 / 변경 / 회전 / 삭제, 드래그로 순서 변경이 가능합니다.</li>
+          <li>사진 스케치 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
           <li>[스케치]를 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
           <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 PDF 다운로드와 Gmail 작성 화면 열기를 한 번에 실행합니다.</li>
@@ -276,6 +280,16 @@
   </div>
 </div>
 
+<div class="sheet-overlay" id="orderSheet">
+  <div class="sheet-panel">
+    <div class="sheet-group">
+      <div class="sheet-heading" id="orderSheetHeading">옮길 순서를 선택하세요</div>
+      <div class="order-grid" id="orderGrid"></div>
+    </div>
+    <button type="button" class="sheet-cancel" id="orderCancelBtn">취소</button>
+  </div>
+</div>
+
 <div class="sketch-modal" id="sketchModal">
   <div class="sketch-topbar">
     <button type="button" class="sk-top-btn" id="sketchCancelBtn">취소</button>
@@ -310,7 +324,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="libs/Sortable.min.js"></script>
 <script src="libs/html2canvas.min.js"></script>
 <script src="libs/jspdf.umd.min.js"></script>
 
@@ -579,7 +592,7 @@
       el.dataset.id = String(item.id);
       el.innerHTML =
         '<div class="item-top">' +
-          '<span class="drag-handle">≡ 순서 이동</span>' +
+          '<button type="button" class="drag-handle" data-action="order">↕ 순서 이동</button>' +
           '<span class="item-index">' + (idx + 1) + '번</span>' +
         '</div>' +
         '<div class="thumb-wrap"><img alt="등록 사진 ' + (idx + 1) + '"></div>' +
@@ -956,6 +969,7 @@
     else if(action === 'delete') confirmDeletePhoto(id);
     else if(action === 'replace') triggerReplace(id);
     else if(action === 'sketch') openSketchEditor(id);
+    else if(action === 'order') openOrderPicker(id);
   });
 
   photoListEl.addEventListener('input', function(e){
@@ -969,23 +983,60 @@
     }
   });
 
-  if(typeof Sortable !== 'undefined'){
-    Sortable.create(photoListEl, {
-      handle: '.drag-handle',
-      animation: 150,
-      filter: 'textarea',
-      preventOnFilter: false,
-      chosenClass: 'sortable-chosen',
-      ghostClass: 'sortable-ghost',
-      onEnd: function(){
-        var newOrder = Array.from(photoListEl.children).map(function(el){ return Number(el.dataset.id); });
-        photos.sort(function(a, b){ return newOrder.indexOf(a.id) - newOrder.indexOf(b.id); });
-        photoListEl.querySelectorAll('.item-index').forEach(function(span, idx){
-          span.textContent = (idx + 1) + '번';
-        });
-      }
-    });
+  var orderSheet = document.getElementById('orderSheet');
+  var orderGrid = document.getElementById('orderGrid');
+  var orderSheetHeading = document.getElementById('orderSheetHeading');
+  var orderCancelBtn = document.getElementById('orderCancelBtn');
+  var orderTargetId = null;
+
+  function indexOfPhoto(id){
+    for(var i = 0; i < photos.length; i++){ if(photos[i].id === id) return i; }
+    return -1;
   }
+
+  function openOrderPicker(id){
+    var from = indexOfPhoto(id);
+    if(from < 0) return;
+    if(photos.length < 2){
+      showToast('사진이 2장 이상일 때 순서를 변경할 수 있습니다.');
+      return;
+    }
+    orderTargetId = id;
+    orderSheetHeading.textContent = '현재 ' + (from + 1) + '번 · 옮길 순서를 선택하세요';
+    orderGrid.innerHTML = '';
+    for(var i = 0; i < photos.length; i++){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'order-num' + (i === from ? ' current' : '');
+      btn.dataset.pos = String(i);
+      btn.textContent = (i + 1) + '번';
+      orderGrid.appendChild(btn);
+    }
+    orderSheet.classList.add('open');
+  }
+
+  function closeOrderPicker(){
+    orderSheet.classList.remove('open');
+    orderTargetId = null;
+  }
+
+  orderGrid.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('button[data-pos]') : null;
+    if(!btn || orderTargetId === null) return;
+    var to = Number(btn.dataset.pos);
+    var from = indexOfPhoto(orderTargetId);
+    closeOrderPicker();
+    if(from < 0 || to === from) return;
+    var moved = photos.splice(from, 1)[0];
+    photos.splice(to, 0, moved);
+    renderList();
+    showToast((from + 1) + '번 사진을 ' + (to + 1) + '번으로 옮겼습니다.');
+  });
+
+  orderCancelBtn.addEventListener('click', closeOrderPicker);
+  orderSheet.addEventListener('click', function(e){
+    if(e.target === orderSheet) closeOrderPicker();
+  });
 
   function sanitizeFileName(name){
     return name.replace(/[\\\/:*?"<>|]/g, '_').trim();
