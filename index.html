@@ -141,6 +141,22 @@
   .mode-indicator{ display:inline-block; font-size:12px; color:var(--muted); background:var(--surface-soft); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; margin:0 0 14px; }
 
   .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
+
+  .sketch-modal{ position:fixed; inset:0; background:#1a1a1a; z-index:250; display:none; flex-direction:column; }
+  .sketch-modal.open{ display:flex; }
+  .sketch-topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:calc(10px + env(safe-area-inset-top)) 12px 10px; background:#000; }
+  .sketch-topbar .sk-title{ color:#fff; font-size:14px; font-weight:500; }
+  .sk-top-btn{ padding:8px 14px; font-size:14px; font-weight:500; border-radius:var(--radius-sm); border:none; cursor:pointer; background:rgba(255,255,255,.18); color:#fff; }
+  .sk-top-btn.primary{ background:var(--primary); color:#fff; }
+  .sketch-stage{ flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:8px; }
+  .sketch-canvas{ max-width:100%; max-height:100%; touch-action:none; background:#fff; display:block; box-shadow:0 2px 12px rgba(0,0,0,.5); }
+  .sketch-toolbar{ background:#000; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:8px; }
+  .sk-row{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .sk-tool{ flex:1; min-width:56px; padding:10px 4px; font-size:13px; font-weight:500; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.28); background:transparent; color:#fff; cursor:pointer; }
+  .sk-tool.active{ background:#fff; color:#000; border-color:#fff; }
+  .sk-swatch{ width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.4); cursor:pointer; padding:0; }
+  .sk-swatch.active{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.45); }
+  .sk-hint{ text-align:center; color:rgba(255,255,255,.6); font-size:11.5px; }
 </style>
 </head>
 <body>
@@ -195,7 +211,8 @@
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
-          <li>사진 변경 / 회전 / 삭제, 드래그로 순서 변경이 가능합니다.</li>
+          <li>사진 스케치 / 변경 / 회전 / 삭제, 드래그로 순서 변경이 가능합니다.</li>
+          <li>[스케치]를 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
           <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 PDF 다운로드와 Gmail 작성 화면 열기를 한 번에 실행합니다.</li>
         </ol>
@@ -256,6 +273,38 @@
       <button type="button" class="sheet-btn" id="chooseCameraBtn">카메라로 촬영</button>
     </div>
     <button type="button" class="sheet-cancel" id="cancelChoiceBtn">취소</button>
+  </div>
+</div>
+
+<div class="sketch-modal" id="sketchModal">
+  <div class="sketch-topbar">
+    <button type="button" class="sk-top-btn" id="sketchCancelBtn">취소</button>
+    <span class="sk-title">스케치</span>
+    <button type="button" class="sk-top-btn primary" id="sketchSaveBtn">저장</button>
+  </div>
+  <div class="sketch-stage">
+    <canvas class="sketch-canvas" id="sketchCanvas"></canvas>
+  </div>
+  <div class="sketch-toolbar">
+    <div class="sk-row" id="sketchToolRow">
+      <button type="button" class="sk-tool active" data-tool="pen">펜</button>
+      <button type="button" class="sk-tool" data-tool="highlighter">형광펜</button>
+      <button type="button" class="sk-tool" data-tool="rect">네모</button>
+      <button type="button" class="sk-tool" data-tool="ellipse">동그라미</button>
+      <button type="button" class="sk-tool" data-tool="line">선</button>
+    </div>
+    <div class="sk-row" id="sketchColorRow">
+      <button type="button" class="sk-swatch active" data-color="#ff0000" style="background:#ff0000" aria-label="빨강"></button>
+      <button type="button" class="sk-swatch" data-color="#ffe000" style="background:#ffe000" aria-label="노랑"></button>
+      <button type="button" class="sk-swatch" data-color="#00b050" style="background:#00b050" aria-label="초록"></button>
+      <button type="button" class="sk-swatch" data-color="#0070ff" style="background:#0070ff" aria-label="파랑"></button>
+      <button type="button" class="sk-swatch" data-color="#000000" style="background:#000000" aria-label="검정"></button>
+    </div>
+    <div class="sk-row">
+      <button type="button" class="sk-tool" id="sketchUndoBtn">되돌리기</button>
+      <button type="button" class="sk-tool" id="sketchClearBtn">전체 지우기</button>
+    </div>
+    <div class="sk-hint">손가락이나 마우스로 사진 위에 그려 주세요.</div>
   </div>
 </div>
 
@@ -384,17 +433,86 @@
     showToast(map[err && err.code] || '이미지를 불러오지 못했습니다. 다른 사진을 선택해 주세요.');
   }
 
+  function drawStrokes(ctx, strokes, w, h){
+    if(!strokes || !strokes.length) return;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    strokes.forEach(function(stroke){
+      var pts = stroke.points || [];
+      if(pts.length === 0) return;
+      ctx.globalAlpha = stroke.tool === 'highlighter' ? 0.35 : 1;
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = Math.max(1, stroke.width * w);
+      ctx.beginPath();
+      if(stroke.tool === 'pen' || stroke.tool === 'highlighter'){
+        ctx.moveTo(pts[0].x * w, pts[0].y * h);
+        if(pts.length === 1){
+          ctx.lineTo(pts[0].x * w + 0.01, pts[0].y * h);
+        }else{
+          for(var i = 1; i < pts.length; i++){ ctx.lineTo(pts[i].x * w, pts[i].y * h); }
+        }
+        ctx.stroke();
+      }else{
+        var a = pts[0], b = pts[pts.length - 1];
+        var x1 = a.x * w, y1 = a.y * h, x2 = b.x * w, y2 = b.y * h;
+        if(stroke.tool === 'line'){
+          ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }else if(stroke.tool === 'rect'){
+          ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+          ctx.stroke();
+        }else if(stroke.tool === 'ellipse'){
+          ctx.ellipse((x1 + x2) / 2, (y1 + y2) / 2, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 2, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    });
+    ctx.restore();
+  }
+
+  function loadImg(src){
+    return new Promise(function(resolve, reject){
+      var img = new Image();
+      img.onload = function(){ resolve(img); };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  function composeSketchedCache(item){
+    if(!item.strokes || !item.strokes.length){
+      item.sketchedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+      return Promise.resolve();
+    }
+    return loadImg(item.baseDataURL).then(function(img){
+      var w = item.naturalW, h = item.naturalH;
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      drawStrokes(ctx, item.strokes, w, h);
+      item.sketchedCache = { dataURL: canvas.toDataURL('image/jpeg', 0.9), width: w, height: h };
+    }).catch(function(){
+      item.sketchedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+    });
+  }
+
+  function sketchSource(item){
+    return item.sketchedCache || { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+  }
+
   function computeRotatedCache(item){
     return new Promise(function(resolve){
+      var src = sketchSource(item);
       if(item.rotation === 0){
-        item.rotatedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+        item.rotatedCache = { dataURL: src.dataURL, width: src.width, height: src.height };
         resolve();
         return;
       }
       var img = new Image();
       img.onload = function(){
         try{
-          var w = item.naturalW, h = item.naturalH;
+          var w = src.width, h = src.height;
           var cw = w, ch = h;
           if(item.rotation === 90 || item.rotation === 270){ cw = h; ch = w; }
           var canvas = document.createElement('canvas');
@@ -409,15 +527,21 @@
           ctx.restore();
           item.rotatedCache = { dataURL: canvas.toDataURL('image/jpeg', 0.9), width: cw, height: ch };
         }catch(err){
-          item.rotatedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+          item.rotatedCache = { dataURL: src.dataURL, width: src.width, height: src.height };
         }
         resolve();
       };
       img.onerror = function(){
-        item.rotatedCache = { dataURL: item.baseDataURL, width: item.naturalW, height: item.naturalH };
+        item.rotatedCache = { dataURL: src.dataURL, width: src.width, height: src.height };
         resolve();
       };
-      img.src = item.baseDataURL;
+      img.src = src.dataURL;
+    });
+  }
+
+  function refreshPhotoRender(item){
+    return composeSketchedCache(item).then(function(){
+      return computeRotatedCache(item);
     });
   }
 
@@ -461,6 +585,7 @@
         '<div class="thumb-wrap"><img alt="등록 사진 ' + (idx + 1) + '"></div>' +
         '<textarea class="desc-input" placeholder="사진 설명을 입력하세요." rows="2"></textarea>' +
         '<div class="btn-row">' +
+          '<button type="button" class="btn btn-outline" data-action="sketch">스케치</button>' +
           '<button type="button" class="btn btn-outline" data-action="replace">변경</button>' +
           '<button type="button" class="btn btn-outline" data-action="rotate">회전</button>' +
           '<button type="button" class="btn btn-danger" data-action="delete">삭제</button>' +
@@ -487,6 +612,8 @@
       naturalH: result.height,
       rotation: 0,
       description: '',
+      strokes: [],
+      sketchedCache: { dataURL: result.dataURL, width: result.width, height: result.height },
       rotatedCache: { dataURL: result.dataURL, width: result.width, height: result.height }
     });
   }
@@ -590,6 +717,8 @@
       item.naturalW = result.width;
       item.naturalH = result.height;
       item.rotation = 0;
+      item.strokes = [];
+      item.sketchedCache = { dataURL: result.dataURL, width: result.width, height: result.height };
       item.rotatedCache = { dataURL: result.dataURL, width: result.width, height: result.height };
       renderList();
     }).catch(handleImageError);
@@ -607,6 +736,206 @@
     item.rotation = (item.rotation + 90) % 360;
     computeRotatedCache(item).then(renderList);
   }
+
+  var sketchModalEl = document.getElementById('sketchModal');
+  var sketchCanvasEl = document.getElementById('sketchCanvas');
+  var sketchToolRowEl = document.getElementById('sketchToolRow');
+  var sketchColorRowEl = document.getElementById('sketchColorRow');
+  var sketchUndoBtn = document.getElementById('sketchUndoBtn');
+  var sketchClearBtn = document.getElementById('sketchClearBtn');
+  var sketchSaveBtn = document.getElementById('sketchSaveBtn');
+  var sketchCancelBtn = document.getElementById('sketchCancelBtn');
+
+  var SKETCH_MAX_EDGE = 1400;
+  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005 };
+
+  var sketchTargetId = null;
+  var sketchStrokes = [];
+  var sketchTool = 'pen';
+  var sketchColor = '#ff0000';
+  var sketchBaseImg = null;
+  var activeStroke = null;
+
+  function rotateNormPoint(p, deg){
+    if(deg === 90) return { x: 1 - p.y, y: p.x };
+    if(deg === 180) return { x: 1 - p.x, y: 1 - p.y };
+    if(deg === 270) return { x: p.y, y: 1 - p.x };
+    return { x: p.x, y: p.y };
+  }
+
+  function flattenRotation(item){
+    if(item.rotation === 0) return Promise.resolve();
+    var deg = item.rotation;
+    return loadImg(item.baseDataURL).then(function(img){
+      var w = item.naturalW, h = item.naturalH;
+      var cw = w, ch = h;
+      if(deg === 90 || deg === 270){ cw = h; ch = w; }
+      var canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.save();
+      ctx.translate(cw / 2, ch / 2);
+      ctx.rotate(deg * Math.PI / 180);
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      ctx.restore();
+      var widthScale = w / cw;
+      item.baseDataURL = canvas.toDataURL('image/jpeg', 0.92);
+      item.naturalW = cw;
+      item.naturalH = ch;
+      item.strokes = (item.strokes || []).map(function(s){
+        return {
+          tool: s.tool,
+          color: s.color,
+          width: s.width * widthScale,
+          points: s.points.map(function(p){ return rotateNormPoint(p, deg); })
+        };
+      });
+      item.rotation = 0;
+    });
+  }
+
+  function redrawSketchCanvas(){
+    if(!sketchBaseImg) return;
+    var ctx = sketchCanvasEl.getContext('2d');
+    var w = sketchCanvasEl.width, h = sketchCanvasEl.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(sketchBaseImg, 0, 0, w, h);
+    var all = activeStroke ? sketchStrokes.concat([activeStroke]) : sketchStrokes;
+    drawStrokes(ctx, all, w, h);
+  }
+
+  function openSketchEditor(id){
+    var item = findPhoto(id);
+    if(!item) return;
+    flattenRotation(item).then(function(){
+      return loadImg(item.baseDataURL);
+    }).then(function(img){
+      sketchBaseImg = img;
+      sketchTargetId = id;
+      sketchStrokes = (item.strokes || []).map(function(s){
+        return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
+      });
+      activeStroke = null;
+      var scale = Math.min(1, SKETCH_MAX_EDGE / Math.max(item.naturalW, item.naturalH));
+      sketchCanvasEl.width = Math.max(1, Math.round(item.naturalW * scale));
+      sketchCanvasEl.height = Math.max(1, Math.round(item.naturalH * scale));
+      redrawSketchCanvas();
+      sketchModalEl.classList.add('open');
+    }).catch(function(err){
+      console.error(err);
+      showToast('스케치 편집기를 열지 못했습니다. 다시 시도해 주세요.');
+    });
+  }
+
+  function closeSketchEditor(){
+    sketchModalEl.classList.remove('open');
+    sketchTargetId = null;
+    sketchBaseImg = null;
+    sketchStrokes = [];
+    activeStroke = null;
+  }
+
+  function pointFromEvent(e){
+    var rect = sketchCanvasEl.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width;
+    var y = (e.clientY - rect.top) / rect.height;
+    return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
+  }
+
+  sketchCanvasEl.addEventListener('pointerdown', function(e){
+    if(sketchTargetId === null) return;
+    e.preventDefault();
+    sketchCanvasEl.setPointerCapture(e.pointerId);
+    activeStroke = {
+      tool: sketchTool,
+      color: sketchColor,
+      width: STROKE_WIDTHS[sketchTool] || 0.005,
+      points: [pointFromEvent(e)]
+    };
+    redrawSketchCanvas();
+  });
+
+  sketchCanvasEl.addEventListener('pointermove', function(e){
+    if(!activeStroke) return;
+    e.preventDefault();
+    var p = pointFromEvent(e);
+    if(activeStroke.tool === 'pen' || activeStroke.tool === 'highlighter'){
+      activeStroke.points.push(p);
+    }else{
+      activeStroke.points[1] = p;
+    }
+    redrawSketchCanvas();
+  });
+
+  function finishStroke(e){
+    if(!activeStroke) return;
+    if(e) e.preventDefault();
+    var isShape = activeStroke.tool !== 'pen' && activeStroke.tool !== 'highlighter';
+    if(isShape && activeStroke.points.length < 2){
+      activeStroke = null;
+      redrawSketchCanvas();
+      return;
+    }
+    sketchStrokes.push(activeStroke);
+    activeStroke = null;
+    redrawSketchCanvas();
+  }
+  sketchCanvasEl.addEventListener('pointerup', finishStroke);
+  sketchCanvasEl.addEventListener('pointercancel', finishStroke);
+
+  sketchToolRowEl.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('button[data-tool]') : null;
+    if(!btn) return;
+    sketchTool = btn.dataset.tool;
+    sketchToolRowEl.querySelectorAll('.sk-tool').forEach(function(b){
+      b.classList.toggle('active', b === btn);
+    });
+  });
+
+  sketchColorRowEl.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('button[data-color]') : null;
+    if(!btn) return;
+    sketchColor = btn.dataset.color;
+    sketchColorRowEl.querySelectorAll('.sk-swatch').forEach(function(b){
+      b.classList.toggle('active', b === btn);
+    });
+  });
+
+  sketchUndoBtn.addEventListener('click', function(){
+    if(sketchStrokes.length === 0) return;
+    sketchStrokes.pop();
+    redrawSketchCanvas();
+  });
+
+  sketchClearBtn.addEventListener('click', function(){
+    if(sketchStrokes.length === 0) return;
+    if(window.confirm('이 사진의 스케치를 모두 지우시겠습니까?')){
+      sketchStrokes = [];
+      redrawSketchCanvas();
+    }
+  });
+
+  sketchCancelBtn.addEventListener('click', closeSketchEditor);
+
+  sketchSaveBtn.addEventListener('click', function(){
+    var item = findPhoto(sketchTargetId);
+    if(!item){ closeSketchEditor(); return; }
+    item.strokes = sketchStrokes.map(function(s){
+      return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
+    });
+    sketchSaveBtn.disabled = true;
+    refreshPhotoRender(item).then(function(){
+      sketchSaveBtn.disabled = false;
+      closeSketchEditor();
+      renderList();
+    }).catch(function(err){
+      console.error(err);
+      sketchSaveBtn.disabled = false;
+      showToast('스케치를 저장하지 못했습니다. 다시 시도해 주세요.');
+    });
+  });
 
   function confirmDeletePhoto(id){
     if(window.confirm('이 사진과 설명을 삭제하시겠습니까?')){
@@ -626,6 +955,7 @@
     if(action === 'rotate') rotatePhoto(id);
     else if(action === 'delete') confirmDeletePhoto(id);
     else if(action === 'replace') triggerReplace(id);
+    else if(action === 'sketch') openSketchEditor(id);
   });
 
   photoListEl.addEventListener('input', function(e){
