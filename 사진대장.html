@@ -54,6 +54,7 @@
   .field-group{ margin-bottom:14px; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
   .field-input{ width:100%; padding:14px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-size:16px; background:var(--canvas); color:var(--ink); height:56px; }
+  select.field-input{ font-family:inherit; appearance:none; -webkit-appearance:none; padding-right:38px; background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%236a6a6a' stroke-width='1.6' d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:12px 8px; }
   .field-input:focus{ outline:none; border-width:2px; border-color:var(--ink); padding:13px 11px; }
   .count-row{ display:flex; align-items:center; justify-content:space-between; margin:12px 0 10px; }
   .count-badge{ font-size:14px; color:var(--muted); font-weight:500; }
@@ -205,6 +206,16 @@
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
     </div>
 
+    <div class="field-group" id="docTypeGroup" hidden>
+      <label class="field-label" for="docTypeSelect">절차서 종류</label>
+      <select id="docTypeSelect" class="field-input">
+        <option value="업무 절차서">업무 절차서</option>
+        <option value="운전 절차서">운전 절차서</option>
+        <option value="점검 절차서">점검 절차서</option>
+        <option value="정비 절차서">정비 절차서</option>
+      </select>
+    </div>
+
     <div class="field-group">
       <label class="field-label" for="fileNameInput">파일명</label>
       <input type="text" id="fileNameInput" class="field-input" placeholder="예: 사진대장">
@@ -227,7 +238,7 @@
       <div class="guide-body">
         <b>사용 순서</b>
         <ol>
-          <li>파일명을 입력합니다.</li>
+          <li>파일명을 입력합니다. (매뉴얼 모드에서는 [절차서 종류]와 [개정번호]도 함께 지정하며, 선택한 절차서 종류가 출력물 상단에 표시됩니다.)</li>
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
@@ -368,6 +379,8 @@
   var fileNameInputEl = document.getElementById('fileNameInput');
   var revisionInputEl = document.getElementById('revisionInput');
   var revisionGroupEl = document.getElementById('revisionGroup');
+  var docTypeSelectEl = document.getElementById('docTypeSelect');
+  var docTypeGroupEl = document.getElementById('docTypeGroup');
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
@@ -400,6 +413,7 @@
     modeIndicatorEl.textContent = label + ' 모드 · 변경';
     fileNameInputEl.placeholder = appMode === 'manual' ? '예: 현장 매뉴얼' : '예: 사진대장';
     revisionGroupEl.hidden = appMode !== 'manual';
+    docTypeGroupEl.hidden = appMode !== 'manual';
   }
   function selectMode(mode){
     appMode = mode;
@@ -1290,6 +1304,11 @@
     return appMode === 'manual' ? '매뉴얼' : '사진대장';
   }
 
+  // "업무 절차서" -> "업 무 절 차 서" for the form's spaced-out document label.
+  function spaceOutChars(text){
+    return String(text || '').replace(/\s+/g, '').split('').join(' ');
+  }
+
   function buildManualHeader(titleText, pageNo, pageCount){
     var table = document.createElement('table');
     table.className = 'manual-header';
@@ -1309,7 +1328,7 @@
 
     var docTypeCell = document.createElement('td');
     docTypeCell.className = 'mh-doctype';
-    docTypeCell.textContent = '업 무 절 차 서';
+    docTypeCell.textContent = spaceOutChars(docTypeSelectEl.value);
 
     var revLabelCell = document.createElement('td');
     revLabelCell.className = 'mh-label';
