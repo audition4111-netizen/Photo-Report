@@ -234,7 +234,7 @@
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 편집 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
           <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
-          <li>[편집] 안의 [자르기]를 누르고 남길 영역을 드래그한 뒤 [자르기 적용]을 누르면 사진을 잘라낼 수 있습니다.</li>
+          <li>[편집] 안의 [자르기]를 누르고 남길 영역을 드래그한 뒤 [자르기 적용]을 누르면 사진을 잘라낼 수 있습니다. [되돌리기]를 누르면 그린 내용은 물론 자르기도 한 단계씩 취소됩니다.</li>
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
           <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 PDF 다운로드와 Gmail 작성 화면 열기를 한 번에 실행합니다.</li>
         </ol>
@@ -806,6 +806,41 @@
   var sketchBaseH = 0;
   var cropRect = null;
   var cropStart = null;
+  // One history for the whole editor so 되돌리기 undoes crops as well as strokes.
+  var sketchUndoStack = [];
+  var SKETCH_UNDO_LIMIT = 40;
+
+  function snapshotSketchState(){
+    // Stroke objects are never mutated in place, so a shallow copy is enough;
+    // unchanged base images are shared by reference rather than duplicated.
+    sketchUndoStack.push({
+      dataURL: sketchBaseDataURL,
+      w: sketchBaseW,
+      h: sketchBaseH,
+      strokes: sketchStrokes.slice()
+    });
+    if(sketchUndoStack.length > SKETCH_UNDO_LIMIT) sketchUndoStack.shift();
+  }
+
+  function restoreSketchState(state){
+    sketchStrokes = state.strokes.slice();
+    cropRect = null;
+    cropStart = null;
+    if(state.dataURL === sketchBaseDataURL){
+      sketchBaseW = state.w;
+      sketchBaseH = state.h;
+      redrawSketchCanvas();
+      return Promise.resolve();
+    }
+    return loadImg(state.dataURL).then(function(img){
+      sketchBaseImg = img;
+      sketchBaseDataURL = state.dataURL;
+      sketchBaseW = state.w;
+      sketchBaseH = state.h;
+      resizeSketchCanvasToBase();
+      redrawSketchCanvas();
+    });
+  }
 
   function rotateNormPoint(p, deg){
     if(deg === 90) return { x: 1 - p.y, y: p.x };
@@ -928,6 +963,7 @@
 
     sketchCropApplyBtn.disabled = true;
     loadImg(croppedURL).then(function(img){
+      snapshotSketchState();
       sketchBaseImg = img;
       sketchBaseDataURL = croppedURL;
       sketchBaseW = pw;
@@ -961,6 +997,7 @@
         return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
       });
       activeStroke = null;
+      sketchUndoStack = [];
       resizeSketchCanvasToBase();
       selectSketchTool('pen');
       sketchModalEl.classList.add('open');
@@ -981,6 +1018,7 @@
     activeStroke = null;
     cropRect = null;
     cropStart = null;
+    sketchUndoStack = [];
   }
 
   function pointFromEvent(e){
@@ -1054,6 +1092,7 @@
       redrawSketchCanvas();
       return;
     }
+    snapshotSketchState();
     sketchStrokes.push(activeStroke);
     activeStroke = null;
     redrawSketchCanvas();
@@ -1084,14 +1123,25 @@
   });
 
   sketchUndoBtn.addEventListener('click', function(){
-    if(sketchStrokes.length === 0) return;
-    sketchStrokes.pop();
-    redrawSketchCanvas();
+    if(sketchUndoStack.length === 0){
+      showToast('되돌릴 편집 내용이 없습니다.');
+      return;
+    }
+    var state = sketchUndoStack.pop();
+    sketchUndoBtn.disabled = true;
+    restoreSketchState(state).then(function(){
+      sketchUndoBtn.disabled = false;
+    }).catch(function(err){
+      console.error(err);
+      sketchUndoBtn.disabled = false;
+      showToast('되돌리지 못했습니다. 다시 시도해 주세요.');
+    });
   });
 
   sketchClearBtn.addEventListener('click', function(){
     if(sketchStrokes.length === 0) return;
     if(window.confirm('이 사진에 그린 내용을 모두 지우시겠습니까?')){
+      snapshotSketchState();
       sketchStrokes = [];
       redrawSketchCanvas();
     }
