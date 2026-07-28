@@ -112,9 +112,20 @@
   .page-title{ text-align:center; font-weight:700; font-size:24px; color:#000; margin:0 auto 5mm; max-width:100mm; word-break:keep-all; overflow-wrap:break-word; line-height:1.3; }
   .page-grid{ display:grid; grid-template-columns:1fr 1fr; column-gap:0; row-gap:0; }
   .photo-set{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; position:relative; }
-  .photo-box{ height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
+  .photo-box{ flex:1 1 auto; min-height:0; height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
   .photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
-  .desc-box{ min-height:26mm; padding:3mm 4mm; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:11.5px; font-weight:700; line-height:1.55; box-sizing:border-box; text-align:center; }
+  .desc-box{ flex:0 0 auto; min-height:9mm; padding:2.5mm 4mm; box-sizing:border-box; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .desc-text{ width:100%; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:14px; font-weight:700; line-height:1.5; text-align:center; }
+
+  .manual-header{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 6mm; }
+  .manual-header td{ border:1px solid #000; text-align:center; vertical-align:middle; padding:1mm 1.5mm; box-sizing:border-box; color:#000; }
+  .mh-logo{ width:18.5%; }
+  .mh-logo img{ height:10mm; width:auto; display:block; margin:0 auto 0.5mm; }
+  .mh-org{ font-size:11px; font-weight:700; white-space:nowrap; }
+  .mh-doctype{ width:60.5%; font-size:21px; font-weight:700; letter-spacing:0.28em; text-indent:0.28em; white-space:nowrap; }
+  .mh-title{ font-size:13.5px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
+  .mh-label{ width:12.5%; font-size:12px; white-space:nowrap; }
+  .mh-value{ width:8.5%; font-size:12px; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
@@ -196,6 +207,11 @@
     <div class="field-group">
       <label class="field-label" for="fileNameInput">파일명</label>
       <input type="text" id="fileNameInput" class="field-input" placeholder="예: 사진대장">
+    </div>
+
+    <div class="field-group" id="revisionGroup" hidden>
+      <label class="field-label" for="revisionInput">개정번호</label>
+      <input type="text" id="revisionInput" class="field-input" placeholder="예: 1">
     </div>
 
     <div class="count-row">
@@ -343,6 +359,8 @@
   var appMode = 'report';
 
   var fileNameInputEl = document.getElementById('fileNameInput');
+  var revisionInputEl = document.getElementById('revisionInput');
+  var revisionGroupEl = document.getElementById('revisionGroup');
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
@@ -374,6 +392,7 @@
     appTitleEl.textContent = label;
     modeIndicatorEl.textContent = label + ' 모드 · 변경';
     fileNameInputEl.placeholder = appMode === 'manual' ? '예: 현장 매뉴얼' : '예: 사진대장';
+    revisionGroupEl.hidden = appMode !== 'manual';
   }
   function selectMode(mode){
     appMode = mode;
@@ -1070,23 +1089,85 @@
     return appMode === 'manual' ? '매뉴얼' : '사진대장';
   }
 
-  function buildPageElement(pageItems, titleText, startIndex){
+  function buildManualHeader(titleText, pageNo, pageCount){
+    var table = document.createElement('table');
+    table.className = 'manual-header';
+    var tbody = document.createElement('tbody');
+
+    var logoCell = document.createElement('td');
+    logoCell.className = 'mh-logo';
+    logoCell.rowSpan = 2;
+    var logo = document.createElement('img');
+    logo.src = 'manual-logo.gif';
+    logo.alt = '';
+    var org = document.createElement('div');
+    org.className = 'mh-org';
+    org.textContent = '한국지역난방공사';
+    logoCell.appendChild(logo);
+    logoCell.appendChild(org);
+
+    var docTypeCell = document.createElement('td');
+    docTypeCell.className = 'mh-doctype';
+    docTypeCell.textContent = '업 무 절 차 서';
+
+    var revLabelCell = document.createElement('td');
+    revLabelCell.className = 'mh-label';
+    revLabelCell.textContent = '개정번호';
+
+    var revValueCell = document.createElement('td');
+    revValueCell.className = 'mh-value';
+    revValueCell.textContent = revisionInputEl.value.trim();
+
+    var row1 = document.createElement('tr');
+    row1.appendChild(logoCell);
+    row1.appendChild(docTypeCell);
+    row1.appendChild(revLabelCell);
+    row1.appendChild(revValueCell);
+
+    var titleCell = document.createElement('td');
+    titleCell.className = 'mh-title';
+    titleCell.textContent = titleText || '매뉴얼';
+
+    var pageLabelCell = document.createElement('td');
+    pageLabelCell.className = 'mh-label';
+    pageLabelCell.textContent = '페이지';
+
+    var pageValueCell = document.createElement('td');
+    pageValueCell.className = 'mh-value';
+    pageValueCell.textContent = pageNo + '/' + pageCount;
+
+    var row2 = document.createElement('tr');
+    row2.appendChild(titleCell);
+    row2.appendChild(pageLabelCell);
+    row2.appendChild(pageValueCell);
+
+    tbody.appendChild(row1);
+    tbody.appendChild(row2);
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function buildPageElement(pageItems, titleText, startIndex, pageNo, pageCount){
     var page = document.createElement('div');
     page.className = 'a4-page';
 
-    var bannerRow = document.createElement('div');
-    bannerRow.className = 'page-banner-row';
-    var banner = document.createElement('img');
-    banner.className = 'page-banner';
-    banner.src = 'banner.png';
-    banner.alt = '';
-    bannerRow.appendChild(banner);
-    page.appendChild(bannerRow);
+    if(appMode === 'manual'){
+      page.appendChild(buildManualHeader(titleText, pageNo || 1, pageCount || 1));
+    }else{
+      var bannerRow = document.createElement('div');
+      bannerRow.className = 'page-banner-row';
+      var banner = document.createElement('img');
+      banner.className = 'page-banner';
+      banner.src = 'banner.png';
+      banner.alt = '';
+      bannerRow.appendChild(banner);
+      page.appendChild(bannerRow);
 
-    var title = document.createElement('div');
-    title.className = 'page-title';
-    title.textContent = titleText || '사진대장';
-    page.appendChild(title);
+      var title = document.createElement('div');
+      title.className = 'page-title';
+      title.textContent = titleText || '사진대장';
+      page.appendChild(title);
+    }
 
     var grid = document.createElement('div');
     grid.className = 'page-grid';
@@ -1111,7 +1192,10 @@
 
       var descBox = document.createElement('div');
       descBox.className = 'desc-box';
-      descBox.textContent = item.description || '';
+      var descText = document.createElement('div');
+      descText.className = 'desc-text';
+      descText.textContent = item.description || '';
+      descBox.appendChild(descText);
 
       box.appendChild(photoBox);
       box.appendChild(descBox);
@@ -1119,6 +1203,43 @@
     });
     page.appendChild(grid);
     return page;
+  }
+
+  // Sizes each description box to its own text (matched across the two sets in a
+  // row) and hands the leftover height to the photo, so a page stays exactly A4
+  // whether descriptions are one line or many.
+  function fitPageLayout(pageEl){
+    var grid = pageEl.querySelector('.page-grid');
+    if(!grid) return;
+    var pageHeightPx = 297 * PX_PER_MM;
+    var padBottomPx = 14 * PX_PER_MM;
+    var minPhotoPx = 45 * PX_PER_MM;
+    var minDescPx = 9 * PX_PER_MM;
+
+    var available = pageHeightPx - grid.offsetTop - padBottomPx;
+    var setHeight = Math.floor(available / 2);
+    if(setHeight <= minPhotoPx + minDescPx) return;
+
+    var sets = Array.from(grid.children);
+    for(var i = 0; i < sets.length; i += 2){
+      var row = sets.slice(i, i + 2);
+      var needed = minDescPx;
+      row.forEach(function(set){
+        var desc = set.querySelector('.desc-box');
+        var text = set.querySelector('.desc-text');
+        if(!desc || !text) return;
+        desc.style.height = 'auto';
+        var style = window.getComputedStyle(desc);
+        var pad = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+        needed = Math.max(needed, text.scrollHeight + pad);
+      });
+      var descHeight = Math.min(needed, setHeight - minPhotoPx);
+      row.forEach(function(set){
+        set.style.height = setHeight + 'px';
+        var desc = set.querySelector('.desc-box');
+        if(desc) desc.style.height = descHeight + 'px';
+      });
+    }
   }
 
   function fitPreviewScale(){
@@ -1148,14 +1269,16 @@
     countLine.textContent = '전체 ' + pages.length + ' 페이지 / 사진 ' + photos.length + '장';
     previewPagesEl.appendChild(countLine);
     pages.forEach(function(pageItems, pageIdx){
-      var pageEl = buildPageElement(pageItems, titleText, pageIdx * 4);
+      var pageEl = buildPageElement(pageItems, titleText, pageIdx * 4, pageIdx + 1, pages.length);
       var wrapper = document.createElement('div');
       wrapper.className = 'page-wrapper';
       wrapper.appendChild(pageEl);
       previewPagesEl.appendChild(wrapper);
     });
     previewCountEl.textContent = '전체 ' + pages.length + ' 페이지';
+    // Open before measuring: a display:none modal reports every height as 0.
     previewModalEl.classList.add('open');
+    previewPagesEl.querySelectorAll('.a4-page').forEach(fitPageLayout);
     fitPreviewScale();
     setTimeout(fitPreviewScale, 50);
   }
@@ -1215,9 +1338,10 @@
           resolve(pdf);
           return;
         }
-        var pageEl = buildPageElement(pages[i], titleText, i * 4);
+        var pageEl = buildPageElement(pages[i], titleText, i * 4, i + 1, pages.length);
         offscreen.appendChild(pageEl);
         waitForImages(pageEl).then(function(){
+          fitPageLayout(pageEl);
           var rect = pageEl.getBoundingClientRect();
           var heightMM = Math.max(297, rect.height / PX_PER_MM);
           return html2canvas(pageEl, {
