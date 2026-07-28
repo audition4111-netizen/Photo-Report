@@ -167,6 +167,7 @@
   .sketch-canvas{ max-width:100%; max-height:100%; touch-action:none; background:#fff; display:block; box-shadow:0 2px 12px rgba(0,0,0,.5); }
   .sketch-toolbar{ background:#000; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:8px; }
   .sk-row{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .sk-row[hidden]{ display:none; }
   .sk-tool{ flex:1; min-width:56px; padding:10px 4px; font-size:13px; font-weight:500; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.28); background:transparent; color:#fff; cursor:pointer; }
   .sk-tool.active{ background:#fff; color:#000; border-color:#fff; }
   .sk-swatch{ width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.4); cursor:pointer; padding:0; }
@@ -231,8 +232,9 @@
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
-          <li>사진 스케치 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
-          <li>[스케치]를 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
+          <li>사진 편집 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
+          <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
+          <li>[편집] 안의 [자르기]를 누르고 남길 영역을 드래그한 뒤 [자르기 적용]을 누르면 사진을 잘라낼 수 있습니다.</li>
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
           <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 PDF 다운로드와 Gmail 작성 화면 열기를 한 번에 실행합니다.</li>
         </ol>
@@ -309,7 +311,7 @@
 <div class="sketch-modal" id="sketchModal">
   <div class="sketch-topbar">
     <button type="button" class="sk-top-btn" id="sketchCancelBtn">취소</button>
-    <span class="sk-title">스케치</span>
+    <span class="sk-title">사진 편집</span>
     <button type="button" class="sk-top-btn primary" id="sketchSaveBtn">저장</button>
   </div>
   <div class="sketch-stage">
@@ -322,6 +324,11 @@
       <button type="button" class="sk-tool" data-tool="rect">네모</button>
       <button type="button" class="sk-tool" data-tool="ellipse">동그라미</button>
       <button type="button" class="sk-tool" data-tool="line">선</button>
+      <button type="button" class="sk-tool" data-tool="crop">자르기</button>
+    </div>
+    <div class="sk-row" id="sketchCropRow" hidden>
+      <button type="button" class="sk-tool" id="sketchCropApplyBtn">자르기 적용</button>
+      <button type="button" class="sk-tool" id="sketchCropResetBtn">영역 지우기</button>
     </div>
     <div class="sk-row" id="sketchColorRow">
       <button type="button" class="sk-swatch active" data-color="#ff0000" style="background:#ff0000" aria-label="빨강"></button>
@@ -334,7 +341,7 @@
       <button type="button" class="sk-tool" id="sketchUndoBtn">되돌리기</button>
       <button type="button" class="sk-tool" id="sketchClearBtn">전체 지우기</button>
     </div>
-    <div class="sk-hint">손가락이나 마우스로 사진 위에 그려 주세요.</div>
+    <div class="sk-hint" id="sketchHint">손가락이나 마우스로 사진 위에 그려 주세요.</div>
   </div>
 </div>
 
@@ -617,7 +624,7 @@
         '<div class="thumb-wrap"><img alt="등록 사진 ' + (idx + 1) + '"></div>' +
         '<textarea class="desc-input" placeholder="사진 설명을 입력하세요." rows="2"></textarea>' +
         '<div class="btn-row">' +
-          '<button type="button" class="btn btn-outline" data-action="sketch">스케치</button>' +
+          '<button type="button" class="btn btn-outline" data-action="sketch">편집</button>' +
           '<button type="button" class="btn btn-outline" data-action="replace">변경</button>' +
           '<button type="button" class="btn btn-outline" data-action="rotate">회전</button>' +
           '<button type="button" class="btn btn-danger" data-action="delete">삭제</button>' +
@@ -777,9 +784,15 @@
   var sketchClearBtn = document.getElementById('sketchClearBtn');
   var sketchSaveBtn = document.getElementById('sketchSaveBtn');
   var sketchCancelBtn = document.getElementById('sketchCancelBtn');
+  var sketchCropRowEl = document.getElementById('sketchCropRow');
+  var sketchCropApplyBtn = document.getElementById('sketchCropApplyBtn');
+  var sketchCropResetBtn = document.getElementById('sketchCropResetBtn');
+  var sketchHintEl = document.getElementById('sketchHint');
 
   var SKETCH_MAX_EDGE = 1400;
   var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005 };
+  var HINT_DRAW = '손가락이나 마우스로 사진 위에 그려 주세요.';
+  var HINT_CROP = '남길 영역을 드래그한 뒤 [자르기 적용]을 누르세요.';
 
   var sketchTargetId = null;
   var sketchStrokes = [];
@@ -787,6 +800,12 @@
   var sketchColor = '#ff0000';
   var sketchBaseImg = null;
   var activeStroke = null;
+  // Working copy of the image so a crop can be undone by cancelling the editor.
+  var sketchBaseDataURL = null;
+  var sketchBaseW = 0;
+  var sketchBaseH = 0;
+  var cropRect = null;
+  var cropStart = null;
 
   function rotateNormPoint(p, deg){
     if(deg === 90) return { x: 1 - p.y, y: p.x };
@@ -836,6 +855,95 @@
     ctx.drawImage(sketchBaseImg, 0, 0, w, h);
     var all = activeStroke ? sketchStrokes.concat([activeStroke]) : sketchStrokes;
     drawStrokes(ctx, all, w, h);
+
+    if(sketchTool === 'crop' && cropRect){
+      var rx = cropRect.x * w, ry = cropRect.y * h;
+      var rw = cropRect.w * w, rh = cropRect.h * h;
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.fillRect(0, 0, w, ry);
+      ctx.fillRect(0, ry + rh, w, h - (ry + rh));
+      ctx.fillRect(0, ry, rx, rh);
+      ctx.fillRect(rx + rw, ry, w - (rx + rw), rh);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2, w * 0.004);
+      ctx.setLineDash([w * 0.02, w * 0.012]);
+      ctx.strokeRect(rx, ry, rw, rh);
+      ctx.restore();
+    }
+  }
+
+  function resizeSketchCanvasToBase(){
+    var scale = Math.min(1, SKETCH_MAX_EDGE / Math.max(sketchBaseW, sketchBaseH));
+    sketchCanvasEl.width = Math.max(1, Math.round(sketchBaseW * scale));
+    sketchCanvasEl.height = Math.max(1, Math.round(sketchBaseH * scale));
+  }
+
+  function selectSketchTool(tool){
+    sketchTool = tool;
+    sketchToolRowEl.querySelectorAll('.sk-tool').forEach(function(b){
+      b.classList.toggle('active', b.dataset.tool === tool);
+    });
+    var isCrop = tool === 'crop';
+    sketchColorRowEl.hidden = isCrop;
+    sketchCropRowEl.hidden = !isCrop;
+    sketchHintEl.textContent = isCrop ? HINT_CROP : HINT_DRAW;
+    if(!isCrop){
+      cropRect = null;
+      cropStart = null;
+    }
+    redrawSketchCanvas();
+  }
+
+  function applyCrop(){
+    if(!cropRect || cropRect.w < 0.03 || cropRect.h < 0.03){
+      showToast('남길 영역을 먼저 드래그해 주세요.');
+      return;
+    }
+    var cx = cropRect.x, cy = cropRect.y, cw = cropRect.w, ch = cropRect.h;
+    var px = Math.round(cx * sketchBaseW);
+    var py = Math.round(cy * sketchBaseH);
+    var pw = Math.max(1, Math.round(cw * sketchBaseW));
+    var ph = Math.max(1, Math.round(ch * sketchBaseH));
+
+    var canvas = document.createElement('canvas');
+    canvas.width = pw; canvas.height = ph;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, pw, ph);
+    ctx.drawImage(sketchBaseImg, px, py, pw, ph, 0, 0, pw, ph);
+    var croppedURL = canvas.toDataURL('image/jpeg', 0.92);
+
+    // Strokes are normalized to the image box, so re-base them onto the crop.
+    var remapped = sketchStrokes.map(function(s){
+      return {
+        tool: s.tool,
+        color: s.color,
+        width: s.width / cw,
+        points: s.points.map(function(p){
+          return { x: (p.x - cx) / cw, y: (p.y - cy) / ch };
+        })
+      };
+    });
+
+    sketchCropApplyBtn.disabled = true;
+    loadImg(croppedURL).then(function(img){
+      sketchBaseImg = img;
+      sketchBaseDataURL = croppedURL;
+      sketchBaseW = pw;
+      sketchBaseH = ph;
+      sketchStrokes = remapped;
+      cropRect = null;
+      cropStart = null;
+      resizeSketchCanvasToBase();
+      sketchCropApplyBtn.disabled = false;
+      selectSketchTool('pen');
+      showToast('사진을 잘랐습니다. 저장하면 반영됩니다.');
+    }).catch(function(err){
+      console.error(err);
+      sketchCropApplyBtn.disabled = false;
+      showToast('사진을 자르지 못했습니다. 다시 시도해 주세요.');
+    });
   }
 
   function openSketchEditor(id){
@@ -846,18 +954,19 @@
     }).then(function(img){
       sketchBaseImg = img;
       sketchTargetId = id;
+      sketchBaseDataURL = item.baseDataURL;
+      sketchBaseW = item.naturalW;
+      sketchBaseH = item.naturalH;
       sketchStrokes = (item.strokes || []).map(function(s){
         return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
       });
       activeStroke = null;
-      var scale = Math.min(1, SKETCH_MAX_EDGE / Math.max(item.naturalW, item.naturalH));
-      sketchCanvasEl.width = Math.max(1, Math.round(item.naturalW * scale));
-      sketchCanvasEl.height = Math.max(1, Math.round(item.naturalH * scale));
-      redrawSketchCanvas();
+      resizeSketchCanvasToBase();
+      selectSketchTool('pen');
       sketchModalEl.classList.add('open');
     }).catch(function(err){
       console.error(err);
-      showToast('스케치 편집기를 열지 못했습니다. 다시 시도해 주세요.');
+      showToast('편집기를 열지 못했습니다. 다시 시도해 주세요.');
     });
   }
 
@@ -865,8 +974,13 @@
     sketchModalEl.classList.remove('open');
     sketchTargetId = null;
     sketchBaseImg = null;
+    sketchBaseDataURL = null;
+    sketchBaseW = 0;
+    sketchBaseH = 0;
     sketchStrokes = [];
     activeStroke = null;
+    cropRect = null;
+    cropStart = null;
   }
 
   function pointFromEvent(e){
@@ -876,10 +990,25 @@
     return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
   }
 
+  function setCropRectFrom(a, b){
+    cropRect = {
+      x: Math.min(a.x, b.x),
+      y: Math.min(a.y, b.y),
+      w: Math.abs(b.x - a.x),
+      h: Math.abs(b.y - a.y)
+    };
+  }
+
   sketchCanvasEl.addEventListener('pointerdown', function(e){
     if(sketchTargetId === null) return;
     e.preventDefault();
     sketchCanvasEl.setPointerCapture(e.pointerId);
+    if(sketchTool === 'crop'){
+      cropStart = pointFromEvent(e);
+      setCropRectFrom(cropStart, cropStart);
+      redrawSketchCanvas();
+      return;
+    }
     activeStroke = {
       tool: sketchTool,
       color: sketchColor,
@@ -890,6 +1019,13 @@
   });
 
   sketchCanvasEl.addEventListener('pointermove', function(e){
+    if(sketchTool === 'crop'){
+      if(!cropStart) return;
+      e.preventDefault();
+      setCropRectFrom(cropStart, pointFromEvent(e));
+      redrawSketchCanvas();
+      return;
+    }
     if(!activeStroke) return;
     e.preventDefault();
     var p = pointFromEvent(e);
@@ -902,6 +1038,14 @@
   });
 
   function finishStroke(e){
+    if(sketchTool === 'crop'){
+      if(!cropStart) return;
+      if(e) e.preventDefault();
+      cropStart = null;
+      if(cropRect && (cropRect.w < 0.03 || cropRect.h < 0.03)) cropRect = null;
+      redrawSketchCanvas();
+      return;
+    }
     if(!activeStroke) return;
     if(e) e.preventDefault();
     var isShape = activeStroke.tool !== 'pen' && activeStroke.tool !== 'highlighter';
@@ -920,10 +1064,14 @@
   sketchToolRowEl.addEventListener('click', function(e){
     var btn = e.target.closest ? e.target.closest('button[data-tool]') : null;
     if(!btn) return;
-    sketchTool = btn.dataset.tool;
-    sketchToolRowEl.querySelectorAll('.sk-tool').forEach(function(b){
-      b.classList.toggle('active', b === btn);
-    });
+    selectSketchTool(btn.dataset.tool);
+  });
+
+  sketchCropApplyBtn.addEventListener('click', applyCrop);
+  sketchCropResetBtn.addEventListener('click', function(){
+    cropRect = null;
+    cropStart = null;
+    redrawSketchCanvas();
   });
 
   sketchColorRowEl.addEventListener('click', function(e){
@@ -943,7 +1091,7 @@
 
   sketchClearBtn.addEventListener('click', function(){
     if(sketchStrokes.length === 0) return;
-    if(window.confirm('이 사진의 스케치를 모두 지우시겠습니까?')){
+    if(window.confirm('이 사진에 그린 내용을 모두 지우시겠습니까?')){
       sketchStrokes = [];
       redrawSketchCanvas();
     }
@@ -954,6 +1102,9 @@
   sketchSaveBtn.addEventListener('click', function(){
     var item = findPhoto(sketchTargetId);
     if(!item){ closeSketchEditor(); return; }
+    item.baseDataURL = sketchBaseDataURL;
+    item.naturalW = sketchBaseW;
+    item.naturalH = sketchBaseH;
     item.strokes = sketchStrokes.map(function(s){
       return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
     });
@@ -965,7 +1116,7 @@
     }).catch(function(err){
       console.error(err);
       sketchSaveBtn.disabled = false;
-      showToast('스케치를 저장하지 못했습니다. 다시 시도해 주세요.');
+      showToast('편집 내용을 저장하지 못했습니다. 다시 시도해 주세요.');
     });
   });
 
