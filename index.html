@@ -55,6 +55,14 @@
   .field-row{ display:flex; gap:10px; }
   .field-row[hidden]{ display:none; }
   .field-row .field-group{ flex:1; min-width:0; }
+  .field-textarea{ width:100%; padding:13px 11px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-family:inherit; font-size:16px; line-height:1.5; resize:vertical; background:var(--canvas); color:var(--ink); min-height:56px; }
+  .field-textarea:focus{ outline:none; border-width:2px; border-color:var(--ink); padding:12px 10px; }
+  .unit-field{ position:relative; }
+  .unit-field .field-input{ padding-right:46px; }
+  .unit-suffix{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--muted); pointer-events:none; }
+  .fault-section-label{ font-size:15px; font-weight:600; color:var(--ink); margin:18px 0 10px; }
+  .fault-sub-label{ font-size:13px; font-weight:600; color:var(--muted); margin:4px 0 8px; }
+  #faultFields[hidden]{ display:none; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
   .field-input{ width:100%; padding:14px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-size:16px; background:var(--canvas); color:var(--ink); height:56px; }
   select.field-input{ font-family:inherit; appearance:none; -webkit-appearance:none; padding-right:38px; background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%236a6a6a' stroke-width='1.6' d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:12px 8px; }
@@ -132,6 +140,23 @@
   .mh-value{ width:8.5%; font-size:12px; }
   .mh-field{ font-size:12px; font-weight:500; white-space:nowrap; }
 
+  .fr-title-rule{ height:2px; background:#4a6fa5; margin:0 0 3mm; }
+  .fr-title{ text-align:center; font-size:22px; font-weight:700; color:#000; margin:0 0 5mm; word-break:keep-all; }
+  .fr-field-line{ font-size:11px; color:#000; margin:0 0 3mm; }
+  .fr-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
+  .fr-heading + .fr-heading{ margin-top:5mm; }
+  .fr-table{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 5mm; }
+  .fr-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; line-height:1.45; color:#000; vertical-align:middle; word-break:break-word; overflow-wrap:break-word; }
+  .fr-label{ width:34mm; text-align:center; font-weight:700; background:#f2f2f2; white-space:pre-line; }
+  .fr-sublabel{ width:24mm; text-align:center; font-weight:600; }
+  .fr-body{ white-space:pre-wrap; }
+  .fr-center{ text-align:center; }
+  .fr-photo-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:0; }
+  .fr-photo-cell{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; }
+  .fr-photo-box{ height:62mm; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:2mm; box-sizing:border-box; }
+  .fr-photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
+  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:10px; font-weight:600; line-height:1.4; text-align:center; display:flex; align-items:center; justify-content:center; white-space:pre-wrap; word-break:break-word; box-sizing:border-box; }
+
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
   .sheet-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; display:none; align-items:flex-end; justify-content:center; }
@@ -148,12 +173,12 @@
   .order-num:active{ background:var(--surface-soft); }
   .order-num.current{ background:var(--ink); color:#fff; border-color:var(--ink); }
 
-  .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:flex-start; justify-content:center; padding:40px 24px 24px; overflow-y:auto; }
   .mode-select-screen.closed{ display:none; }
   .mode-select-inner{ width:100%; max-width:360px; text-align:center; }
-  .mode-select-banner{ height:24px; width:auto; margin:0 0 24px; }
-  .mode-select-title{ font-size:22px; font-weight:500; letter-spacing:-0.44px; color:var(--ink); margin:0 0 6px; }
-  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 24px; }
+  .mode-select-banner{ height:24px; width:auto; margin:0 0 18px; }
+  .mode-select-title{ font-size:21px; font-weight:500; letter-spacing:-0.44px; color:var(--ink); margin:0 0 6px; word-break:keep-all; }
+  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 20px; }
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:12px; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
   .mode-choice-title{ display:block; font-size:16px; font-weight:600; color:var(--ink); margin:0 0 4px; }
@@ -185,7 +210,7 @@
 <div class="mode-select-screen" id="modeSelectScreen">
   <div class="mode-select-inner">
     <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
-    <h1 class="mode-select-title">사진대장 & 매뉴얼</h1>
+    <h1 class="mode-select-title">사진대장 &amp; 매뉴얼 &amp; 고장 보고서</h1>
     <p class="mode-select-sub">무엇을 작성하시겠어요?</p>
     <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
       <span class="mode-choice-title">사진대장 만들기</span>
@@ -194,6 +219,10 @@
     <button type="button" class="mode-choice-btn" id="chooseManualModeBtn">
       <span class="mode-choice-title">매뉴얼 만들기</span>
       <span class="mode-choice-desc">사진마다 순번을 매겨 절차를 안내하는 문서</span>
+    </button>
+    <button type="button" class="mode-choice-btn" id="chooseFaultModeBtn">
+      <span class="mode-choice-title">고장보고서 만들기</span>
+      <span class="mode-choice-desc">고장 요약과 관련 사진을 정리하는 핫라인 메모</span>
     </button>
   </div>
 </div>
@@ -247,6 +276,115 @@
       <input type="text" id="revisionInput" class="field-input" placeholder="예: 1">
     </div>
 
+    <div id="faultFields" hidden>
+      <div class="fault-section-label">1. 고장 요약</div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="faultOccurredDate">발생일시</label>
+          <input type="date" id="faultOccurredDate" class="field-input">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="faultOccurredTime">발생시각</label>
+          <input type="time" id="faultOccurredTime" class="field-input">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="faultFieldSelect">고장분야</label>
+        <select id="faultFieldSelect" class="field-input">
+          <option value="전기">전기</option>
+          <option value="기계">기계</option>
+          <option value="제어">제어</option>
+          <option value="전산">전산</option>
+          <option value="운영">운영</option>
+          <option value="열수송">열수송</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="faultBranch">지사</label>
+          <input type="text" id="faultBranch" class="field-input" placeholder="예: 양산지사">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="faultFacility">설비명</label>
+          <input type="text" id="faultFacility" class="field-input" placeholder="예: ST 보조 변압기">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="faultDevice">기기명(고장위치)</label>
+        <input type="text" id="faultDevice" class="field-input" placeholder="예: ST 보조 변압기 방압변">
+      </div>
+
+      <div class="fault-sub-label">열공급 중단</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="faultApt">APT</label>
+          <div class="unit-field">
+            <input type="text" inputmode="numeric" id="faultApt" class="field-input" placeholder="예: 120">
+            <span class="unit-suffix">세대</span>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="faultBuilding">건물</label>
+          <div class="unit-field">
+            <input type="text" inputmode="numeric" id="faultBuilding" class="field-input" placeholder="예: 3">
+            <span class="unit-suffix">개소</span>
+          </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="faultStopDate">중단일자</label>
+          <input type="date" id="faultStopDate" class="field-input">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="faultStopTime">중단시각</label>
+          <input type="time" id="faultStopTime" class="field-input">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="faultDuration">기간</label>
+        <input type="text" id="faultDuration" class="field-input" placeholder="예: 1시간 30분">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="faultContent">고장내용</label>
+        <textarea id="faultContent" class="field-textarea" rows="2" placeholder="고장 내용을 입력하세요."></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="faultSituation">상황(운전자/목격자 진술 포함)</label>
+        <textarea id="faultSituation" class="field-textarea" rows="3" placeholder="상황을 입력하세요."></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="faultCause">추정 원인</label>
+        <textarea id="faultCause" class="field-textarea" rows="3" placeholder="추정 원인을 입력하세요."></textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="faultRecoverDate">예상복구 일자</label>
+          <input type="date" id="faultRecoverDate" class="field-input">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="faultRecoverTime">예상복구 시각</label>
+          <input type="time" id="faultRecoverTime" class="field-input">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="faultAction">응급조치사항</label>
+        <textarea id="faultAction" class="field-textarea" rows="3" placeholder="응급조치 사항을 입력하세요."></textarea>
+      </div>
+
+      <div class="fault-section-label">2. 관련 사진</div>
+    </div>
+
     <div class="count-row">
       <span class="count-badge" id="countBadge">등록 사진 0 / 30</span>
     </div>
@@ -260,6 +398,7 @@
         <b>사용 순서</b>
         <ol>
           <li>파일명을 입력합니다. (매뉴얼 모드에서는 [매뉴얼 종류]·[분야]·[개정번호]도 함께 지정하며, 선택한 값이 출력물 상단 표에 표시됩니다.)</li>
+          <li>고장 보고서 모드에서는 발생일시·고장분야·지사·설비명 등 [1. 고장 요약] 항목을 채웁니다. 날짜와 시각은 달력·시계에서 선택하면 출력물에 자동 반영되고, 사진을 넣지 않으면 [2. 관련 사진] 없이 고장 요약만 출력됩니다.</li>
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
@@ -403,6 +542,12 @@
   var docTypeSelectEl = document.getElementById('docTypeSelect');
   var docTypeGroupEl = document.getElementById('docTypeGroup');
   var fieldSelectEl = document.getElementById('fieldSelect');
+  var faultFieldsEl = document.getElementById('faultFields');
+  var faultInputs = {};
+  ['faultOccurredDate','faultOccurredTime','faultFieldSelect','faultBranch','faultFacility',
+   'faultDevice','faultApt','faultBuilding','faultStopDate','faultStopTime','faultDuration',
+   'faultContent','faultSituation','faultCause','faultRecoverDate','faultRecoverTime','faultAction'
+  ].forEach(function(id){ faultInputs[id] = document.getElementById(id); });
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
@@ -426,16 +571,21 @@
   var modeSelectScreen = document.getElementById('modeSelectScreen');
   var chooseReportModeBtn = document.getElementById('chooseReportModeBtn');
   var chooseManualModeBtn = document.getElementById('chooseManualModeBtn');
+  var chooseFaultModeBtn = document.getElementById('chooseFaultModeBtn');
   var modeIndicatorEl = document.getElementById('modeIndicator');
   var appTitleEl = document.getElementById('appTitle');
 
+  var MODE_LABELS = { manual: '매뉴얼', fault: '고장 보고서', report: '사진대장' };
+  var MODE_PLACEHOLDERS = { manual: '예: 현장 매뉴얼', fault: '예: 고장 보고서', report: '예: 사진대장' };
+
   function updateModeIndicator(){
-    var label = appMode === 'manual' ? '매뉴얼' : '사진대장';
+    var label = MODE_LABELS[appMode] || MODE_LABELS.report;
     appTitleEl.textContent = label;
     modeIndicatorEl.textContent = label + ' 모드 · 변경';
-    fileNameInputEl.placeholder = appMode === 'manual' ? '예: 현장 매뉴얼' : '예: 사진대장';
+    fileNameInputEl.placeholder = MODE_PLACEHOLDERS[appMode] || MODE_PLACEHOLDERS.report;
     revisionGroupEl.hidden = appMode !== 'manual';
     docTypeGroupEl.hidden = appMode !== 'manual';
+    faultFieldsEl.hidden = appMode !== 'fault';
   }
   function selectMode(mode){
     appMode = mode;
@@ -444,6 +594,7 @@
   }
   chooseReportModeBtn.addEventListener('click', function(){ selectMode('report'); });
   chooseManualModeBtn.addEventListener('click', function(){ selectMode('manual'); });
+  chooseFaultModeBtn.addEventListener('click', function(){ selectMode('fault'); });
   modeIndicatorEl.addEventListener('click', function(){
     modeSelectScreen.classList.remove('closed');
   });
@@ -1323,7 +1474,7 @@
   function getReportTitle(){
     var raw = fileNameInputEl.value.trim();
     if(raw) return raw;
-    return appMode === 'manual' ? '매뉴얼' : '사진대장';
+    return MODE_LABELS[appMode] || MODE_LABELS.report;
   }
 
   // "업무 매뉴얼" -> "업 무 매 뉴 얼" for the form's spaced-out document label.
@@ -1458,6 +1609,205 @@
     return page;
   }
 
+  // ---- 고장 보고서 ----------------------------------------------------------
+  var FAULT_PHOTOS_FIRST_PAGE = 3;   // one row, under the summary table
+  var FAULT_PHOTOS_PER_PAGE = 9;     // three rows on a continuation page
+
+  function faultValue(id){
+    var el = faultInputs[id];
+    var v = el ? String(el.value || '').trim() : '';
+    return v;
+  }
+
+  // "2025-07-14" + "20:27" -> "2025.7.14. 20:27"
+  function formatFaultDateTime(dateId, timeId){
+    var d = faultValue(dateId);
+    var t = faultValue(timeId);
+    if(!d) return t || '-';
+    var parts = d.split('-');
+    var text = Number(parts[0]) + '.' + Number(parts[1]) + '.' + Number(parts[2]) + '.';
+    return t ? text + ' ' + t : text;
+  }
+
+  function faultText(id){
+    return faultValue(id) || '-';
+  }
+
+  function faultUnitText(id, unit){
+    var v = faultValue(id);
+    return (v ? v : '-') + ' (' + unit + ')';
+  }
+
+  function computeFaultPages(){
+    if(photos.length === 0) return [[]];
+    var pages = [photos.slice(0, FAULT_PHOTOS_FIRST_PAGE)];
+    for(var i = FAULT_PHOTOS_FIRST_PAGE; i < photos.length; i += FAULT_PHOTOS_PER_PAGE){
+      pages.push(photos.slice(i, i + FAULT_PHOTOS_PER_PAGE));
+    }
+    return pages;
+  }
+
+  function faultCell(text, className, colSpan, rowSpan){
+    var td = document.createElement('td');
+    if(className) td.className = className;
+    if(colSpan) td.colSpan = colSpan;
+    if(rowSpan) td.rowSpan = rowSpan;
+    td.textContent = text;
+    return td;
+  }
+
+  function buildFaultSummaryTable(){
+    var table = document.createElement('table');
+    table.className = 'fr-table';
+
+    var colgroup = document.createElement('colgroup');
+    ['34mm', '24mm', '', '24mm', ''].forEach(function(w){
+      var col = document.createElement('col');
+      if(w) col.style.width = w;
+      colgroup.appendChild(col);
+    });
+    table.appendChild(colgroup);
+
+    var tbody = document.createElement('tbody');
+    function addRow(cells){
+      var tr = document.createElement('tr');
+      cells.forEach(function(c){ tr.appendChild(c); });
+      tbody.appendChild(tr);
+      return tr;
+    }
+
+    addRow([
+      faultCell('발생일시/고장분야', 'fr-label'),
+      faultCell(formatFaultDateTime('faultOccurredDate', 'faultOccurredTime'), 'fr-center', 2),
+      faultCell(faultText('faultFieldSelect'), 'fr-center', 2)
+    ]);
+    addRow([
+      faultCell('지사/설비명', 'fr-label'),
+      faultCell(faultText('faultBranch'), 'fr-center', 2),
+      faultCell(faultText('faultFacility'), 'fr-center', 2)
+    ]);
+    addRow([
+      faultCell('기기명(고장위치)', 'fr-label'),
+      faultCell(faultText('faultDevice'), 'fr-center', 4)
+    ]);
+
+    addRow([
+      faultCell('열공급 중단', 'fr-label', 0, 3),
+      faultCell('APT', 'fr-sublabel'),
+      faultCell(faultUnitText('faultApt', '세대'), 'fr-center'),
+      faultCell('건물', 'fr-sublabel'),
+      faultCell(faultUnitText('faultBuilding', '개소'), 'fr-center')
+    ]);
+    addRow([
+      faultCell('중단시간', 'fr-sublabel'),
+      faultCell(formatFaultDateTime('faultStopDate', 'faultStopTime'), 'fr-center', 3)
+    ]);
+    addRow([
+      faultCell('기간', 'fr-sublabel'),
+      faultCell(faultText('faultDuration'), 'fr-center', 3)
+    ]);
+
+    addRow([faultCell('고장내용', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
+    addRow([faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'), faultCell(faultText('faultSituation'), 'fr-body', 4)]);
+    addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
+    addRow([
+      faultCell('예상복구 일시', 'fr-label'),
+      faultCell(formatFaultDateTime('faultRecoverDate', 'faultRecoverTime'), 'fr-body', 4)
+    ]);
+    addRow([faultCell('응급조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
+
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function buildFaultPageElement(pageItems, titleText, pageIdx, pageCount){
+    var page = document.createElement('div');
+    page.className = 'a4-page';
+
+    var bannerRow = document.createElement('div');
+    bannerRow.className = 'page-banner-row';
+    var banner = document.createElement('img');
+    banner.className = 'page-banner';
+    banner.src = 'banner.png';
+    banner.alt = '';
+    bannerRow.appendChild(banner);
+    page.appendChild(bannerRow);
+
+    var rule = document.createElement('div');
+    rule.className = 'fr-title-rule';
+    page.appendChild(rule);
+
+    var title = document.createElement('div');
+    title.className = 'fr-title';
+    title.textContent = titleText || '고장 보고서';
+    page.appendChild(title);
+
+    var fieldLine = document.createElement('div');
+    fieldLine.className = 'fr-field-line';
+    fieldLine.textContent = '해당분야 : ' + faultText('faultFieldSelect');
+    page.appendChild(fieldLine);
+
+    if(pageIdx === 0){
+      var summaryHeading = document.createElement('div');
+      summaryHeading.className = 'fr-heading';
+      summaryHeading.textContent = '1. 고장 요약';
+      page.appendChild(summaryHeading);
+      page.appendChild(buildFaultSummaryTable());
+    }
+
+    if(pageItems.length > 0){
+      var photoHeading = document.createElement('div');
+      photoHeading.className = 'fr-heading';
+      photoHeading.textContent = pageIdx === 0 ? '2. 관련 사진' : '2. 관련 사진 (계속)';
+      page.appendChild(photoHeading);
+
+      var grid = document.createElement('div');
+      grid.className = 'fr-photo-grid';
+      pageItems.forEach(function(item){
+        var cell = document.createElement('div');
+        cell.className = 'fr-photo-cell';
+
+        var box = document.createElement('div');
+        box.className = 'fr-photo-box';
+        var img = document.createElement('img');
+        var rc = item.rotatedCache || { dataURL: item.baseDataURL };
+        img.src = rc.dataURL;
+        img.alt = '';
+        box.appendChild(img);
+
+        var cap = document.createElement('div');
+        cap.className = 'fr-photo-cap';
+        cap.textContent = item.description || '';
+
+        cell.appendChild(box);
+        cell.appendChild(cap);
+        grid.appendChild(cell);
+      });
+      page.appendChild(grid);
+    }
+
+    return page;
+  }
+
+  function computeDocPages(){
+    return appMode === 'fault' ? computeFaultPages() : computePages();
+  }
+
+  function buildDocPage(pageItems, titleText, pageIdx, pageCount){
+    if(appMode === 'fault') return buildFaultPageElement(pageItems, titleText, pageIdx, pageCount);
+    return buildPageElement(pageItems, titleText, pageIdx * 4, pageIdx + 1, pageCount);
+  }
+
+  // In fault mode photos are optional: confirm, then print the summary alone.
+  function ensurePhotosForOutput(){
+    if(photos.length > 0) return true;
+    if(appMode === 'fault'){
+      return window.confirm('사진을 추가하지 않겠습니까?\n확인을 누르면 "2. 관련 사진" 없이 1. 고장 요약만 출력됩니다.');
+    }
+    showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
+    return false;
+  }
+
   // Sizes each description box to its own text (matched across the two sets in a
   // row) and hands the leftover height to the photo, so a page stays exactly A4
   // whether descriptions are one line or many.
@@ -1510,11 +1860,8 @@
   }
 
   function openPreview(){
-    if(photos.length === 0){
-      showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
-      return;
-    }
-    var pages = computePages();
+    if(!ensurePhotosForOutput()) return;
+    var pages = computeDocPages();
     var titleText = getReportTitle();
     previewPagesEl.innerHTML = '';
     var countLine = document.createElement('div');
@@ -1522,7 +1869,7 @@
     countLine.textContent = '전체 ' + pages.length + ' 페이지 / 사진 ' + photos.length + '장';
     previewPagesEl.appendChild(countLine);
     pages.forEach(function(pageItems, pageIdx){
-      var pageEl = buildPageElement(pageItems, titleText, pageIdx * 4, pageIdx + 1, pages.length);
+      var pageEl = buildDocPage(pageItems, titleText, pageIdx, pages.length);
       var wrapper = document.createElement('div');
       wrapper.className = 'page-wrapper';
       wrapper.appendChild(pageEl);
@@ -1580,7 +1927,7 @@
     offscreen.style.background = '#ffffff';
     document.body.appendChild(offscreen);
 
-    var pages = computePages();
+    var pages = computeDocPages();
     var titleText = getReportTitle();
     var pdf = null;
 
@@ -1591,7 +1938,7 @@
           resolve(pdf);
           return;
         }
-        var pageEl = buildPageElement(pages[i], titleText, i * 4, i + 1, pages.length);
+        var pageEl = buildDocPage(pages[i], titleText, i, pages.length);
         offscreen.appendChild(pageEl);
         waitForImages(pageEl).then(function(){
           fitPageLayout(pageEl);
@@ -1631,10 +1978,7 @@
     }
     var filename = getValidatedFileName();
     if(!filename) return;
-    if(photos.length === 0){
-      showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
-      return;
-    }
+    if(!ensurePhotosForOutput()) return;
     setGenerating(true, '생성 중...', null);
 
     buildPdfDocument().then(function(pdf){
@@ -1676,10 +2020,7 @@
     }
     var filename = getValidatedFileName();
     if(!filename) return;
-    if(photos.length === 0){
-      showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
-      return;
-    }
+    if(!ensurePhotosForOutput()) return;
 
     var preOpenedWindow = window.open('', '_blank');
     if(preOpenedWindow){
