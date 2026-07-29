@@ -60,6 +60,8 @@
   .unit-field{ position:relative; }
   .unit-field .field-input{ padding-right:46px; }
   .unit-suffix{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--muted); pointer-events:none; }
+  .field-input[readonly]{ background:var(--surface-soft); color:var(--muted); }
+  .field-input[readonly]::placeholder{ font-size:13px; }
   .fault-section-label{ font-size:15px; font-weight:600; color:var(--ink); margin:18px 0 10px; }
   .fault-sub-label{ font-size:13px; font-weight:600; color:var(--muted); margin:4px 0 8px; }
   #faultFields[hidden]{ display:none; }
@@ -140,9 +142,11 @@
   .mh-value{ width:8.5%; font-size:12px; }
   .mh-field{ font-size:12px; font-weight:500; white-space:nowrap; }
 
-  .fr-title-rule{ height:2px; background:#4a6fa5; margin:0 0 3mm; }
-  .fr-title{ text-align:center; font-size:22px; font-weight:700; color:#000; margin:0 0 5mm; word-break:keep-all; }
-  .fr-field-line{ font-size:11px; color:#000; margin:0 0 3mm; }
+  .fr-head-row{ display:flex; align-items:center; justify-content:space-between; gap:6mm; margin:0 0 3mm; }
+  .fr-head-logo{ height:12mm; width:auto; display:block; }
+  .fr-title-rule{ height:2px; background:#4a6fa5; }
+  .fr-title{ text-align:center; font-size:22px; font-weight:700; color:#000; margin:0; padding:2.5mm 0; word-break:keep-all; }
+  .fr-title-block{ margin:0 0 5mm; }
   .fr-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
   .fr-heading + .fr-heading{ margin-top:5mm; }
   .fr-table{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 5mm; }
@@ -173,13 +177,16 @@
   .order-num:active{ background:var(--surface-soft); }
   .order-num.current{ background:var(--ink); color:#fff; border-color:var(--ink); }
 
-  .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:flex-start; justify-content:center; padding:40px 24px 24px; overflow-y:auto; }
+  .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto; }
   .mode-select-screen.closed{ display:none; }
   .mode-select-inner{ width:100%; max-width:360px; text-align:center; }
-  .mode-select-banner{ height:24px; width:auto; margin:0 0 18px; }
-  .mode-select-title{ font-size:21px; font-weight:500; letter-spacing:-0.44px; color:var(--ink); margin:0 0 6px; word-break:keep-all; }
-  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 20px; }
-  .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:12px; }
+  .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 32px; }
+  .mode-select-logo{ height:38px; width:auto; display:block; }
+  .mode-select-banner{ height:22px; width:auto; display:block; }
+  .mode-select-title{ font-size:21px; font-weight:600; letter-spacing:-0.44px; color:var(--ink); margin:0 0 10px; word-break:keep-all; }
+  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 28px; }
+  .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
+  .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
   .mode-choice-title{ display:block; font-size:16px; font-weight:600; color:var(--ink); margin:0 0 4px; }
   .mode-choice-desc{ display:block; font-size:13px; color:var(--muted); line-height:1.5; }
@@ -209,7 +216,10 @@
 
 <div class="mode-select-screen" id="modeSelectScreen">
   <div class="mode-select-inner">
-    <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
+    <div class="mode-select-head">
+      <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-logo">
+      <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
+    </div>
     <h1 class="mode-select-title">사진대장 &amp; 매뉴얼 &amp; 고장 보고서</h1>
     <p class="mode-select-sub">무엇을 작성하시겠어요?</p>
     <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
@@ -347,8 +357,8 @@
         </div>
       </div>
       <div class="field-group">
-        <label class="field-label" for="faultDuration">기간</label>
-        <input type="text" id="faultDuration" class="field-input" placeholder="예: 1시간 30분">
+        <label class="field-label" for="faultDuration">기간 (자동 계산)</label>
+        <input type="text" id="faultDuration" class="field-input" placeholder="중단일시와 예상복구(조치) 일시를 입력하면 자동 계산됩니다" readonly>
       </div>
 
       <div class="field-group">
@@ -368,11 +378,11 @@
 
       <div class="field-row">
         <div class="field-group">
-          <label class="field-label" for="faultRecoverDate">예상복구 일자</label>
+          <label class="field-label" for="faultRecoverDate">예상복구(조치) 일자</label>
           <input type="date" id="faultRecoverDate" class="field-input">
         </div>
         <div class="field-group">
-          <label class="field-label" for="faultRecoverTime">예상복구 시각</label>
+          <label class="field-label" for="faultRecoverTime">예상복구(조치) 시각</label>
           <input type="time" id="faultRecoverTime" class="field-input">
         </div>
       </div>
@@ -398,7 +408,7 @@
         <b>사용 순서</b>
         <ol>
           <li>파일명을 입력합니다. (매뉴얼 모드에서는 [매뉴얼 종류]·[분야]·[개정번호]도 함께 지정하며, 선택한 값이 출력물 상단 표에 표시됩니다.)</li>
-          <li>고장 보고서 모드에서는 발생일시·고장분야·지사·설비명 등 [1. 고장 요약] 항목을 채웁니다. 날짜와 시각은 달력·시계에서 선택하면 출력물에 자동 반영되고, 사진을 넣지 않으면 [2. 관련 사진] 없이 고장 요약만 출력됩니다.</li>
+          <li>고장 보고서 모드에서는 발생일시·고장분야·지사·설비명 등 [1. 고장 요약] 항목을 채웁니다. 날짜와 시각은 달력·시계에서 선택하면 출력물에 자동 반영되고, [기간]은 중단일시와 예상복구(조치) 일시의 차이로 자동 계산됩니다. 사진을 넣지 않으면 [2. 관련 사진] 없이 고장 요약만 출력됩니다.</li>
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
@@ -1619,6 +1629,33 @@
     return v;
   }
 
+  // 기간 = 예상복구(조치) 일시 - 중단일시, in minutes, rolled up to 시간/분.
+  function computeFaultDuration(){
+    var sd = faultValue('faultStopDate'), st = faultValue('faultStopTime');
+    var rd = faultValue('faultRecoverDate'), rt = faultValue('faultRecoverTime');
+    if(!sd || !st || !rd || !rt) return '';
+    var start = new Date(sd + 'T' + st);
+    var end = new Date(rd + 'T' + rt);
+    if(isNaN(start.getTime()) || isNaN(end.getTime())) return '';
+    var mins = Math.round((end.getTime() - start.getTime()) / 60000);
+    if(mins < 0) return '';
+    if(mins < 60) return mins + '분';
+    var hours = Math.floor(mins / 60);
+    var rest = mins % 60;
+    return rest === 0 ? hours + '시간' : hours + '시간 ' + rest + '분';
+  }
+
+  function refreshFaultDuration(){
+    if(faultInputs.faultDuration) faultInputs.faultDuration.value = computeFaultDuration();
+  }
+
+  ['faultStopDate','faultStopTime','faultRecoverDate','faultRecoverTime'].forEach(function(id){
+    var el = faultInputs[id];
+    if(!el) return;
+    el.addEventListener('change', refreshFaultDuration);
+    el.addEventListener('input', refreshFaultDuration);
+  });
+
   // "2025-07-14" + "20:27" -> "2025.7.14. 20:27"
   function formatFaultDateTime(dateId, timeId){
     var d = faultValue(dateId);
@@ -1704,14 +1741,14 @@
     ]);
     addRow([
       faultCell('기간', 'fr-sublabel'),
-      faultCell(faultText('faultDuration'), 'fr-center', 3)
+      faultCell(computeFaultDuration() || '-', 'fr-center', 3)
     ]);
 
     addRow([faultCell('고장내용', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
     addRow([faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'), faultCell(faultText('faultSituation'), 'fr-body', 4)]);
     addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
     addRow([
-      faultCell('예상복구 일시', 'fr-label'),
+      faultCell('예상복구(조치) 일시', 'fr-label'),
       faultCell(formatFaultDateTime('faultRecoverDate', 'faultRecoverTime'), 'fr-body', 4)
     ]);
     addRow([faultCell('응급조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
@@ -1724,28 +1761,34 @@
     var page = document.createElement('div');
     page.className = 'a4-page';
 
-    var bannerRow = document.createElement('div');
-    bannerRow.className = 'page-banner-row';
+    var headRow = document.createElement('div');
+    headRow.className = 'fr-head-row';
+    var headLogo = document.createElement('img');
+    headLogo.className = 'fr-head-logo';
+    headLogo.src = 'manual-logo.gif';
+    headLogo.alt = '';
     var banner = document.createElement('img');
     banner.className = 'page-banner';
     banner.src = 'banner.png';
     banner.alt = '';
-    bannerRow.appendChild(banner);
-    page.appendChild(bannerRow);
+    headRow.appendChild(headLogo);
+    headRow.appendChild(banner);
+    page.appendChild(headRow);
 
-    var rule = document.createElement('div');
-    rule.className = 'fr-title-rule';
-    page.appendChild(rule);
-
+    // Rules above and below the title frame it.
+    var titleBlock = document.createElement('div');
+    titleBlock.className = 'fr-title-block';
+    var ruleTop = document.createElement('div');
+    ruleTop.className = 'fr-title-rule';
     var title = document.createElement('div');
     title.className = 'fr-title';
     title.textContent = titleText || '고장 보고서';
-    page.appendChild(title);
-
-    var fieldLine = document.createElement('div');
-    fieldLine.className = 'fr-field-line';
-    fieldLine.textContent = '해당분야 : ' + faultText('faultFieldSelect');
-    page.appendChild(fieldLine);
+    var ruleBottom = document.createElement('div');
+    ruleBottom.className = 'fr-title-rule';
+    titleBlock.appendChild(ruleTop);
+    titleBlock.appendChild(title);
+    titleBlock.appendChild(ruleBottom);
+    page.appendChild(titleBlock);
 
     if(pageIdx === 0){
       var summaryHeading = document.createElement('div');
