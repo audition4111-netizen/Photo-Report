@@ -48,7 +48,8 @@
     .app-shell{ max-width:640px; border-left:1px solid var(--hairline); border-right:1px solid var(--hairline); }
   }
   .app-header{ padding:14px 16px 8px; border-bottom:1px solid var(--hairline); }
-  .app-banner-row{ display:flex; justify-content:flex-end; margin:0 0 10px; }
+  .app-banner-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; }
+  .app-header-logo{ height:30px; width:auto; display:block; }
   .app-banner{ height:22px; width:auto; display:block; }
   .app-title{ font-size:22px; font-weight:500; letter-spacing:-0.44px; text-align:center; color:var(--ink); margin:0 0 18px; }
   .field-group{ margin-bottom:14px; }
@@ -63,7 +64,11 @@
   .field-input[readonly]{ background:var(--surface-soft); color:var(--muted); }
   .field-input[readonly]::placeholder{ font-size:13px; }
   .fault-section-label{ font-size:15px; font-weight:600; color:var(--ink); margin:18px 0 10px; }
-  .fault-sub-label{ font-size:13px; font-weight:600; color:var(--muted); margin:4px 0 8px; }
+  .fault-sub-label{ font-size:13px; font-weight:600; color:var(--muted); }
+  .fault-sub-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:4px 0 8px; }
+  .check-inline{ display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--ink); cursor:pointer; user-select:none; }
+  .check-inline input{ width:17px; height:17px; accent-color:var(--primary); margin:0; }
+  #faultOutageFields.disabled{ opacity:.45; pointer-events:none; }
   #faultFields[hidden]{ display:none; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
   .field-input{ width:100%; padding:14px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-size:16px; background:var(--canvas); color:var(--ink); height:56px; }
@@ -241,6 +246,7 @@
 
   <div class="app-header">
     <div class="app-banner-row">
+      <img src="manual-logo.gif" alt="한국지역난방공사" class="app-header-logo">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
     <h1 class="app-title" id="appTitle">사진대장</h1>
@@ -329,36 +335,41 @@
         <input type="text" id="faultDevice" class="field-input" placeholder="예: ST 보조 변압기 방압변">
       </div>
 
-      <div class="fault-sub-label">열공급 중단</div>
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label" for="faultApt">APT</label>
-          <div class="unit-field">
-            <input type="text" inputmode="numeric" id="faultApt" class="field-input" placeholder="예: 120">
-            <span class="unit-suffix">세대</span>
+      <div class="fault-sub-head">
+        <span class="fault-sub-label">열공급 중단</span>
+        <label class="check-inline"><input type="checkbox" id="faultNoOutage"> 해당없음</label>
+      </div>
+      <div id="faultOutageFields">
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label" for="faultApt">APT</label>
+            <div class="unit-field">
+              <input type="text" inputmode="numeric" id="faultApt" class="field-input" placeholder="예: 120">
+              <span class="unit-suffix">세대</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="faultBuilding">건물</label>
+            <div class="unit-field">
+              <input type="text" inputmode="numeric" id="faultBuilding" class="field-input" placeholder="예: 3">
+              <span class="unit-suffix">개소</span>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label" for="faultStopDate">중단일자</label>
+            <input type="date" id="faultStopDate" class="field-input">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="faultStopTime">중단시각</label>
+            <input type="time" id="faultStopTime" class="field-input">
           </div>
         </div>
         <div class="field-group">
-          <label class="field-label" for="faultBuilding">건물</label>
-          <div class="unit-field">
-            <input type="text" inputmode="numeric" id="faultBuilding" class="field-input" placeholder="예: 3">
-            <span class="unit-suffix">개소</span>
-          </div>
+          <label class="field-label" for="faultDuration">기간 (자동 계산)</label>
+          <input type="text" id="faultDuration" class="field-input" placeholder="중단일시와 예상복구(조치) 일시를 입력하면 자동 계산됩니다" readonly>
         </div>
-      </div>
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label" for="faultStopDate">중단일자</label>
-          <input type="date" id="faultStopDate" class="field-input">
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="faultStopTime">중단시각</label>
-          <input type="time" id="faultStopTime" class="field-input">
-        </div>
-      </div>
-      <div class="field-group">
-        <label class="field-label" for="faultDuration">기간 (자동 계산)</label>
-        <input type="text" id="faultDuration" class="field-input" placeholder="중단일시와 예상복구(조치) 일시를 입력하면 자동 계산됩니다" readonly>
       </div>
 
       <div class="field-group">
@@ -385,11 +396,15 @@
           <label class="field-label" for="faultRecoverTime">예상복구(조치) 시각</label>
           <input type="time" id="faultRecoverTime" class="field-input">
         </div>
+        <div class="field-group">
+          <label class="field-label" for="faultRecoverNote">직접 입력</label>
+          <input type="text" id="faultRecoverNote" class="field-input" placeholder="예: 미정 / 부품 수급 후">
+        </div>
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="faultAction">응급조치사항</label>
-        <textarea id="faultAction" class="field-textarea" rows="3" placeholder="응급조치 사항을 입력하세요."></textarea>
+        <label class="field-label" for="faultAction">조치사항</label>
+        <textarea id="faultAction" class="field-textarea" rows="3" placeholder="조치 사항을 입력하세요."></textarea>
       </div>
 
       <div class="fault-section-label">2. 관련 사진</div>
@@ -556,8 +571,11 @@
   var faultInputs = {};
   ['faultOccurredDate','faultOccurredTime','faultFieldSelect','faultBranch','faultFacility',
    'faultDevice','faultApt','faultBuilding','faultStopDate','faultStopTime','faultDuration',
-   'faultContent','faultSituation','faultCause','faultRecoverDate','faultRecoverTime','faultAction'
+   'faultContent','faultSituation','faultCause','faultRecoverDate','faultRecoverTime',
+   'faultRecoverNote','faultAction'
   ].forEach(function(id){ faultInputs[id] = document.getElementById(id); });
+  var faultNoOutageEl = document.getElementById('faultNoOutage');
+  var faultOutageFieldsEl = document.getElementById('faultOutageFields');
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
@@ -1656,6 +1674,19 @@
     el.addEventListener('input', refreshFaultDuration);
   });
 
+  function isNoOutage(){
+    return !!(faultNoOutageEl && faultNoOutageEl.checked);
+  }
+
+  function refreshOutageEnabled(){
+    var off = isNoOutage();
+    faultOutageFieldsEl.classList.toggle('disabled', off);
+    faultOutageFieldsEl.querySelectorAll('input').forEach(function(el){
+      el.disabled = off;
+    });
+  }
+  if(faultNoOutageEl) faultNoOutageEl.addEventListener('change', refreshOutageEnabled);
+
   // "2025-07-14" + "20:27" -> "2025.7.14. 20:27"
   function formatFaultDateTime(dateId, timeId){
     var d = faultValue(dateId);
@@ -1668,6 +1699,18 @@
 
   function faultText(id){
     return faultValue(id) || '-';
+  }
+
+  // Free text sits alongside the pickers: either can stand alone, or both combine.
+  function formatFaultRecovery(){
+    var picked = '';
+    if(faultValue('faultRecoverDate') || faultValue('faultRecoverTime')){
+      picked = formatFaultDateTime('faultRecoverDate', 'faultRecoverTime');
+      if(picked === '-') picked = '';
+    }
+    var note = faultValue('faultRecoverNote');
+    if(picked && note) return picked + ' ' + note;
+    return picked || note || '-';
   }
 
   function faultUnitText(id, unit){
@@ -1728,30 +1771,37 @@
       faultCell(faultText('faultDevice'), 'fr-center', 4)
     ]);
 
-    addRow([
-      faultCell('열공급 중단', 'fr-label', 0, 3),
-      faultCell('APT', 'fr-sublabel'),
-      faultCell(faultUnitText('faultApt', '세대'), 'fr-center'),
-      faultCell('건물', 'fr-sublabel'),
-      faultCell(faultUnitText('faultBuilding', '개소'), 'fr-center')
-    ]);
-    addRow([
-      faultCell('중단시간', 'fr-sublabel'),
-      faultCell(formatFaultDateTime('faultStopDate', 'faultStopTime'), 'fr-center', 3)
-    ]);
-    addRow([
-      faultCell('기간', 'fr-sublabel'),
-      faultCell(computeFaultDuration() || '-', 'fr-center', 3)
-    ]);
+    if(isNoOutage()){
+      addRow([
+        faultCell('열공급 중단', 'fr-label'),
+        faultCell('해당없음', 'fr-center', 4)
+      ]);
+    }else{
+      addRow([
+        faultCell('열공급 중단', 'fr-label', 0, 3),
+        faultCell('APT', 'fr-sublabel'),
+        faultCell(faultUnitText('faultApt', '세대'), 'fr-center'),
+        faultCell('건물', 'fr-sublabel'),
+        faultCell(faultUnitText('faultBuilding', '개소'), 'fr-center')
+      ]);
+      addRow([
+        faultCell('중단시간', 'fr-sublabel'),
+        faultCell(formatFaultDateTime('faultStopDate', 'faultStopTime'), 'fr-center', 3)
+      ]);
+      addRow([
+        faultCell('기간', 'fr-sublabel'),
+        faultCell(computeFaultDuration() || '-', 'fr-center', 3)
+      ]);
+    }
 
     addRow([faultCell('고장내용', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
     addRow([faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'), faultCell(faultText('faultSituation'), 'fr-body', 4)]);
     addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
     addRow([
       faultCell('예상복구(조치) 일시', 'fr-label'),
-      faultCell(formatFaultDateTime('faultRecoverDate', 'faultRecoverTime'), 'fr-body', 4)
+      faultCell(formatFaultRecovery(), 'fr-body', 4)
     ]);
-    addRow([faultCell('응급조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
+    addRow([faultCell('조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
 
     table.appendChild(tbody);
     return table;
