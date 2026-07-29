@@ -207,12 +207,13 @@
     </div>
 
     <div class="field-group" id="docTypeGroup" hidden>
-      <label class="field-label" for="docTypeSelect">절차서 종류</label>
+      <label class="field-label" for="docTypeSelect">매뉴얼 종류</label>
       <select id="docTypeSelect" class="field-input">
-        <option value="업무 절차서">업무 절차서</option>
-        <option value="운전 절차서">운전 절차서</option>
-        <option value="점검 절차서">점검 절차서</option>
-        <option value="정비 절차서">정비 절차서</option>
+        <option value="업무 매뉴얼">업무 매뉴얼</option>
+        <option value="조작 매뉴얼">조작 매뉴얼</option>
+        <option value="운전 매뉴얼">운전 매뉴얼</option>
+        <option value="점검 매뉴얼">점검 매뉴얼</option>
+        <option value="정비 매뉴얼">정비 매뉴얼</option>
       </select>
     </div>
 
@@ -238,7 +239,7 @@
       <div class="guide-body">
         <b>사용 순서</b>
         <ol>
-          <li>파일명을 입력합니다. (매뉴얼 모드에서는 [절차서 종류]와 [개정번호]도 함께 지정하며, 선택한 절차서 종류가 출력물 상단에 표시됩니다.)</li>
+          <li>파일명을 입력합니다. (매뉴얼 모드에서는 [매뉴얼 종류]와 [개정번호]도 함께 지정하며, 선택한 매뉴얼 종류가 출력물 상단에 표시됩니다.)</li>
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
@@ -251,7 +252,7 @@
         </ol>
         <b>사용 가이드 추천</b>
         <ol>
-          <li>사진대장 또는 간단 매뉴얼 작성 시 사용
+          <li>사진대장 또는 매뉴얼 작성 시 사용
             <ul>
               <li>[메일로 전송]을 통해 회사메일로 전송</li>
               <li>자료 교환 후 사용</li>
@@ -1304,7 +1305,7 @@
     return appMode === 'manual' ? '매뉴얼' : '사진대장';
   }
 
-  // "업무 절차서" -> "업 무 절 차 서" for the form's spaced-out document label.
+  // "업무 매뉴얼" -> "업 무 매 뉴 얼" for the form's spaced-out document label.
   function spaceOutChars(text){
     return String(text || '').replace(/\s+/g, '').split('').join(' ');
   }
