@@ -68,6 +68,11 @@
   .fault-sub-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:4px 0 8px; }
   .check-inline{ display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--ink); cursor:pointer; user-select:none; }
   .check-inline input{ width:17px; height:17px; accent-color:var(--primary); margin:0; }
+  /* Native <input type="time"> follows the browser locale (오전/오후 in Korean),
+     so hour/minute selects are used to guarantee a 24-hour display. */
+  .time-picker{ display:flex; align-items:center; gap:6px; }
+  .time-picker select.field-input{ flex:1; min-width:0; text-align:center; padding-left:8px; padding-right:26px; background-position:right 8px center; }
+  .time-colon{ font-size:16px; color:var(--muted); }
   #faultOutageFields.disabled{ opacity:.45; pointer-events:none; }
   #faultFields[hidden]{ display:none; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
@@ -302,7 +307,7 @@
         </div>
         <div class="field-group">
           <label class="field-label" for="faultOccurredTime">발생시각</label>
-          <input type="time" id="faultOccurredTime" class="field-input">
+          <div class="time-picker" data-time-for="faultOccurredTime"><select class="field-input time-hour" aria-label="시"></select><span class="time-colon">:</span><select class="field-input time-min" aria-label="분"></select></div><input type="hidden" id="faultOccurredTime">
         </div>
       </div>
 
@@ -363,7 +368,7 @@
           </div>
           <div class="field-group">
             <label class="field-label" for="faultStopTime">중단시각</label>
-            <input type="time" id="faultStopTime" class="field-input">
+            <div class="time-picker" data-time-for="faultStopTime"><select class="field-input time-hour" aria-label="시"></select><span class="time-colon">:</span><select class="field-input time-min" aria-label="분"></select></div><input type="hidden" id="faultStopTime">
           </div>
         </div>
         <div class="field-group">
@@ -394,7 +399,7 @@
         </div>
         <div class="field-group">
           <label class="field-label" for="faultRecoverTime">예상복구(조치) 시각</label>
-          <input type="time" id="faultRecoverTime" class="field-input">
+          <div class="time-picker" data-time-for="faultRecoverTime"><select class="field-input time-hour" aria-label="시"></select><span class="time-colon">:</span><select class="field-input time-min" aria-label="분"></select></div><input type="hidden" id="faultRecoverTime">
         </div>
         <div class="field-group">
           <label class="field-label" for="faultRecoverNote">직접 입력</label>
@@ -1681,11 +1686,39 @@
   function refreshOutageEnabled(){
     var off = isNoOutage();
     faultOutageFieldsEl.classList.toggle('disabled', off);
-    faultOutageFieldsEl.querySelectorAll('input').forEach(function(el){
+    faultOutageFieldsEl.querySelectorAll('input, select').forEach(function(el){
       el.disabled = off;
     });
   }
   if(faultNoOutageEl) faultNoOutageEl.addEventListener('change', refreshOutageEnabled);
+
+  function pad2(n){
+    return (n < 10 ? '0' : '') + n;
+  }
+
+  // Hour/minute selects feed a hidden "HH:MM" input, so everything downstream
+  // keeps reading one plain value.
+  function initTimePickers(){
+    document.querySelectorAll('.time-picker').forEach(function(wrap){
+      var target = document.getElementById(wrap.dataset.timeFor);
+      var hourSel = wrap.querySelector('.time-hour');
+      var minSel = wrap.querySelector('.time-min');
+      if(!target || !hourSel || !minSel) return;
+
+      hourSel.appendChild(new Option('시', ''));
+      for(var h = 0; h < 24; h++){ hourSel.appendChild(new Option(pad2(h), pad2(h))); }
+      minSel.appendChild(new Option('분', ''));
+      for(var m = 0; m < 60; m++){ minSel.appendChild(new Option(pad2(m), pad2(m))); }
+
+      function sync(){
+        target.value = (hourSel.value && minSel.value) ? hourSel.value + ':' + minSel.value : '';
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      hourSel.addEventListener('change', sync);
+      minSel.addEventListener('change', sync);
+    });
+  }
+  initTimePickers();
 
   // "2025-07-14" + "20:27" -> "2025.7.14. 20:27"
   function formatFaultDateTime(dateId, timeId){
@@ -1699,6 +1732,12 @@
 
   function faultText(id){
     return faultValue(id) || '-';
+  }
+
+  // 전기 -> 전기분야
+  function faultFieldLabel(){
+    var v = faultValue('faultFieldSelect');
+    return v ? v + '분야' : '-';
   }
 
   // Free text sits alongside the pickers: either can stand alone, or both combine.
@@ -1759,7 +1798,7 @@
     addRow([
       faultCell('발생일시/고장분야', 'fr-label'),
       faultCell(formatFaultDateTime('faultOccurredDate', 'faultOccurredTime'), 'fr-center', 2),
-      faultCell(faultText('faultFieldSelect'), 'fr-center', 2)
+      faultCell(faultFieldLabel(), 'fr-center', 2)
     ]);
     addRow([
       faultCell('지사/설비명', 'fr-label'),
