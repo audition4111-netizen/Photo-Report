@@ -52,6 +52,9 @@
   .app-banner{ height:22px; width:auto; display:block; }
   .app-title{ font-size:22px; font-weight:500; letter-spacing:-0.44px; text-align:center; color:var(--ink); margin:0 0 18px; }
   .field-group{ margin-bottom:14px; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row[hidden]{ display:none; }
+  .field-row .field-group{ flex:1; min-width:0; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
   .field-input{ width:100%; padding:14px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-size:16px; background:var(--canvas); color:var(--ink); height:56px; }
   select.field-input{ font-family:inherit; appearance:none; -webkit-appearance:none; padding-right:38px; background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%236a6a6a' stroke-width='1.6' d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:12px 8px; }
@@ -127,6 +130,7 @@
   .mh-title{ font-size:13.5px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
   .mh-label{ width:12.5%; font-size:12px; white-space:nowrap; }
   .mh-value{ width:8.5%; font-size:12px; }
+  .mh-field{ font-size:12px; font-weight:500; white-space:nowrap; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
@@ -206,15 +210,31 @@
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
     </div>
 
-    <div class="field-group" id="docTypeGroup" hidden>
-      <label class="field-label" for="docTypeSelect">매뉴얼 종류</label>
-      <select id="docTypeSelect" class="field-input">
-        <option value="업무 매뉴얼">업무 매뉴얼</option>
-        <option value="조작 매뉴얼">조작 매뉴얼</option>
-        <option value="운전 매뉴얼">운전 매뉴얼</option>
-        <option value="점검 매뉴얼">점검 매뉴얼</option>
-        <option value="정비 매뉴얼">정비 매뉴얼</option>
-      </select>
+    <div class="field-row" id="docTypeGroup" hidden>
+      <div class="field-group">
+        <label class="field-label" for="docTypeSelect">매뉴얼 종류</label>
+        <select id="docTypeSelect" class="field-input">
+          <option value="업무 매뉴얼">업무 매뉴얼</option>
+          <option value="조작 매뉴얼">조작 매뉴얼</option>
+          <option value="운전 매뉴얼">운전 매뉴얼</option>
+          <option value="점검 매뉴얼">점검 매뉴얼</option>
+          <option value="정비 매뉴얼">정비 매뉴얼</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="fieldSelect">분야</label>
+        <select id="fieldSelect" class="field-input">
+          <option value="기계">기계</option>
+          <option value="전기">전기</option>
+          <option value="제어">제어</option>
+          <option value="전산">전산</option>
+          <option value="운영">운영</option>
+          <option value="건축">건축</option>
+          <option value="토목">토목</option>
+          <option value="화공">화공</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
     </div>
 
     <div class="field-group">
@@ -239,7 +259,7 @@
       <div class="guide-body">
         <b>사용 순서</b>
         <ol>
-          <li>파일명을 입력합니다. (매뉴얼 모드에서는 [매뉴얼 종류]와 [개정번호]도 함께 지정하며, 선택한 매뉴얼 종류가 출력물 상단에 표시됩니다.)</li>
+          <li>파일명을 입력합니다. (매뉴얼 모드에서는 [매뉴얼 종류]·[분야]·[개정번호]도 함께 지정하며, 선택한 값이 출력물 상단 표에 표시됩니다.)</li>
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
@@ -382,6 +402,7 @@
   var revisionGroupEl = document.getElementById('revisionGroup');
   var docTypeSelectEl = document.getElementById('docTypeSelect');
   var docTypeGroupEl = document.getElementById('docTypeGroup');
+  var fieldSelectEl = document.getElementById('fieldSelect');
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
@@ -1317,7 +1338,7 @@
 
     var logoCell = document.createElement('td');
     logoCell.className = 'mh-logo';
-    logoCell.rowSpan = 2;
+    logoCell.rowSpan = 3;
     var logo = document.createElement('img');
     logo.src = 'manual-logo.gif';
     logo.alt = '';
@@ -1329,7 +1350,19 @@
 
     var docTypeCell = document.createElement('td');
     docTypeCell.className = 'mh-doctype';
+    docTypeCell.rowSpan = 2;
     docTypeCell.textContent = spaceOutChars(docTypeSelectEl.value);
+
+    // Top-right spans both columns: the field already reads "기계분야".
+    var fieldCell = document.createElement('td');
+    fieldCell.className = 'mh-field';
+    fieldCell.colSpan = 2;
+    fieldCell.textContent = fieldSelectEl.value + '분야';
+
+    var row1 = document.createElement('tr');
+    row1.appendChild(logoCell);
+    row1.appendChild(docTypeCell);
+    row1.appendChild(fieldCell);
 
     var revLabelCell = document.createElement('td');
     revLabelCell.className = 'mh-label';
@@ -1339,11 +1372,9 @@
     revValueCell.className = 'mh-value';
     revValueCell.textContent = revisionInputEl.value.trim();
 
-    var row1 = document.createElement('tr');
-    row1.appendChild(logoCell);
-    row1.appendChild(docTypeCell);
-    row1.appendChild(revLabelCell);
-    row1.appendChild(revValueCell);
+    var row2 = document.createElement('tr');
+    row2.appendChild(revLabelCell);
+    row2.appendChild(revValueCell);
 
     var titleCell = document.createElement('td');
     titleCell.className = 'mh-title';
@@ -1357,13 +1388,14 @@
     pageValueCell.className = 'mh-value';
     pageValueCell.textContent = pageNo + '/' + pageCount;
 
-    var row2 = document.createElement('tr');
-    row2.appendChild(titleCell);
-    row2.appendChild(pageLabelCell);
-    row2.appendChild(pageValueCell);
+    var row3 = document.createElement('tr');
+    row3.appendChild(titleCell);
+    row3.appendChild(pageLabelCell);
+    row3.appendChild(pageValueCell);
 
     tbody.appendChild(row1);
     tbody.appendChild(row2);
+    tbody.appendChild(row3);
     table.appendChild(tbody);
     return table;
   }
