@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>사진대장 생성</title>
+<title>뚝 DOC — 자동 문서 생성기</title>
+
+<!-- 홈화면에 앱으로 설치되도록 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<!-- iOS는 manifest의 아이콘을 쓰지 않아 별도 지정이 필요하다 -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="뚝 DOC">
 <style>
   :root{
     --primary:#ff385c;
@@ -629,6 +639,18 @@
 <script src="supabase-config.js"></script>
 <script src="archive.js"></script>
 <script src="draft.js"></script>
+<script>
+  /* 서비스 워커 등록 — 앱 설치와 오프라인 실행에 필요하다.
+     file:// 로 열면(사내망 단일 파일 사본) 등록이 불가능하고 콘솔 오류만 나므로
+     http(s) 로 열렸을 때만 시도한다. */
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (err) {
+        console.error('서비스 워커 등록 실패:', err);
+      });
+    });
+  }
+</script>
 
 <script>
 (function(){
