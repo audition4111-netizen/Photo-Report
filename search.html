@@ -246,6 +246,17 @@
     return d.getFullYear() + '.' + (d.getMonth()+1) + '.' + d.getDate() + '.';
   }
 
+  /* 두 시각의 차이. 정지기간처럼 저장하지 않고 그때그때 계산하는 값에 쓴다
+     (occurred_at·outage_at·recover_at 로 구할 수 있어 컬럼을 늘릴 필요가 없다). */
+  function spanText(fromIso, toIso){
+    if(!fromIso || !toIso) return '';
+    var a = new Date(fromIso), b = new Date(toIso);
+    if(isNaN(a.getTime()) || isNaN(b.getTime())) return '';
+    var mins = Math.round((b.getTime() - a.getTime()) / 60000);
+    if(mins < 0) return '';
+    return Archive.minutesToText(mins);
+  }
+
   function metaLine(label, value){
     if(!value) return '';
     return '<div>' + label + ' <b>' + String(value).replace(/[<>&]/g, function(c){
@@ -257,29 +268,29 @@
     var card = document.createElement('div');
     card.className = 'card';
 
+    /* 파일명은 카드 제목으로 이미 보이므로 목록에서 빼고, 종류별로 정해진 순서대로
+       쌓는다. 작성자·작성일이 맨 뒤인 것도 그 순서에 맞춘 것. */
     var meta = '';
-    meta += metaLine('작성자', row.author_name);
-    meta += metaLine('작성일', fmtDateTime(row.created_at));
 
     if(row.doc_type === 'manual'){
-      meta += metaLine('파일명', row.file_name);
       meta += metaLine('종류', row.manual_type);
       meta += metaLine('분야', row.field ? row.field + '분야' : '');
       meta += metaLine('지사', row.branch);
-      meta += metaLine('개정번호', row.revision);
+      meta += metaLine('작성자', row.author_name);
+      meta += metaLine('작성일', fmtDateTime(row.created_at));
     }else if(row.doc_type === 'fault'){
-      meta += metaLine('발생일시', fmtDateTime(row.occurred_at));
       meta += metaLine('고장분야', row.field ? row.field + '분야' : '');
-      meta += metaLine('지사', row.branch);
       meta += metaLine('설비명', row.facility);
       meta += metaLine('고장내용', row.fault_content);
-      if(row.outage_none){
-        meta += metaLine('열공급 중단', '해당없음');
-      }else if(row.outage_mins !== null && row.outage_mins !== undefined){
-        meta += metaLine('중단 기간', Archive.minutesToText(row.outage_mins));
-      }
+      meta += metaLine('발생일시', fmtDateTime(row.occurred_at));
+      // 복구일시를 고르지 않고 "미정" 처럼 직접 적은 경우도 있다
+      meta += metaLine('복구일시', fmtDateTime(row.recover_at) || row.recover_note);
+      meta += metaLine('정지기간', spanText(row.occurred_at, row.recover_at));
+      meta += metaLine('열공급 정지기간',
+        row.outage_none ? '해당없음' : spanText(row.outage_at, row.recover_at));
+      meta += metaLine('작성자', row.author_name);
+      meta += metaLine('작성일', fmtDateTime(row.created_at));
     }
-    meta += metaLine('사진', row.photo_count ? row.photo_count + '장' : '없음');
 
     card.innerHTML =
       '<div class="card-top">' +

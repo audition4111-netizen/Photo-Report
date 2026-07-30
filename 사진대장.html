@@ -476,6 +476,11 @@
       </div>
 
       <div class="field-group">
+        <label class="field-label" for="faultDownTime">설비 정지기간 (자동 계산)</label>
+        <input type="text" id="faultDownTime" class="field-input" placeholder="발생일시와 복구일시를 입력하면 자동 계산됩니다" readonly>
+      </div>
+
+      <div class="field-group">
         <label class="field-label" for="faultAction">조치사항</label>
         <textarea id="faultAction" class="field-textarea" rows="3" placeholder="조치 사항을 입력하세요."></textarea>
       </div>
@@ -701,6 +706,7 @@
   var faultInputs = {};
   ['faultOccurredDate','faultOccurredTime','faultFieldSelect','faultBranch','faultFacility',
    'faultDevice','faultApt','faultBuilding','faultStopDate','faultStopTime','faultDuration',
+   'faultDownTime',
    'faultContent','faultSituation','faultCause','faultRecoverDate','faultRecoverTime',
    'faultRecoverNote','faultAction'
   ].forEach(function(id){ faultInputs[id] = document.getElementById(id); });
@@ -1854,27 +1860,44 @@
     return v;
   }
 
-  // 기간 = 예상복구(조치) 일시 - 중단일시, in minutes, rolled up to 시간/분.
-  function computeFaultDuration(){
-    var sd = faultValue('faultStopDate'), st = faultValue('faultStopTime');
-    var rd = faultValue('faultRecoverDate'), rt = faultValue('faultRecoverTime');
-    if(!sd || !st || !rd || !rt) return '';
+  // 두 일시의 차이를 분으로. 값이 모자라거나 순서가 거꾸로면 null.
+  function spanMinutes(startDateId, startTimeId, endDateId, endTimeId){
+    var sd = faultValue(startDateId), st = faultValue(startTimeId);
+    var ed = faultValue(endDateId), et = faultValue(endTimeId);
+    if(!sd || !st || !ed || !et) return null;
     var start = new Date(sd + 'T' + st);
-    var end = new Date(rd + 'T' + rt);
-    if(isNaN(start.getTime()) || isNaN(end.getTime())) return '';
+    var end = new Date(ed + 'T' + et);
+    if(isNaN(start.getTime()) || isNaN(end.getTime())) return null;
     var mins = Math.round((end.getTime() - start.getTime()) / 60000);
-    if(mins < 0) return '';
+    return mins < 0 ? null : mins;
+  }
+
+  // 90 -> "1시간 30분"
+  function minutesText(mins){
+    if(mins === null || mins === undefined) return '';
     if(mins < 60) return mins + '분';
     var hours = Math.floor(mins / 60);
     var rest = mins % 60;
     return rest === 0 ? hours + '시간' : hours + '시간 ' + rest + '분';
   }
 
-  function refreshFaultDuration(){
-    if(faultInputs.faultDuration) faultInputs.faultDuration.value = computeFaultDuration();
+  // 열공급 기간 = 복구일시 - 중단일시
+  function computeFaultDuration(){
+    return minutesText(spanMinutes('faultStopDate', 'faultStopTime', 'faultRecoverDate', 'faultRecoverTime'));
   }
 
-  ['faultStopDate','faultStopTime','faultRecoverDate','faultRecoverTime'].forEach(function(id){
+  // 설비 정지기간 = 복구일시 - 발생일시
+  function computeFaultDownTime(){
+    return minutesText(spanMinutes('faultOccurredDate', 'faultOccurredTime', 'faultRecoverDate', 'faultRecoverTime'));
+  }
+
+  function refreshFaultDuration(){
+    if(faultInputs.faultDuration) faultInputs.faultDuration.value = computeFaultDuration();
+    if(faultInputs.faultDownTime) faultInputs.faultDownTime.value = computeFaultDownTime();
+  }
+
+  ['faultStopDate','faultStopTime','faultRecoverDate','faultRecoverTime',
+   'faultOccurredDate','faultOccurredTime'].forEach(function(id){
     var el = faultInputs[id];
     if(!el) return;
     el.addEventListener('change', refreshFaultDuration);
@@ -2086,9 +2109,11 @@
         : faultCell(faultText('faultSituation'), 'fr-body', 4)
     ]);
     addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
+    // 4칸을 2:2로 나눠 왼쪽은 복구일시, 오른쪽은 자동 계산된 설비 정지기간
     addRow([
-      faultCell('예상복구(조치) 일시', 'fr-label'),
-      faultCell(formatFaultRecovery(), 'fr-body', 4)
+      faultCell('복구일시/설비정지기간', 'fr-label'),
+      faultCell(formatFaultRecovery(), 'fr-center', 2),
+      faultCell(computeFaultDownTime() || '-', 'fr-center', 2)
     ]);
     addRow([faultCell('조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
 
