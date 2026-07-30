@@ -156,6 +156,8 @@
   .mh-logo{ width:18.5%; }
   .mh-logo img{ height:10mm; width:auto; display:block; margin:0 auto 0.5mm; }
   .mh-org{ font-size:11px; font-weight:700; white-space:nowrap; }
+  /* 한국지역난방공사 바로 아래 같은 칸에 지사명 */
+  .mh-branch{ font-size:10px; font-weight:500; white-space:nowrap; margin-top:0.3mm; }
   .mh-doctype{ width:60.5%; font-size:21px; font-weight:700; letter-spacing:0.28em; text-indent:0.28em; white-space:nowrap; }
   .mh-title{ font-size:13.5px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
   .mh-label{ width:12.5%; font-size:12px; white-space:nowrap; }
@@ -337,6 +339,10 @@
       <div class="field-group">
         <label class="field-label" for="fieldSelect">분야</label>
         <select id="fieldSelect" class="field-input"></select>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="manualBranchSelect">지사</label>
+        <select id="manualBranchSelect" class="field-input"></select>
       </div>
     </div>
 
@@ -666,6 +672,7 @@
   var replaceTargetId = null;
   var isGenerating = false;
   var appMode = 'report';
+  var appStartedAt = new Date();   // 고장 보고서의 발생·중단 일시 초기값에 쓴다
 
   var fileNameInputEl = document.getElementById('fileNameInput');
   var revisionInputEl = document.getElementById('revisionInput');
@@ -673,6 +680,7 @@
   var docTypeSelectEl = document.getElementById('docTypeSelect');
   var docTypeGroupEl = document.getElementById('docTypeGroup');
   var fieldSelectEl = document.getElementById('fieldSelect');
+  var manualBranchSelectEl = document.getElementById('manualBranchSelect');
   var faultFieldsEl = document.getElementById('faultFields');
   var faultInputs = {};
   ['faultOccurredDate','faultOccurredTime','faultFieldSelect','faultBranch','faultFacility',
@@ -725,18 +733,30 @@
   var MANUAL_FIELDS = ['전기', '기계', '제어', '전산', '운영', '건축', '토목', '화공', '사무', '기타'];
   var FAULT_FIELDS = ['전기', '기계', '제어', '전산', '운영', '열수송', '기타'];
 
+  // '기타'는 가나다순으로 두면 중간에 끼는데(기계 → 기타 → 열수송), 목록 맨 아래가
+  // 자연스러우므로 정렬에서 빼고 마지막에 붙인다.
+  var LAST_OPTIONS = ['기타'];
+
+  function sortKorean(values){
+    var head = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) === -1; });
+    var tail = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) !== -1; });
+    head.sort(function(a, b){ return a.localeCompare(b, 'ko'); });
+    return head.concat(tail);
+  }
+
   /* 가나다순으로 채운다. localeCompare(…,'ko')에 정렬을 맡기면 한글 자모 순서를
      직접 계산할 필요가 없고, 위 목록에 항목을 추가할 때 순서를 신경 쓰지 않아도 된다. */
   function fillSortedSelect(id, values, defaultValue){
     var el = document.getElementById(id);
     if(!el) return;
-    var sorted = values.slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });
+    var sorted = sortKorean(values);
     el.innerHTML = '';
     sorted.forEach(function(v){ el.appendChild(new Option(v, v)); });
     if(sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
   }
 
   fillSortedSelect('faultBranch', BRANCHES, '양산지사');
+  fillSortedSelect('manualBranchSelect', BRANCHES, '양산지사');
   fillSortedSelect('fieldSelect', MANUAL_FIELDS, '전기');
   fillSortedSelect('faultFieldSelect', FAULT_FIELDS, '전기');
 
@@ -1683,6 +1703,15 @@
     logoCell.appendChild(logo);
     logoCell.appendChild(org);
 
+    // 같은 칸에서 한국지역난방공사 바로 아랫줄
+    var branchName = manualBranchSelectEl ? manualBranchSelectEl.value : '';
+    if(branchName){
+      var branch = document.createElement('div');
+      branch.className = 'mh-branch';
+      branch.textContent = branchName;
+      logoCell.appendChild(branch);
+    }
+
     var docTypeCell = document.createElement('td');
     docTypeCell.className = 'mh-doctype';
     docTypeCell.rowSpan = 2;
@@ -1884,14 +1913,15 @@
     target.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  /* 중단·복구 일시의 초기값을 로그인 시각으로 채운다. 고장 보고서는 대개 로그인
-     직후에 작성하므로 손으로 넣을 일이 줄어든다. 이미 입력된 칸은 건드리지 않는다. */
+  /* 발생·중단 일시의 초기값을 앱을 실행한 시각으로 채운다. 고장 보고서는 대개
+     앱을 열고 바로 작성하므로 손으로 넣을 일이 줄어든다.
+     복구 일시는 채우지 않는다 — 아직 정해지지 않은 값이라 비워 두고 직접 고르게 한다.
+     이미 입력된 칸은 건드리지 않는다. */
   function prefillFaultTimes(){
-    if(!authLoginAt) return;
-    var d = authLoginAt;
+    var d = appStartedAt;
     var dateStr = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
     var timeStr = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
-    [['faultStopDate', 'faultStopTime'], ['faultRecoverDate', 'faultRecoverTime']].forEach(function(pair){
+    [['faultOccurredDate', 'faultOccurredTime'], ['faultStopDate', 'faultStopTime']].forEach(function(pair){
       if(!faultValue(pair[0]) && faultInputs[pair[0]]) faultInputs[pair[0]].value = dateStr;
       if(!faultValue(pair[1])) setTimePickerValue(pair[1], timeStr);
     });
@@ -2296,7 +2326,6 @@
   var authToggleBtn = document.getElementById('authToggleBtn');
   var authSignUpMode = false;
   var authUser = null;
-  var authLoginAt = null;      // 로그인한 시각 — 고장 보고서 일시 초기값에 쓴다
   var authIntroNote = '';      // 만들기 버튼에서 띄웠을 때 팝업에 보여 줄 안내
   var SIGNUP_EMAIL_DOMAIN = 'kdhc.co.kr';
 
@@ -2342,10 +2371,7 @@
 
   // 로그인 상태가 바뀌는 유일한 통로. 새로 로그인한 순간을 여기서 기록한다.
   function setAuthUser(user){
-    var wasLoggedIn = !!authUser;
     authUser = user || null;
-    if(authUser && !wasLoggedIn) authLoginAt = new Date();
-    if(!authUser) authLoginAt = null;
     renderAuthState();
   }
 
@@ -2533,6 +2559,7 @@
       meta.manual_type = docTypeSelectEl.value;
       meta.field = fieldSelectEl.value;
       meta.revision = revisionInputEl.value.trim() || null;
+      meta.branch = manualBranchSelectEl.value || null;   // 보관함에서 지사로 조회하려면 함께 저장해야 한다
     }else if(docType === 'fault'){
       meta.field = faultValue('faultFieldSelect') || null;
       meta.occurred_at = isoOrNull('faultOccurredDate', 'faultOccurredTime');
@@ -2679,7 +2706,8 @@
     return !!(window.Draft && Draft.isEnabled());
   }
 
-  var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect'];
+  var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect',
+    'manualBranchSelect'];
 
   /* 사진의 sketchedCache·rotatedCache 는 baseDataURL + strokes + rotation 으로
      다시 만들 수 있는 파생물이라 저장하지 않는다. 그대로 담으면 용량이 3배가 된다. */

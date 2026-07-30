@@ -108,12 +108,12 @@
   <!-- 조회 -->
   <div id="browser" class="hidden">
     <div class="tabs">
-      <button type="button" class="tab active" data-type="photo">사진대장</button>
-      <button type="button" class="tab" data-type="manual">매뉴얼</button>
+      <button type="button" class="tab active" data-type="manual">매뉴얼</button>
       <button type="button" class="tab" data-type="fault">고장 보고서</button>
     </div>
 
     <div class="filters">
+      <!-- 두 종류 공통 -->
       <div class="frow">
         <div class="fgroup">
           <label for="fFileName">파일명</label>
@@ -130,25 +130,21 @@
             <option value="정비 매뉴얼">정비 매뉴얼</option>
           </select>
         </div>
+      </div>
+
+      <div class="frow">
         <div class="fgroup" id="gField">
           <label for="fField">분야</label>
           <select id="fField"><option value="">전체</option></select>
         </div>
+        <div class="fgroup" id="gBranch">
+          <label for="fBranch">지사</label>
+          <select id="fBranch"><option value="">전체</option></select>
+        </div>
       </div>
 
+      <!-- 고장 보고서 전용 -->
       <div class="frow" id="faultFilters">
-        <div class="fgroup">
-          <label for="fFrom">발생일자 (시작)</label>
-          <input type="date" id="fFrom">
-        </div>
-        <div class="fgroup">
-          <label for="fTo">발생일자 (종료)</label>
-          <input type="date" id="fTo">
-        </div>
-        <div class="fgroup">
-          <label for="fBranch">지사</label>
-          <input type="text" id="fBranch" placeholder="예: 양산">
-        </div>
         <div class="fgroup">
           <label for="fFacility">설비명</label>
           <input type="text" id="fFacility" placeholder="예: 변압기">
@@ -177,16 +173,31 @@
 (function(){
   'use strict';
 
-  // 작성 화면(index.html)의 목록과 같아야 한다. 빠진 분야가 있으면 그 분야로 저장한
+  // 작성 화면(index.html)의 목록과 같아야 한다. 빠진 항목이 있으면 그 값으로 저장한
   // 문서를 조회로 걸러낼 수 없다.
   var MANUAL_FIELDS = ['전기','기계','제어','전산','운영','건축','토목','화공','사무','기타'];
   var FAULT_FIELDS  = ['전기','기계','제어','전산','운영','열수송','기타'];
+  var BRANCHES = [
+    '중앙지사','강남지사','파주지사','삼송지사','고양사업소','화성지사',
+    '동탄지사','판교지사','광교지사','용인지사','분당사업소','평택지사',
+    '광주전남지사','양산지사','대구지사','세종지사','김해사업소','청주지사'
+  ];
   var TYPE_LABELS   = { photo:'사진대장', manual:'매뉴얼', fault:'고장 보고서' };
+
+  // '기타'는 가나다순이면 중간에 끼므로 맨 아래로 내린다 (작성 화면과 같은 규칙).
+  var LAST_OPTIONS = ['기타'];
+
+  function sortKorean(values){
+    var head = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) === -1; });
+    var tail = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) !== -1; });
+    head.sort(function(a, b){ return a.localeCompare(b, 'ko'); });
+    return head.concat(tail);
+  }
 
   var el = function(id){ return document.getElementById(id); };
   var notConfigured = el('notConfigured'), loginGate = el('loginGate'), browser = el('browser');
   var statusEl = el('status'), resultsEl = el('results'), userChip = el('userChip');
-  var currentType = 'photo';
+  var currentType = 'manual';   // 첫 탭
 
   function show(node, on){ node.classList.toggle('hidden', !on); }
 
@@ -195,23 +206,28 @@
     statusEl.className = 'status' + (isErr ? ' err' : '');
   }
 
-  function fillFieldOptions(){
-    var list = (currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS)
-      .slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });   // 작성 화면과 같은 가나다순
-    var sel = el('fField');
+  function fillSelect(id, values){
+    var sel = el(id);
+    var keep = sel.value;
     sel.innerHTML = '<option value="">전체</option>';
-    list.forEach(function(v){
+    sortKorean(values).forEach(function(v){
       var o = document.createElement('option');
       o.value = v; o.textContent = v;
       sel.appendChild(o);
     });
+    // 탭을 바꿔도 같은 값이 남아 있으면 유지한다
+    if(keep && values.indexOf(keep) !== -1) sel.value = keep;
+  }
+
+  function fillFieldOptions(){
+    fillSelect('fField', currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS);
   }
 
   function applyTypeVisibility(){
     show(el('gManualType'), currentType === 'manual');
-    show(el('gField'), currentType !== 'photo');
     show(el('faultFilters'), currentType === 'fault');
     fillFieldOptions();
+    fillSelect('fBranch', BRANCHES);   // 지사는 두 종류 공통
   }
 
   function fmtDateTime(iso){
@@ -291,13 +307,14 @@
     setStatus('조회 중입니다...');
     resultsEl.innerHTML = '';
 
-    var filters = { docType: currentType, fileName: el('fFileName').value.trim() };
+    var filters = {
+      docType: currentType,
+      fileName: el('fFileName').value.trim(),
+      field: el('fField').value,
+      branch: el('fBranch').value
+    };
     if(currentType === 'manual') filters.manualType = el('fManualType').value;
-    if(currentType !== 'photo') filters.field = el('fField').value;
     if(currentType === 'fault'){
-      filters.occurredFrom = el('fFrom').value;
-      filters.occurredTo = el('fTo').value;
-      filters.branch = el('fBranch').value.trim();
       filters.facility = el('fFacility').value.trim();
       filters.faultContent = el('fContent').value.trim();
     }
@@ -330,9 +347,9 @@
 
   el('searchBtn').addEventListener('click', runSearch);
   el('resetBtn').addEventListener('click', function(){
-    ['fFileName','fFrom','fTo','fBranch','fFacility','fContent'].forEach(function(id){ el(id).value = ''; });
-    el('fManualType').value = '';
-    el('fField').value = '';
+    ['fFileName','fFacility','fContent','fBranch','fManualType','fField'].forEach(function(id){
+      el(id).value = '';
+    });
     runSearch();
   });
 
