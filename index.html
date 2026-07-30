@@ -340,6 +340,7 @@
       <div class="field-group">
         <label class="field-label" for="docTypeSelect">매뉴얼 종류</label>
         <select id="docTypeSelect" class="field-input">
+          <option value="">선택</option>
           <option value="업무 매뉴얼">업무 매뉴얼</option>
           <option value="조작 매뉴얼">조작 매뉴얼</option>
           <option value="운전 매뉴얼">운전 매뉴얼</option>
@@ -762,20 +763,24 @@
   }
 
   /* 가나다순으로 채운다. localeCompare(…,'ko')에 정렬을 맡기면 한글 자모 순서를
-     직접 계산할 필요가 없고, 위 목록에 항목을 추가할 때 순서를 신경 쓰지 않아도 된다. */
-  function fillSortedSelect(id, values, defaultValue){
+     직접 계산할 필요가 없고, 위 목록에 항목을 추가할 때 순서를 신경 쓰지 않아도 된다.
+     placeholder 를 주면 값이 빈 안내 항목을 맨 앞에 넣어 미선택 상태로 시작한다. */
+  function fillSortedSelect(id, values, defaultValue, placeholder){
     var el = document.getElementById(id);
     if(!el) return;
     var sorted = sortKorean(values);
     el.innerHTML = '';
+    if(placeholder) el.appendChild(new Option(placeholder, ''));
     sorted.forEach(function(v){ el.appendChild(new Option(v, v)); });
-    if(sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
+    if(defaultValue && sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
   }
 
-  fillSortedSelect('faultBranch', BRANCHES, '양산지사');
+  /* 분류 항목은 초기값을 두지 않는다. 기본값이 들어가 있으면 고르지 않고 지나쳐도
+     그 값이 그대로 문서에 찍혀, 틀린 지사·분야가 조용히 출력된다. */
+  fillSortedSelect('faultBranch', BRANCHES, null, '선택');
   fillSortedSelect('manualBranchSelect', BRANCHES, '양산지사');
-  fillSortedSelect('fieldSelect', MANUAL_FIELDS, '전기');
-  fillSortedSelect('faultFieldSelect', FAULT_FIELDS, '전기');
+  fillSortedSelect('fieldSelect', MANUAL_FIELDS, null, '선택');
+  fillSortedSelect('faultFieldSelect', FAULT_FIELDS, null, '선택');
 
   var MODE_LABELS = { manual: '매뉴얼', fault: '고장 보고서', report: '사진대장' };
   var MODE_PLACEHOLDERS = { manual: '예: 현장 매뉴얼', fault: '예: 고장 보고서', report: '예: 사진대장' };
@@ -1738,7 +1743,7 @@
     var fieldCell = document.createElement('td');
     fieldCell.className = 'mh-field';
     fieldCell.colSpan = 2;
-    fieldCell.textContent = fieldSelectEl.value + '분야';
+    fieldCell.textContent = fieldSelectEl.value ? fieldSelectEl.value + '분야' : '';
 
     var row1 = document.createElement('tr');
     row1.appendChild(logoCell);
@@ -2175,6 +2180,22 @@
     return buildPageElement(pageItems, titleText, pageIdx * 4, pageIdx + 1, pageCount);
   }
 
+  /* 초기값을 없앤 분류 항목들은 비어 있으면 출력물에 빈칸으로 찍히므로,
+     출력 직전에 확인해 무엇을 골라야 하는지 알려 준다. */
+  function ensureSelectionsForOutput(){
+    var missing = [];
+    if(appMode === 'manual'){
+      if(!docTypeSelectEl.value) missing.push('매뉴얼 종류');
+      if(!fieldSelectEl.value) missing.push('분야');
+    }else if(appMode === 'fault'){
+      if(!faultValue('faultFieldSelect')) missing.push('고장분야');
+      if(!faultValue('faultBranch')) missing.push('지사');
+    }
+    if(missing.length === 0) return true;
+    showToast(withParticle(missing.join(', '), '을', '를') + ' 선택해 주세요.');
+    return false;
+  }
+
   // In fault mode photos are optional: confirm, then print the summary alone.
   function ensurePhotosForOutput(){
     if(photos.length > 0) return true;
@@ -2596,8 +2617,8 @@
     };
 
     if(docType === 'manual'){
-      meta.manual_type = docTypeSelectEl.value;
-      meta.field = fieldSelectEl.value;
+      meta.manual_type = docTypeSelectEl.value || null;
+      meta.field = fieldSelectEl.value || null;
       meta.revision = revisionInputEl.value.trim() || null;
       meta.branch = manualBranchSelectEl.value || null;   // 보관함에서 지사로 조회하려면 함께 저장해야 한다
     }else if(docType === 'fault'){
@@ -2652,6 +2673,7 @@
     }
     var filename = getValidatedFileName();
     if(!filename) return;
+    if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
     setGenerating(true, '생성 중...', null);
 
@@ -2696,6 +2718,7 @@
     }
     var filename = getValidatedFileName();
     if(!filename) return;
+    if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
 
     var preOpenedWindow = window.open('', '_blank');
