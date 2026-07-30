@@ -11,7 +11,7 @@
  * ⚠️ 파일을 고쳐 배포할 때 CACHE_VERSION 을 올려 주세요.
  *    올리면 예전 캐시가 모두 지워지고 새로 받습니다.
  */
-var CACHE_VERSION = 'v7';
+var CACHE_VERSION = 'v8';
 var CACHE = 'ddoc-' + CACHE_VERSION;
 
 // 오프라인에서도 앱이 켜지도록 미리 받아 두는 것들
