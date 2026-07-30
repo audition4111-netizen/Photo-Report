@@ -202,6 +202,25 @@
   .mode-choice-desc{ display:block; font-size:13px; color:var(--muted); line-height:1.5; }
   .mode-indicator{ display:inline-block; font-size:12px; color:var(--muted); background:var(--surface-soft); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; margin:0 0 14px; }
 
+  .auth-row{ display:flex; justify-content:center; gap:8px; margin:0 0 14px; }
+  .auth-row[hidden]{ display:none; }
+  .auth-chip{ font-size:12px; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; text-decoration:none; }
+  .auth-chip:active{ background:var(--hairline); }
+
+  .auth-modal{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:420; display:none; align-items:center; justify-content:center; padding:24px; }
+  .auth-modal.open{ display:flex; }
+  .auth-card{ width:100%; max-width:340px; background:var(--canvas); border-radius:var(--radius-md); padding:20px; }
+  .auth-card h2{ font-size:17px; font-weight:600; margin:0 0 4px; }
+  .auth-card .auth-sub{ font-size:12.5px; color:var(--muted); margin:0 0 16px; line-height:1.5; }
+  .auth-msg{ font-size:12.5px; line-height:1.5; margin:0 0 12px; display:none; }
+  .auth-msg.show{ display:block; }
+  .auth-msg.err{ color:var(--error); }
+  .auth-msg.ok{ color:var(--primary); }
+  .auth-actions{ display:flex; gap:8px; margin-top:4px; }
+  .auth-actions button{ flex:1; padding:13px 0; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; font-family:inherit; }
+  .auth-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+  .auth-toggle{ display:block; width:100%; margin-top:12px; padding:0; border:none; background:none; font-family:inherit; font-size:12.5px; color:var(--muted); text-decoration:underline; cursor:pointer; }
+
   .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
 
   .sketch-modal{ position:fixed; inset:0; background:#1a1a1a; z-index:250; display:none; flex-direction:column; }
@@ -258,6 +277,11 @@
 
     <div style="text-align:center;">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
+    </div>
+
+    <div class="auth-row" id="authRow" hidden>
+      <span class="auth-chip" id="authChip">로그인</span>
+      <a class="auth-chip" id="archiveLink" href="search.html">보관함 조회</a>
     </div>
 
     <div class="field-row" id="docTypeGroup" hidden>
@@ -546,10 +570,40 @@
   </div>
 </div>
 
+<div class="auth-modal" id="authModal">
+  <div class="auth-card">
+    <h2 id="authTitle">로그인</h2>
+    <p class="auth-sub" id="authSub">로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.</p>
+    <p class="auth-msg" id="authMsg"></p>
+
+    <div class="field-group" id="authNameGroup" hidden>
+      <label class="field-label" for="authName">이름 (작성자로 표기됩니다)</label>
+      <input type="text" id="authName" class="field-input" placeholder="예: 김철수" autocomplete="name">
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="authEmail">이메일</label>
+      <input type="email" id="authEmail" class="field-input" placeholder="user@kdhc.or.kr" autocomplete="username">
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="authPassword">비밀번호</label>
+      <input type="password" id="authPassword" class="field-input" placeholder="6자 이상" autocomplete="current-password">
+    </div>
+
+    <div class="auth-actions">
+      <button type="button" id="authCancelBtn">취소</button>
+      <button type="button" class="primary" id="authSubmitBtn">로그인</button>
+    </div>
+    <button type="button" class="auth-toggle" id="authToggleBtn">계정이 없으신가요? 회원가입</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="libs/html2canvas.min.js"></script>
 <script src="libs/jspdf.umd.min.js"></script>
+<script src="libs/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="archive.js"></script>
 
 <script>
 (function(){
@@ -2102,6 +2156,220 @@
     });
   }
 
+  // ---- 로그인 ---------------------------------------------------------------
+
+  var authRowEl = document.getElementById('authRow');
+  var authChipEl = document.getElementById('authChip');
+  var authModalEl = document.getElementById('authModal');
+  var authTitleEl = document.getElementById('authTitle');
+  var authMsgEl = document.getElementById('authMsg');
+  var authNameGroupEl = document.getElementById('authNameGroup');
+  var authNameEl = document.getElementById('authName');
+  var authEmailEl = document.getElementById('authEmail');
+  var authPasswordEl = document.getElementById('authPassword');
+  var authSubmitBtn = document.getElementById('authSubmitBtn');
+  var authCancelBtn = document.getElementById('authCancelBtn');
+  var authToggleBtn = document.getElementById('authToggleBtn');
+  var authSignUpMode = false;
+  var authUser = null;
+
+  function archiveAvailable(){
+    return !!(window.Archive && Archive.isEnabled());
+  }
+
+  function setAuthMsg(text, kind){
+    authMsgEl.textContent = text || '';
+    authMsgEl.className = 'auth-msg' + (text ? ' show ' + (kind || '') : '');
+  }
+
+  function renderAuthState(){
+    if(!archiveAvailable()){
+      authRowEl.hidden = true;
+      return;
+    }
+    authRowEl.hidden = false;
+    authChipEl.textContent = authUser
+      ? Archive.displayName(authUser) + ' · 로그아웃'
+      : '로그인';
+  }
+
+  function setAuthMode(signUp){
+    authSignUpMode = signUp;
+    authTitleEl.textContent = signUp ? '회원가입' : '로그인';
+    authSubmitBtn.textContent = signUp ? '가입' : '로그인';
+    authNameGroupEl.hidden = !signUp;
+    authToggleBtn.textContent = signUp ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입';
+    authPasswordEl.setAttribute('autocomplete', signUp ? 'new-password' : 'current-password');
+    setAuthMsg('');
+  }
+
+  function openAuthModal(){
+    setAuthMode(false);
+    authModalEl.classList.add('open');
+  }
+  function closeAuthModal(){
+    authModalEl.classList.remove('open');
+    authPasswordEl.value = '';
+    setAuthMsg('');
+  }
+
+  authChipEl.addEventListener('click', function(){
+    if(!authUser){ openAuthModal(); return; }
+    if(!window.confirm('로그아웃하시겠습니까?')) return;
+    Archive.signOut().then(function(){
+      authUser = null;
+      renderAuthState();
+      showToast('로그아웃했습니다.');
+    });
+  });
+
+  authCancelBtn.addEventListener('click', closeAuthModal);
+  authModalEl.addEventListener('click', function(e){
+    if(e.target === authModalEl) closeAuthModal();
+  });
+  authToggleBtn.addEventListener('click', function(){ setAuthMode(!authSignUpMode); });
+
+  authSubmitBtn.addEventListener('click', function(){
+    var email = authEmailEl.value.trim();
+    var password = authPasswordEl.value;
+    var name = authNameEl.value.trim();
+
+    if(!email || !password){
+      setAuthMsg('이메일과 비밀번호를 입력해 주세요.', 'err');
+      return;
+    }
+    if(authSignUpMode && !name){
+      setAuthMsg('작성자로 표기할 이름을 입력해 주세요.', 'err');
+      return;
+    }
+
+    authSubmitBtn.disabled = true;
+    setAuthMsg('처리 중입니다...', '');
+
+    var task = authSignUpMode
+      ? Archive.signUp(email, password, name)
+      : Archive.signIn(email, password);
+
+    task.then(function(user){
+      authSubmitBtn.disabled = false;
+      if(authSignUpMode && !user){
+        setAuthMsg('가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.', 'ok');
+        return;
+      }
+      authUser = user;
+      renderAuthState();
+      closeAuthModal();
+      showToast(Archive.displayName(user) + '님으로 로그인했습니다.');
+    }).catch(function(err){
+      authSubmitBtn.disabled = false;
+      console.error(err);
+      var msg = (err && err.message) || '';
+      if(/Invalid login credentials/i.test(msg)) msg = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      else if(/already registered/i.test(msg)) msg = '이미 가입된 이메일입니다. 로그인해 주세요.';
+      else if(/Password should be/i.test(msg)) msg = '비밀번호는 6자 이상이어야 합니다.';
+      else if(/Email not confirmed/i.test(msg)) msg = '메일 인증이 완료되지 않았습니다. 받은 메일의 링크를 눌러 주세요.';
+      setAuthMsg(msg || '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', 'err');
+    });
+  });
+
+  if(archiveAvailable()){
+    Archive.currentUser().then(function(user){
+      authUser = user;
+      renderAuthState();
+    });
+    Archive.onAuthChange(function(user){
+      authUser = user;
+      renderAuthState();
+    });
+  }else{
+    renderAuthState();
+  }
+
+  // ---- 문서 보관(Supabase) --------------------------------------------------
+
+  // 입력값은 한국 현지 시각이고 DB 컬럼은 timestamptz이므로, 현지 시각으로 해석한
+  // 뒤 UTC 순간으로 변환해 저장한다. 문자열을 그대로 보내면 UTC로 오해되어
+  // 조회 화면에서 9시간 밀려 보인다.
+  function isoOrNull(dateId, timeId){
+    var d = faultValue(dateId);
+    if(!d) return null;
+    var t = faultValue(timeId) || '00:00';
+    var local = new Date(d + 'T' + t + ':00');
+    if(isNaN(local.getTime())) return null;
+    return local.toISOString();
+  }
+
+  function intOrNull(id){
+    var v = faultValue(id).replace(/[^0-9]/g, '');
+    return v === '' ? null : parseInt(v, 10);
+  }
+
+  function durationMinutes(){
+    var sd = faultValue('faultStopDate'), st = faultValue('faultStopTime');
+    var rd = faultValue('faultRecoverDate'), rt = faultValue('faultRecoverTime');
+    if(!sd || !st || !rd || !rt) return null;
+    var start = new Date(sd + 'T' + st), end = new Date(rd + 'T' + rt);
+    if(isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    var mins = Math.round((end.getTime() - start.getTime()) / 60000);
+    return mins < 0 ? null : mins;
+  }
+
+  function buildArchiveMeta(filename, pageCount){
+    var docType = appMode === 'manual' ? 'manual' : (appMode === 'fault' ? 'fault' : 'photo');
+    var meta = {
+      doc_type: docType,
+      file_name: filename,
+      title: getReportTitle(),
+      page_count: pageCount,
+      photo_count: photos.length
+    };
+
+    if(docType === 'manual'){
+      meta.manual_type = docTypeSelectEl.value;
+      meta.field = fieldSelectEl.value;
+      meta.revision = revisionInputEl.value.trim() || null;
+    }else if(docType === 'fault'){
+      meta.field = faultValue('faultFieldSelect') || null;
+      meta.occurred_at = isoOrNull('faultOccurredDate', 'faultOccurredTime');
+      meta.branch = faultValue('faultBranch') || null;
+      meta.facility = faultValue('faultFacility') || null;
+      meta.device = faultValue('faultDevice') || null;
+      meta.fault_content = faultValue('faultContent') || null;
+      meta.situation = faultValue('faultSituation') || null;
+      meta.cause = faultValue('faultCause') || null;
+      meta.recover_at = isoOrNull('faultRecoverDate', 'faultRecoverTime');
+      meta.recover_note = faultValue('faultRecoverNote') || null;
+      meta.action_taken = faultValue('faultAction') || null;
+      meta.outage_none = isNoOutage();
+      if(!isNoOutage()){
+        meta.outage_apt = intOrNull('faultApt');
+        meta.outage_bldg = intOrNull('faultBuilding');
+        meta.outage_at = isoOrNull('faultStopDate', 'faultStopTime');
+        meta.outage_mins = durationMinutes();
+      }
+    }
+    return meta;
+  }
+
+  function archiveGeneratedPdf(pdf, filename){
+    if(!window.Archive || !Archive.isEnabled()) return;
+    Archive.currentUser().then(function(user){
+      if(!user){
+        showToast('로그인하면 출력한 문서가 보관함에 자동 저장됩니다.');
+        return;
+      }
+      var pageCount = computeDocPages().length;
+      var blob;
+      try{ blob = pdf.output('blob'); }catch(e){ return; }
+      return Archive.saveDocument(buildArchiveMeta(filename, pageCount), blob).then(function(){
+        showToast('보관함에 저장했습니다.');
+      });
+    }).catch(function(err){
+      console.error(err);
+      showToast('보관함 저장에 실패했습니다. PDF 다운로드는 정상 완료되었습니다.');
+    });
+  }
+
   function generatePDF(){
     if(isGenerating) return;
     if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
@@ -2120,6 +2388,8 @@
         showToast('다운로드가 차단되었습니다. 브라우저 설정을 확인해 주세요.');
       }
       setGenerating(false);
+      // 다운로드가 우선. 보관 저장은 실패해도 출력물에 영향이 없도록 뒤에서 처리.
+      archiveGeneratedPdf(pdf, filename);
     }).catch(function(err){
       console.error(err);
       showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
