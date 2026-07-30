@@ -190,14 +190,28 @@
   .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto; }
   .mode-select-screen.closed{ display:none; }
   .mode-select-inner{ width:100%; max-width:360px; text-align:center; }
-  .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 32px; }
+  .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 44px; }
   .mode-select-logo{ height:38px; width:auto; display:block; }
   .mode-select-banner{ height:22px; width:auto; display:block; }
-  .mode-select-title{ font-size:21px; font-weight:600; letter-spacing:-0.44px; color:var(--ink); margin:0 0 10px; word-break:keep-all; }
-  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 28px; }
+  /* 마스코트를 제목 왼쪽에 나란히 — 제목 글자 크기에 맞춰 커지도록 em 단위 */
+  .mode-title-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 8px; }
+  .mode-select-mascot{ height:3.4em; width:auto; display:block; flex:none; }
+  .mode-select-title{ font-size:21px; font-weight:600; letter-spacing:-0.44px; color:var(--ink); margin:0; word-break:keep-all; }
+  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 36px; }
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
+  /* 로그인 전에는 만들기 버튼을 눌러도 진행되지 않음을 눈으로 알 수 있게 */
+  .mode-choice-btn[disabled]{ opacity:.4; cursor:not-allowed; }
+  .mode-choice-btn[disabled]:active{ background:var(--canvas); }
+
+  .mode-auth{ margin:0 0 28px; padding:16px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--surface-soft); }
+  .mode-auth[hidden]{ display:none; }
+  .mode-auth-msg{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 12px; word-break:keep-all; }
+  .mode-auth-msg b{ color:var(--ink); font-weight:600; }
+  .mode-auth-btn{ width:100%; padding:13px 0; font-family:inherit; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--primary); background:var(--primary); color:#fff; cursor:pointer; }
+  .mode-auth-btn.secondary{ background:var(--canvas); border-color:var(--ink); color:var(--ink); }
+  .mode-auth-links{ display:flex; justify-content:center; gap:8px; margin:10px 0 0; }
   .mode-choice-title{ display:block; font-size:16px; font-weight:600; color:var(--ink); margin:0 0 4px; }
   .mode-choice-desc{ display:block; font-size:13px; color:var(--muted); line-height:1.5; }
   .mode-indicator{ display:inline-block; font-size:12px; color:var(--muted); background:var(--surface-soft); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; margin:0 0 14px; }
@@ -249,8 +263,20 @@
       <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
     </div>
-    <h1 class="mode-select-title">뚝 DOC !</h1>
+    <div class="mode-title-row">
+      <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot">
+      <h1 class="mode-select-title">뚝 DOC !</h1>
+    </div>
     <p class="mode-select-sub">일잘알 자동 문서 생성기</p>
+
+    <div class="mode-auth" id="modeAuth" hidden>
+      <p class="mode-auth-msg" id="modeAuthMsg"></p>
+      <button type="button" class="mode-auth-btn" id="modeAuthBtn">로그인 / 회원가입</button>
+      <div class="mode-auth-links" id="modeAuthLinks" hidden>
+        <a class="auth-chip" href="search.html">보관함 조회</a>
+      </div>
+    </div>
+
     <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
       <span class="mode-choice-title">사진대장 만들기</span>
       <span class="mode-choice-desc">현장 사진과 설명을 정리하는 보고서</span>
@@ -297,18 +323,7 @@
       </div>
       <div class="field-group">
         <label class="field-label" for="fieldSelect">분야</label>
-        <select id="fieldSelect" class="field-input">
-          <option value="전기">전기</option>
-          <option value="기계">기계</option>
-          <option value="제어">제어</option>
-          <option value="전산">전산</option>
-          <option value="운영">운영</option>
-          <option value="건축">건축</option>
-          <option value="토목">토목</option>
-          <option value="화공">화공</option>
-          <option value="사무">사무</option>
-          <option value="기타">기타</option>
-        </select>
+        <select id="fieldSelect" class="field-input"></select>
       </div>
     </div>
 
@@ -338,21 +353,13 @@
 
       <div class="field-group">
         <label class="field-label" for="faultFieldSelect">고장분야</label>
-        <select id="faultFieldSelect" class="field-input">
-          <option value="전기">전기</option>
-          <option value="기계">기계</option>
-          <option value="제어">제어</option>
-          <option value="전산">전산</option>
-          <option value="운영">운영</option>
-          <option value="열수송">열수송</option>
-          <option value="기타">기타</option>
-        </select>
+        <select id="faultFieldSelect" class="field-input"></select>
       </div>
 
       <div class="field-row">
         <div class="field-group">
           <label class="field-label" for="faultBranch">지사</label>
-          <input type="text" id="faultBranch" class="field-input" placeholder="예: 양산지사">
+          <select id="faultBranch" class="field-input"></select>
         </div>
         <div class="field-group">
           <label class="field-label" for="faultFacility">설비명</label>
@@ -662,6 +669,43 @@
   var modeIndicatorEl = document.getElementById('modeIndicator');
   var appTitleEl = document.getElementById('appTitle');
 
+  var modeAuthEl = document.getElementById('modeAuth');
+  var modeAuthMsgEl = document.getElementById('modeAuthMsg');
+  var modeAuthBtnEl = document.getElementById('modeAuthBtn');
+  var modeAuthLinksEl = document.getElementById('modeAuthLinks');
+  var modeChoiceBtns = [chooseReportModeBtn, chooseManualModeBtn, chooseFaultModeBtn];
+
+  // 세션 확인은 비동기라 잠깐 틈이 생긴다. 보관함이 설정된 경우 우선 잠가 두고,
+  // 확인 결과에 따라 renderModeAuth()가 풀어 준다.
+  if(window.Archive && Archive.isEnabled()){
+    modeChoiceBtns.forEach(function(btn){ btn.disabled = true; });
+  }
+
+  // ---- 선택 목록 ------------------------------------------------------------
+
+  var BRANCHES = [
+    '중앙지사', '강남지사', '파주지사', '삼송지사', '고양사업소', '화성지사',
+    '동탄지사', '판교지사', '광교지사', '용인지사', '분당사업소', '평택지사',
+    '광주전남지사', '양산지사', '대구지사', '세종지사', '김해사업소', '청주지사'
+  ];
+  var MANUAL_FIELDS = ['전기', '기계', '제어', '전산', '운영', '건축', '토목', '화공', '사무', '기타'];
+  var FAULT_FIELDS = ['전기', '기계', '제어', '전산', '운영', '열수송', '기타'];
+
+  /* 가나다순으로 채운다. localeCompare(…,'ko')에 정렬을 맡기면 한글 자모 순서를
+     직접 계산할 필요가 없고, 위 목록에 항목을 추가할 때 순서를 신경 쓰지 않아도 된다. */
+  function fillSortedSelect(id, values, defaultValue){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var sorted = values.slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });
+    el.innerHTML = '';
+    sorted.forEach(function(v){ el.appendChild(new Option(v, v)); });
+    if(sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
+  }
+
+  fillSortedSelect('faultBranch', BRANCHES, '양산지사');
+  fillSortedSelect('fieldSelect', MANUAL_FIELDS, '전기');
+  fillSortedSelect('faultFieldSelect', FAULT_FIELDS, '전기');
+
   var MODE_LABELS = { manual: '매뉴얼', fault: '고장 보고서', report: '사진대장' };
   var MODE_PLACEHOLDERS = { manual: '예: 현장 매뉴얼', fault: '예: 고장 보고서', report: '예: 사진대장' };
 
@@ -675,8 +719,14 @@
     faultFieldsEl.hidden = appMode !== 'fault';
   }
   function selectMode(mode){
+    // 버튼도 비활성화해 두지만, '모드 변경'으로 되돌아오는 경로가 있어 여기서도 막는다.
+    if(loginRequired()){
+      openAuthModal();
+      return;
+    }
     appMode = mode;
     updateModeIndicator();
+    if(mode === 'fault') prefillFaultTimes();
     modeSelectScreen.classList.add('closed');
   }
   chooseReportModeBtn.addEventListener('click', function(){ selectMode('report'); });
@@ -1774,6 +1824,33 @@
   }
   initTimePickers();
 
+  // 시/분 select 두 개와 숨은 input을 함께 맞춘다 (사용자가 고른 것과 같은 상태로).
+  function setTimePickerValue(id, hhmm){
+    var wrap = document.querySelector('.time-picker[data-time-for="' + id + '"]');
+    var target = document.getElementById(id);
+    if(!wrap || !target) return;
+    var parts = String(hhmm || '').split(':');
+    if(parts.length !== 2) return;
+    wrap.querySelector('.time-hour').value = parts[0];
+    wrap.querySelector('.time-min').value = parts[1];
+    target.value = parts[0] + ':' + parts[1];
+    target.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  /* 중단·복구 일시의 초기값을 로그인 시각으로 채운다. 고장 보고서는 대개 로그인
+     직후에 작성하므로 손으로 넣을 일이 줄어든다. 이미 입력된 칸은 건드리지 않는다. */
+  function prefillFaultTimes(){
+    if(!authLoginAt) return;
+    var d = authLoginAt;
+    var dateStr = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    var timeStr = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    [['faultStopDate', 'faultStopTime'], ['faultRecoverDate', 'faultRecoverTime']].forEach(function(pair){
+      if(!faultValue(pair[0]) && faultInputs[pair[0]]) faultInputs[pair[0]].value = dateStr;
+      if(!faultValue(pair[1])) setTimePickerValue(pair[1], timeStr);
+    });
+    refreshFaultDuration();
+  }
+
   // "2025-07-14" + "20:27" -> "2025.7.14. 20:27"
   function formatFaultDateTime(dateId, timeId){
     var d = faultValue(dateId);
@@ -2172,6 +2249,7 @@
   var authToggleBtn = document.getElementById('authToggleBtn');
   var authSignUpMode = false;
   var authUser = null;
+  var authLoginAt = null;      // 로그인한 시각 — 고장 보고서 일시 초기값에 쓴다
   var SIGNUP_EMAIL_DOMAIN = 'kdhc.co.kr';
 
   function isAllowedSignupEmail(email){
@@ -2191,12 +2269,50 @@
   function renderAuthState(){
     if(!archiveAvailable()){
       authRowEl.hidden = true;
-      return;
+    }else{
+      authRowEl.hidden = false;
+      authChipEl.textContent = authUser
+        ? Archive.displayName(authUser) + ' · 로그아웃'
+        : '로그인';
     }
-    authRowEl.hidden = false;
-    authChipEl.textContent = authUser
-      ? Archive.displayName(authUser) + ' · 로그아웃'
-      : '로그인';
+    renderModeAuth();
+  }
+
+  /* 보관함이 설정되지 않은 사본(사내망·오프라인)에서는 로그인 자체가 불가능하므로
+     문서 작성을 막지 않는다. 설정된 경우에만 로그인을 요구한다. */
+  function loginRequired(){
+    return archiveAvailable() && !authUser;
+  }
+
+  function renderModeAuth(){
+    if(!archiveAvailable()){
+      modeAuthEl.hidden = true;
+    }else{
+      modeAuthEl.hidden = false;
+      if(authUser){
+        modeAuthMsgEl.textContent =
+          Archive.displayName(authUser) + '님으로 로그인했습니다. 출력한 PDF는 보관함에 자동 저장됩니다.';
+        modeAuthBtnEl.textContent = '로그아웃';
+        modeAuthBtnEl.classList.add('secondary');
+        modeAuthLinksEl.hidden = false;
+      }else{
+        modeAuthMsgEl.textContent = '문서를 만들려면 먼저 로그인해 주세요.';
+        modeAuthBtnEl.textContent = '로그인 / 회원가입';
+        modeAuthBtnEl.classList.remove('secondary');
+        modeAuthLinksEl.hidden = true;
+      }
+    }
+    var gated = loginRequired();
+    modeChoiceBtns.forEach(function(btn){ btn.disabled = gated; });
+  }
+
+  // 로그인 상태가 바뀌는 유일한 통로. 새로 로그인한 순간을 여기서 기록한다.
+  function setAuthUser(user){
+    var wasLoggedIn = !!authUser;
+    authUser = user || null;
+    if(authUser && !wasLoggedIn) authLoginAt = new Date();
+    if(!authUser) authLoginAt = null;
+    renderAuthState();
   }
 
   function setAuthMode(signUp){
@@ -2226,8 +2342,16 @@
     if(!authUser){ openAuthModal(); return; }
     if(!window.confirm('로그아웃하시겠습니까?')) return;
     Archive.signOut().then(function(){
-      authUser = null;
-      renderAuthState();
+      setAuthUser(null);
+      showToast('로그아웃했습니다.');
+    });
+  });
+
+  modeAuthBtnEl.addEventListener('click', function(){
+    if(!authUser){ openAuthModal(); return; }
+    if(!window.confirm('로그아웃하시겠습니까?')) return;
+    Archive.signOut().then(function(){
+      setAuthUser(null);
       showToast('로그아웃했습니다.');
     });
   });
@@ -2270,8 +2394,7 @@
         setAuthMsg('가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.', 'ok');
         return;
       }
-      authUser = user;
-      renderAuthState();
+      setAuthUser(user);
       closeAuthModal();
       showToast(Archive.displayName(user) + '님으로 로그인했습니다.');
     }).catch(function(err){
@@ -2289,12 +2412,14 @@
 
   if(archiveAvailable()){
     Archive.currentUser().then(function(user){
-      authUser = user;
-      renderAuthState();
+      setAuthUser(user);
+    }).catch(function(err){
+      // 세션 확인 자체가 실패하면(네트워크 등) 로그인 화면을 보여 준다.
+      console.error(err);
+      setAuthUser(null);
     });
     Archive.onAuthChange(function(user){
-      authUser = user;
-      renderAuthState();
+      setAuthUser(user);
     });
   }else{
     renderAuthState();
