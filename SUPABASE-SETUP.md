@@ -31,14 +31,39 @@
 - **RLS 보안 정책** (로그인한 사용자만 저장·조회 가능)
 - `documents` 비공개 파일 버킷
 
-## 3단계 — 로그인 방식 설정
+## 3단계 — 로그인 설정 + 가입 도메인 제한 (@kdhc.co.kr)
 
 1. 좌측 메뉴 **Authentication** → **Providers** → **Email** 활성화 확인
-2. **Authentication** → **Sign In / Providers** 에서
-   - 사내에서만 쓰실 거라면 **"Allow new users to sign up"** 을 껐다가,
-     계정을 만들 때만 잠깐 켜는 방식을 권합니다 (아무나 가입 못 하게)
-3. (선택) **Confirm email** 을 끄면 메일 인증 없이 바로 로그인됩니다.
+2. (선택) **Confirm email** 을 끄면 메일 인증 없이 바로 로그인됩니다.
    사내 인원만 쓴다면 꺼두는 게 편합니다.
+
+### 3-1. 가입 도메인 제한 걸기 (❗ 반드시)
+
+이걸 하지 않으면 **주소를 아는 누구나 아무 메일로 가입해 저장된 문서를 전부 볼 수 있습니다.**
+
+1. **SQL Editor** → **New query** → `db/signup-domain-hook.sql` 내용을 붙여넣고 **Run**
+2. **Authentication** → **Hooks** → **Before User Created**
+   - 종류: **Postgres**
+   - 함수: `public.hook_restrict_signup_by_email_domain`
+   - **Enable** 저장
+3. 잘 걸렸는지 확인 — SQL Editor 에서 실행
+
+   ```sql
+   select public.hook_restrict_signup_by_email_domain('{"user":{"email":"hong@kdhc.co.kr"}}'::jsonb);
+   -- 기대 결과: {}   (가입 허용)
+
+   select public.hook_restrict_signup_by_email_domain('{"user":{"email":"hong@gmail.com"}}'::jsonb);
+   -- 기대 결과: error 403 "회사 이메일(@kdhc.co.kr)로만 가입할 수 있습니다."
+   ```
+4. 실제로 앱에서 개인 메일로 가입을 시도해 거부되는지도 한 번 확인해 보세요.
+
+> ⚠️ **이 훅은 신규 가입만 막습니다.** 이전에 만들어 둔 계정은 도메인이 달라도 계속 로그인됩니다.
+> 테스트로 개인 메일 계정을 만든 적이 있으면 **Authentication → Users** 에서 삭제하세요.
+
+> 💡 허용 도메인을 추가하려면 함수를 고칠 필요 없이 표에 한 줄만 넣으면 됩니다.
+> ```sql
+> insert into public.signup_allowed_domains (domain) values ('example.co.kr');
+> ```
 
 ## 4단계 — 앱에 연결 정보 입력
 
@@ -99,5 +124,6 @@ window.SUPABASE_CONFIG = {
 |---|---|
 | "보관함이 아직 연결되지 않았습니다" | 4단계 `supabase-config.js` 값 확인 |
 | 로그인은 되는데 저장 실패 | 2단계 SQL을 끝까지 실행했는지 (RLS 정책 누락) |
+| 개인 메일로도 가입이 됨 | 3-1단계 훅이 **Enable** 되었는지, 함수명이 맞는지 확인 |
 | "PDF를 열지 못했습니다" | Storage 버킷 이름이 `documents` 인지 확인 |
 | 갑자기 전부 안 됨 | 무료 플랜 프로젝트가 정지되지 않았는지 (Supabase 대시보드에서 Restore) |

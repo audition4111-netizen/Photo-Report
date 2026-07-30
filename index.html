@@ -582,7 +582,7 @@
     </div>
     <div class="field-group">
       <label class="field-label" for="authEmail">이메일</label>
-      <input type="email" id="authEmail" class="field-input" placeholder="user@kdhc.or.kr" autocomplete="username">
+      <input type="email" id="authEmail" class="field-input" placeholder="user@kdhc.co.kr" autocomplete="username">
     </div>
     <div class="field-group">
       <label class="field-label" for="authPassword">비밀번호</label>
@@ -2172,6 +2172,12 @@
   var authToggleBtn = document.getElementById('authToggleBtn');
   var authSignUpMode = false;
   var authUser = null;
+  var SIGNUP_EMAIL_DOMAIN = 'kdhc.co.kr';
+
+  function isAllowedSignupEmail(email){
+    return String(email || '').trim().toLowerCase().slice(-(SIGNUP_EMAIL_DOMAIN.length + 1))
+      === '@' + SIGNUP_EMAIL_DOMAIN;
+  }
 
   function archiveAvailable(){
     return !!(window.Archive && Archive.isEnabled());
@@ -2196,6 +2202,9 @@
   function setAuthMode(signUp){
     authSignUpMode = signUp;
     authTitleEl.textContent = signUp ? '회원가입' : '로그인';
+    document.getElementById('authSub').textContent = signUp
+      ? '회사 이메일(@' + SIGNUP_EMAIL_DOMAIN + ')로만 가입할 수 있습니다.'
+      : '로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.';
     authSubmitBtn.textContent = signUp ? '가입' : '로그인';
     authNameGroupEl.hidden = !signUp;
     authToggleBtn.textContent = signUp ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입';
@@ -2242,6 +2251,11 @@
       setAuthMsg('작성자로 표기할 이름을 입력해 주세요.', 'err');
       return;
     }
+    // 빠른 안내용. 실제 차단은 서버(db/signup-domain-hook.sql)가 담당합니다.
+    if(authSignUpMode && !isAllowedSignupEmail(email)){
+      setAuthMsg('회사 이메일(@' + SIGNUP_EMAIL_DOMAIN + ')로만 가입할 수 있습니다.', 'err');
+      return;
+    }
 
     authSubmitBtn.disabled = true;
     setAuthMsg('처리 중입니다...', '');
@@ -2268,6 +2282,7 @@
       else if(/already registered/i.test(msg)) msg = '이미 가입된 이메일입니다. 로그인해 주세요.';
       else if(/Password should be/i.test(msg)) msg = '비밀번호는 6자 이상이어야 합니다.';
       else if(/Email not confirmed/i.test(msg)) msg = '메일 인증이 완료되지 않았습니다. 받은 메일의 링크를 눌러 주세요.';
+      // 그 밖의 메시지는 그대로 노출 — 가입 도메인 제한 훅의 한국어 안내가 여기로 옵니다.
       setAuthMsg(msg || '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', 'err');
     });
   });
