@@ -11,6 +11,6 @@
 // 값을 비워 두면 앱은 저장 기능 없이 지금처럼 동작합니다.
 
 window.SUPABASE_CONFIG = {
-  url: '',
-  anonKey: ''
+  url: 'https://fmgxmkccmpbadmomfhbw.supabase.co',
+  anonKey: 'sb_publishable_cdBgTZgdjvMaFg3FQPCxVg_A036RJ8h'
 };
