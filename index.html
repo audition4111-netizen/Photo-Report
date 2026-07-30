@@ -228,6 +228,19 @@
   .auth-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
   .auth-toggle{ display:block; width:100%; margin-top:12px; padding:0; border:none; background:none; font-family:inherit; font-size:12.5px; color:var(--muted); text-decoration:underline; cursor:pointer; }
 
+  /* 임시저장 이어쓰기 안내. 모드 선택 화면(400)보다 위에 떠야 한다. */
+  .resume-modal{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:430; display:none; align-items:center; justify-content:center; padding:24px; }
+  .resume-modal.open{ display:flex; }
+  .resume-card{ width:100%; max-width:340px; background:var(--canvas); border-radius:var(--radius-md); padding:20px; }
+  .resume-card h2{ font-size:17px; font-weight:600; margin:0 0 6px; }
+  .resume-card p{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 14px; word-break:keep-all; }
+  .resume-info{ font-size:13px; line-height:1.7; color:var(--ink); background:var(--surface-soft); border-radius:var(--radius-sm); padding:12px; margin:0 0 14px; }
+  .resume-info b{ font-weight:600; }
+  .resume-warn{ font-size:12px; color:var(--muted); line-height:1.5; margin:12px 0 0; }
+  .resume-actions{ display:flex; gap:8px; }
+  .resume-actions button{ flex:1; padding:13px 0; font-family:inherit; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  .resume-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+
   .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
 
   .sketch-modal{ position:fixed; inset:0; background:#1a1a1a; z-index:250; display:none; flex-direction:column; }
@@ -491,6 +504,7 @@
   </div>
 
   <div class="footer-bar">
+    <button type="button" class="footer-btn" id="saveDraftBtn">임시저장</button>
     <button type="button" class="footer-btn" id="previewBtn">미리보기</button>
     <button type="button" class="footer-btn" id="pdfBtn">PDF 출력</button>
     <button type="button" class="footer-btn primary" id="mailBtn">메일로 전송</button>
@@ -567,6 +581,19 @@
   </div>
 </div>
 
+<div class="resume-modal" id="resumeModal">
+  <div class="resume-card">
+    <h2>이어서 작성하시겠습니까?</h2>
+    <p>임시저장해 둔 내용이 있습니다.</p>
+    <div class="resume-info" id="resumeInfo"></div>
+    <div class="resume-actions">
+      <button type="button" id="resumeDiscardBtn">새로 시작</button>
+      <button type="button" class="primary" id="resumeContinueBtn">이어서 작성</button>
+    </div>
+    <p class="resume-warn">'새로 시작'을 누르면 임시저장한 내용은 삭제됩니다.</p>
+  </div>
+</div>
+
 <div class="auth-modal" id="authModal">
   <div class="auth-card">
     <h2 id="authTitle">로그인</h2>
@@ -601,6 +628,7 @@
 <script src="libs/supabase.min.js"></script>
 <script src="supabase-config.js"></script>
 <script src="archive.js"></script>
+<script src="draft.js"></script>
 
 <script>
 (function(){
@@ -2322,6 +2350,7 @@
     authPasswordEl.value = '';
     authIntroNote = '';
     pendingMode = null;        // 취소했으면 미뤄 둔 모드도 버린다
+    pendingDraft = false;
     setAuthMsg('');
   }
 
@@ -2381,11 +2410,14 @@
         setAuthMsg('가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.', 'ok');
         return;
       }
-      var next = pendingMode;      // closeAuthModal이 비우기 전에 챙겨 둔다
+      // closeAuthModal이 비우기 전에 챙겨 둔다
+      var next = pendingMode;
+      var wantsDraft = pendingDraft;
       setAuthUser(user);
       closeAuthModal();
       showToast(Archive.displayName(user) + '님으로 로그인했습니다.');
-      if(next) selectMode(next);   // 누르려던 만들기로 그대로 이어 준다
+      if(wantsDraft) resumeDraft();     // 이어쓰기를 누르고 로그인한 경우
+      else if(next) selectMode(next);   // 누르려던 만들기로 그대로 이어 준다
     }).catch(function(err){
       authSubmitBtn.disabled = false;
       console.error(err);
@@ -2399,19 +2431,41 @@
     });
   });
 
+  /* 세션 확인은 비동기다. 그 전에 임시저장 안내창을 띄우면, 이미 로그인해 둔
+     사용자에게도 loginRequired()가 true로 보여 로그인을 다시 요구하게 된다.
+     그래서 확인이 끝난 뒤에 실행할 일을 여기 모아 둔다. */
+  var authSettled = false;
+  var authSettledWaiters = [];
+
+  function markAuthSettled(){
+    if(authSettled) return;
+    authSettled = true;
+    authSettledWaiters.forEach(function(fn){ fn(); });
+    authSettledWaiters = [];
+  }
+
+  function whenAuthSettled(fn){
+    if(authSettled) fn();
+    else authSettledWaiters.push(fn);
+  }
+
   if(archiveAvailable()){
     Archive.currentUser().then(function(user){
       setAuthUser(user);
+      markAuthSettled();
     }).catch(function(err){
       // 세션 확인 자체가 실패하면(네트워크 등) 로그인 화면을 보여 준다.
       console.error(err);
       setAuthUser(null);
+      markAuthSettled();
     });
     Archive.onAuthChange(function(user){
       setAuthUser(user);
+      markAuthSettled();
     });
   }else{
     renderAuthState();
+    markAuthSettled();
   }
 
   // ---- 문서 보관(Supabase) --------------------------------------------------
@@ -2590,8 +2644,181 @@
 
   mailBtn.addEventListener('click', generateMail);
 
+  // ---- 임시저장 -------------------------------------------------------------
+
+  var resumeModalEl = document.getElementById('resumeModal');
+  var resumeInfoEl = document.getElementById('resumeInfo');
+  var resumeContinueBtn = document.getElementById('resumeContinueBtn');
+  var resumeDiscardBtn = document.getElementById('resumeDiscardBtn');
+  var saveDraftBtn = document.getElementById('saveDraftBtn');
+  var pendingDraft = false;      // 로그인 팝업 때문에 미뤄 둔 이어쓰기
+
+  function draftAvailable(){
+    return !!(window.Draft && Draft.isEnabled());
+  }
+
+  var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect'];
+
+  /* 사진의 sketchedCache·rotatedCache 는 baseDataURL + strokes + rotation 으로
+     다시 만들 수 있는 파생물이라 저장하지 않는다. 그대로 담으면 용량이 3배가 된다. */
+  function collectDraft(){
+    var fields = {};
+    DRAFT_FIELD_IDS.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) fields[id] = el.value;
+    });
+    Object.keys(faultInputs).forEach(function(id){
+      if(faultInputs[id]) fields[id] = faultInputs[id].value;
+    });
+
+    return {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      appMode: appMode,
+      fields: fields,
+      outageNone: !!(faultNoOutageEl && faultNoOutageEl.checked),
+      idCounter: idCounter,
+      photos: photos.map(function(p){
+        return {
+          id: p.id,
+          baseDataURL: p.baseDataURL,
+          naturalW: p.naturalW,
+          naturalH: p.naturalH,
+          rotation: p.rotation,
+          description: p.description,
+          strokes: p.strokes
+        };
+      })
+    };
+  }
+
+  function saveDraft(){
+    if(!draftAvailable()){
+      showToast('이 브라우저에서는 임시저장을 사용할 수 없습니다.');
+      return;
+    }
+    var payload = collectDraft();
+    var meta = {
+      savedAt: payload.savedAt,
+      appMode: payload.appMode,
+      fileName: payload.fields.fileNameInput || '',
+      photoCount: payload.photos.length
+    };
+    saveDraftBtn.disabled = true;
+    Draft.save(payload, meta).then(function(){
+      saveDraftBtn.disabled = false;
+      showToast('임시저장했습니다. 앱을 닫아도 이어서 작성할 수 있습니다.');
+    }).catch(function(err){
+      saveDraftBtn.disabled = false;
+      console.error(err);
+      showToast((err && err.message) || '임시저장에 실패했습니다.');
+    });
+  }
+
+  saveDraftBtn.addEventListener('click', saveDraft);
+
+  // 저장해 둔 값을 화면에 되돌린다. 사진 캐시는 여기서 다시 만든다.
+  function applyDraft(payload){
+    appMode = payload.appMode || 'report';
+    updateModeIndicator();
+
+    var fields = payload.fields || {};
+    DRAFT_FIELD_IDS.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el && typeof fields[id] === 'string') el.value = fields[id];
+    });
+    Object.keys(faultInputs).forEach(function(id){
+      var el = faultInputs[id];
+      if(el && typeof fields[id] === 'string') el.value = fields[id];
+    });
+    // 시/분 select 는 숨은 input 과 따로 있어서 별도로 맞춰 준다
+    ['faultOccurredTime', 'faultStopTime', 'faultRecoverTime'].forEach(function(id){
+      if(fields[id]) setTimePickerValue(id, fields[id]);
+    });
+    if(faultNoOutageEl){
+      faultNoOutageEl.checked = !!payload.outageNone;
+      refreshOutageEnabled();
+    }
+    refreshFaultDuration();
+
+    idCounter = payload.idCounter || 0;
+    photos = (payload.photos || []).map(function(p){
+      return {
+        id: p.id,
+        baseDataURL: p.baseDataURL,
+        naturalW: p.naturalW,
+        naturalH: p.naturalH,
+        rotation: p.rotation || 0,
+        description: p.description || '',
+        strokes: p.strokes || [],
+        sketchedCache: null,
+        rotatedCache: null
+      };
+    });
+
+    // 캐시를 순서대로 다시 만든 뒤 목록을 그린다
+    return photos.reduce(function(chain, item){
+      return chain
+        .then(function(){ return composeSketchedCache(item); })
+        .then(function(){ return computeRotatedCache(item); });
+    }, Promise.resolve()).then(function(){
+      updateCountDisplay();
+      renderList();
+      modeSelectScreen.classList.add('closed');
+    });
+  }
+
+  function closeResumeModal(){
+    resumeModalEl.classList.remove('open');
+  }
+
+  function resumeDraft(){
+    /* 이어쓰기도 문서 작성이므로 만들기 버튼과 같은 로그인 관문을 통과해야 한다.
+       로그인이 필요하면 팝업을 띄우고, 성공한 뒤 이 함수로 되돌아온다. */
+    if(loginRequired()){
+      pendingDraft = true;
+      closeResumeModal();
+      openAuthModal('로그인하면 임시저장해 둔 내용을 이어서 작성할 수 있습니다.');
+      return;
+    }
+    pendingDraft = false;
+    closeResumeModal();
+    showToast('임시저장한 내용을 불러오는 중입니다...');
+    Draft.load().then(function(payload){
+      if(!payload) throw new Error('임시저장한 내용을 찾지 못했습니다.');
+      return applyDraft(payload);
+    }).then(function(){
+      showToast('이어서 작성합니다.');
+    }).catch(function(err){
+      console.error(err);
+      showToast((err && err.message) || '임시저장한 내용을 불러오지 못했습니다.');
+    });
+  }
+
+  resumeContinueBtn.addEventListener('click', resumeDraft);
+  resumeDiscardBtn.addEventListener('click', function(){
+    closeResumeModal();
+    Draft.clear().then(function(){ showToast('임시저장한 내용을 삭제했습니다.'); });
+  });
+
+  // 앱을 열 때 임시저장이 있으면 물어본다.
+  function offerResume(){
+    if(!draftAvailable()) return;
+    Draft.peek().then(function(meta){
+      if(!meta) return;
+      var label = MODE_LABELS[meta.appMode] || MODE_LABELS.report;
+      var when = Draft.formatSavedAt(meta.savedAt);
+      resumeInfoEl.textContent = label
+        + (meta.fileName ? ' · ' + meta.fileName : '')
+        + ' · 사진 ' + (meta.photoCount || 0) + '장'
+        + (when ? ' · ' + when + ' 저장' : '');
+      resumeModalEl.classList.add('open');
+    });
+  }
+
   updateCountDisplay();
   renderList();
+  whenAuthSettled(offerResume);
 })();
 </script>
 </body>
