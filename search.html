@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>문서 보관함 조회</title>
+<!-- 아이콘만 맞춰 준다. 설치 대상(manifest)은 index.html 하나로 유지한다. -->
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{
+    --primary:#ff385c; --primary-active:#e00b41; --error:#c13515;
+    --ink:#222222; --muted:#6a6a6a; --hairline:#dddddd;
+    --canvas:#ffffff; --surface-soft:#f7f7f7; --surface-strong:#f2f2f2;
+    --radius-sm:8px; --radius-md:14px; --radius-full:9999px;
+    --elevation:rgba(0,0,0,.02) 0 0 0 1px,rgba(0,0,0,.04) 0 2px 6px 0,rgba(0,0,0,.1) 0 4px 8px 0;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"Airbnb Cereal VF",Circular,-apple-system,system-ui,Roboto,"Helvetica Neue","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--canvas); color:var(--ink); -webkit-tap-highlight-color:transparent;
+  }
+  .shell{ max-width:900px; margin:0 auto; padding:0 16px 40px; }
+  .head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0 10px; }
+  .head-logo{ height:30px; width:auto; display:block; }
+  .head-banner{ height:22px; width:auto; display:block; }
+  h1{ font-size:22px; font-weight:600; letter-spacing:-0.44px; text-align:center; margin:0 0 10px; }
+  .top-links{ display:flex; justify-content:center; gap:8px; margin:0 0 18px; }
+  .chip{ font-size:12px; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; text-decoration:none; }
+
+  .tabs{ display:flex; gap:8px; margin:0 0 16px; }
+  .tab{ flex:1; padding:12px 0; font-family:inherit; font-size:14px; font-weight:600; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--muted); cursor:pointer; }
+  .tab.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
+
+  .filters{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin:0 0 16px; }
+  .frow{ display:flex; gap:10px; flex-wrap:wrap; }
+  .fgroup{ flex:1; min-width:150px; margin-bottom:12px; }
+  .fgroup:last-child{ margin-bottom:0; }
+  label{ display:block; font-size:13px; font-weight:500; color:var(--muted); margin:0 0 6px; }
+  input, select{ width:100%; height:48px; padding:12px; font-family:inherit; font-size:15px; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--ink); }
+  input:focus, select:focus{ outline:none; border-width:2px; border-color:var(--ink); padding:11px; }
+  .fbtns{ display:flex; gap:8px; margin-top:4px; }
+  .fbtns button{ flex:1; height:48px; font-family:inherit; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  .fbtns button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+
+  .status{ font-size:13.5px; color:var(--muted); margin:0 0 12px; line-height:1.6; }
+  .status.err{ color:var(--error); }
+
+  .card{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin-bottom:10px; }
+  .card-top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .card-title{ font-size:15px; font-weight:600; word-break:break-all; }
+  .badge{ flex:none; font-size:11px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radius-full); padding:3px 9px; }
+  .meta{ font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:6px; }
+  .meta b{ color:var(--ink); font-weight:600; }
+  .card-actions{ margin-top:10px; }
+  .card-actions button{ height:40px; padding:0 16px; font-family:inherit; font-size:13px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+
+  .gate{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:20px; }
+  .gate h2{ font-size:16px; font-weight:600; margin:0 0 6px; }
+  .gate p{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 14px; }
+  .gate .msg{ font-size:12.5px; line-height:1.5; margin:0 0 12px; display:none; }
+  .gate .msg.show{ display:block; }
+  .gate .msg.err{ color:var(--error); }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="head-row">
+    <img src="manual-logo.gif" alt="한국지역난방공사" class="head-logo">
+    <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="head-banner">
+  </div>
+  <h1>문서 보관함</h1>
+  <div class="top-links">
+    <a class="chip" href="index.html">← 문서 작성으로</a>
+    <span class="chip" id="userChip"></span>
+  </div>
+
+  <!-- 미설정 안내 -->
+  <div class="gate hidden" id="notConfigured">
+    <h2>보관함이 아직 연결되지 않았습니다</h2>
+    <p>
+      <code>supabase-config.js</code> 에 Supabase 프로젝트 URL과 anon 키를 입력하면
+      조회 기능이 켜집니다. 설정 방법은 <code>SUPABASE-SETUP.md</code> 를 참고해 주세요.
+    </p>
+  </div>
+
+  <!-- 로그인 -->
+  <div class="gate hidden" id="loginGate">
+    <h2>로그인</h2>
+    <p>보관된 문서는 로그인한 사용자만 조회할 수 있습니다.</p>
+    <p class="msg" id="loginMsg"></p>
+    <div class="fgroup">
+      <label for="email">이메일</label>
+      <input type="email" id="email" placeholder="user@kdhc.co.kr" autocomplete="username">
+    </div>
+    <div class="fgroup">
+      <label for="password">비밀번호</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+    <div class="fbtns">
+      <button type="button" class="primary" id="loginBtn">로그인</button>
+    </div>
+  </div>
+
+  <!-- 조회 -->
+  <div id="browser" class="hidden">
+    <div class="tabs">
+      <button type="button" class="tab active" data-type="photo">사진대장</button>
+      <button type="button" class="tab" data-type="manual">매뉴얼</button>
+      <button type="button" class="tab" data-type="fault">고장 보고서</button>
+    </div>
+
+    <div class="filters">
+      <div class="frow">
+        <div class="fgroup">
+          <label for="fFileName">파일명</label>
+          <input type="text" id="fFileName" placeholder="파일명 일부 입력">
+        </div>
+        <div class="fgroup" id="gManualType">
+          <label for="fManualType">매뉴얼 종류</label>
+          <select id="fManualType">
+            <option value="">전체</option>
+            <option value="업무 매뉴얼">업무 매뉴얼</option>
+            <option value="조작 매뉴얼">조작 매뉴얼</option>
+            <option value="운전 매뉴얼">운전 매뉴얼</option>
+            <option value="점검 매뉴얼">점검 매뉴얼</option>
+            <option value="정비 매뉴얼">정비 매뉴얼</option>
+          </select>
+        </div>
+        <div class="fgroup" id="gField">
+          <label for="fField">분야</label>
+          <select id="fField"><option value="">전체</option></select>
+        </div>
+      </div>
+
+      <div class="frow" id="faultFilters">
+        <div class="fgroup">
+          <label for="fFrom">발생일자 (시작)</label>
+          <input type="date" id="fFrom">
+        </div>
+        <div class="fgroup">
+          <label for="fTo">발생일자 (종료)</label>
+          <input type="date" id="fTo">
+        </div>
+        <div class="fgroup">
+          <label for="fBranch">지사</label>
+          <input type="text" id="fBranch" placeholder="예: 양산">
+        </div>
+        <div class="fgroup">
+          <label for="fFacility">설비명</label>
+          <input type="text" id="fFacility" placeholder="예: 변압기">
+        </div>
+        <div class="fgroup">
+          <label for="fContent">고장내용</label>
+          <input type="text" id="fContent" placeholder="예: 방압변">
+        </div>
+      </div>
+
+      <div class="fbtns">
+        <button type="button" id="resetBtn">초기화</button>
+        <button type="button" class="primary" id="searchBtn">조회</button>
+      </div>
+    </div>
+
+    <p class="status" id="status"></p>
+    <div id="results"></div>
+  </div>
+</div>
+
+<script src="libs/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="archive.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  // 작성 화면(index.html)의 목록과 같아야 한다. 빠진 분야가 있으면 그 분야로 저장한
+  // 문서를 조회로 걸러낼 수 없다.
+  var MANUAL_FIELDS = ['전기','기계','제어','전산','운영','건축','토목','화공','사무','기타'];
+  var FAULT_FIELDS  = ['전기','기계','제어','전산','운영','열수송','기타'];
+  var TYPE_LABELS   = { photo:'사진대장', manual:'매뉴얼', fault:'고장 보고서' };
+
+  var el = function(id){ return document.getElementById(id); };
+  var notConfigured = el('notConfigured'), loginGate = el('loginGate'), browser = el('browser');
+  var statusEl = el('status'), resultsEl = el('results'), userChip = el('userChip');
+  var currentType = 'photo';
+
+  function show(node, on){ node.classList.toggle('hidden', !on); }
+
+  function setStatus(text, isErr){
+    statusEl.textContent = text || '';
+    statusEl.className = 'status' + (isErr ? ' err' : '');
+  }
+
+  function fillFieldOptions(){
+    var list = (currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS)
+      .slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });   // 작성 화면과 같은 가나다순
+    var sel = el('fField');
+    sel.innerHTML = '<option value="">전체</option>';
+    list.forEach(function(v){
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+
+  function applyTypeVisibility(){
+    show(el('gManualType'), currentType === 'manual');
+    show(el('gField'), currentType !== 'photo');
+    show(el('faultFilters'), currentType === 'fault');
+    fillFieldOptions();
+  }
+
+  function fmtDateTime(iso){
+    if(!iso) return '';
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '.' + (d.getMonth()+1) + '.' + d.getDate() + '. ' +
+           pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function fmtDate(iso){
+    if(!iso) return '';
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    return d.getFullYear() + '.' + (d.getMonth()+1) + '.' + d.getDate() + '.';
+  }
+
+  function metaLine(label, value){
+    if(!value) return '';
+    return '<div>' + label + ' <b>' + String(value).replace(/[<>&]/g, function(c){
+      return { '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c];
+    }) + '</b></div>';
+  }
+
+  function renderRow(row){
+    var card = document.createElement('div');
+    card.className = 'card';
+
+    var meta = '';
+    meta += metaLine('작성자', row.author_name);
+    meta += metaLine('작성일', fmtDateTime(row.created_at));
+
+    if(row.doc_type === 'manual'){
+      meta += metaLine('종류', row.manual_type);
+      meta += metaLine('분야', row.field ? row.field + '분야' : '');
+      meta += metaLine('개정번호', row.revision);
+    }else if(row.doc_type === 'fault'){
+      meta += metaLine('발생일시', fmtDateTime(row.occurred_at));
+      meta += metaLine('고장분야', row.field ? row.field + '분야' : '');
+      meta += metaLine('지사', row.branch);
+      meta += metaLine('설비명', row.facility);
+      meta += metaLine('고장내용', row.fault_content);
+      if(row.outage_none){
+        meta += metaLine('열공급 중단', '해당없음');
+      }else if(row.outage_mins !== null && row.outage_mins !== undefined){
+        meta += metaLine('중단 기간', Archive.minutesToText(row.outage_mins));
+      }
+    }
+    meta += metaLine('사진', row.photo_count ? row.photo_count + '장' : '없음');
+
+    card.innerHTML =
+      '<div class="card-top">' +
+        '<span class="card-title"></span>' +
+        '<span class="badge">' + (TYPE_LABELS[row.doc_type] || row.doc_type) + '</span>' +
+      '</div>' +
+      '<div class="meta">' + meta + '</div>' +
+      '<div class="card-actions"><button type="button">PDF 열기</button></div>';
+
+    card.querySelector('.card-title').textContent = row.file_name;
+    var btn = card.querySelector('.card-actions button');
+    btn.addEventListener('click', function(){
+      btn.disabled = true;
+      Archive.signedUrl(row.pdf_path).then(function(url){
+        btn.disabled = false;
+        window.open(url, '_blank');
+      }).catch(function(err){
+        btn.disabled = false;
+        console.error(err);
+        setStatus('PDF를 열지 못했습니다: ' + (err.message || ''), true);
+      });
+    });
+    return card;
+  }
+
+  function runSearch(){
+    setStatus('조회 중입니다...');
+    resultsEl.innerHTML = '';
+
+    var filters = { docType: currentType, fileName: el('fFileName').value.trim() };
+    if(currentType === 'manual') filters.manualType = el('fManualType').value;
+    if(currentType !== 'photo') filters.field = el('fField').value;
+    if(currentType === 'fault'){
+      filters.occurredFrom = el('fFrom').value;
+      filters.occurredTo = el('fTo').value;
+      filters.branch = el('fBranch').value.trim();
+      filters.facility = el('fFacility').value.trim();
+      filters.faultContent = el('fContent').value.trim();
+    }
+
+    Archive.queryDocuments(filters).then(function(rows){
+      if(rows.length === 0){
+        setStatus('조건에 맞는 문서가 없습니다.');
+        return;
+      }
+      setStatus(rows.length + '건을 찾았습니다.');
+      var frag = document.createDocumentFragment();
+      rows.forEach(function(r){ frag.appendChild(renderRow(r)); });
+      resultsEl.appendChild(frag);
+    }).catch(function(err){
+      console.error(err);
+      setStatus('조회에 실패했습니다: ' + (err.message || ''), true);
+    });
+  }
+
+  document.querySelectorAll('.tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      currentType = tab.dataset.type;
+      document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t === tab); });
+      applyTypeVisibility();
+      resultsEl.innerHTML = '';
+      setStatus('');
+      runSearch();
+    });
+  });
+
+  el('searchBtn').addEventListener('click', runSearch);
+  el('resetBtn').addEventListener('click', function(){
+    ['fFileName','fFrom','fTo','fBranch','fFacility','fContent'].forEach(function(id){ el(id).value = ''; });
+    el('fManualType').value = '';
+    el('fField').value = '';
+    runSearch();
+  });
+
+  function enterBrowser(user){
+    show(loginGate, false);
+    show(browser, true);
+    userChip.textContent = Archive.displayName(user) + ' · 로그아웃';
+    userChip.onclick = function(){
+      if(!window.confirm('로그아웃하시겠습니까?')) return;
+      Archive.signOut().then(function(){ location.reload(); });
+    };
+    applyTypeVisibility();
+    runSearch();
+  }
+
+  function showLogin(){
+    show(browser, false);
+    show(loginGate, true);
+    userChip.textContent = '';
+  }
+
+  el('loginBtn').addEventListener('click', function(){
+    var msg = el('loginMsg');
+    var btn = el('loginBtn');
+    var email = el('email').value.trim(), password = el('password').value;
+    if(!email || !password){
+      msg.textContent = '이메일과 비밀번호를 입력해 주세요.';
+      msg.className = 'msg show err';
+      return;
+    }
+    btn.disabled = true;
+    msg.textContent = '로그인 중입니다...';
+    msg.className = 'msg show';
+    Archive.signIn(email, password).then(function(user){
+      btn.disabled = false;
+      enterBrowser(user);
+    }).catch(function(err){
+      btn.disabled = false;
+      var m = (err && err.message) || '';
+      if(/Invalid login credentials/i.test(m)) m = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      else if(/Email not confirmed/i.test(m)) m = '메일 인증이 완료되지 않았습니다.';
+      msg.textContent = m || '로그인에 실패했습니다.';
+      msg.className = 'msg show err';
+    });
+  });
+
+  // 시작
+  if(!window.Archive || !Archive.isEnabled()){
+    show(notConfigured, true);
+  }else{
+    Archive.currentUser().then(function(user){
+      if(user) enterBrowser(user); else showLogin();
+    }).catch(showLogin);
+  }
+})();
+</script>
+</body>
+</html>

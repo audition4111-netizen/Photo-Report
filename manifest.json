@@ -1,0 +1,40 @@
+{
+  "name": "뚝 DOC — 자동 문서 생성기",
+  "short_name": "뚝 DOC",
+  "description": "사진대장·매뉴얼·고장 보고서를 현장에서 바로 만드는 앱",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "보관함 조회",
+      "short_name": "보관함",
+      "url": "./search.html"
+    }
+  ]
+}

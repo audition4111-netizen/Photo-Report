@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>사진대장 생성</title>
+<title>뚝 DOC — 자동 문서 생성기</title>
+
+<!-- 홈화면에 앱으로 설치되도록 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<!-- iOS는 manifest의 아이콘을 쓰지 않아 별도 지정이 필요하다 -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="뚝 DOC">
 <style>
   :root{
     --primary:#ff385c;
@@ -190,17 +200,56 @@
   .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto; }
   .mode-select-screen.closed{ display:none; }
   .mode-select-inner{ width:100%; max-width:360px; text-align:center; }
-  .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 32px; }
+  .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 44px; }
   .mode-select-logo{ height:38px; width:auto; display:block; }
   .mode-select-banner{ height:22px; width:auto; display:block; }
-  .mode-select-title{ font-size:21px; font-weight:600; letter-spacing:-0.44px; color:var(--ink); margin:0 0 10px; word-break:keep-all; }
-  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 28px; }
+  /* 마스코트를 제목 왼쪽에 나란히 — 제목 글자 크기에 맞춰 커지도록 em 단위 */
+  .mode-title-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 8px; }
+  .mode-select-mascot{ height:3.4em; width:auto; display:block; flex:none; }
+  .mode-select-title{ font-size:21px; font-weight:600; letter-spacing:-0.44px; color:var(--ink); margin:0; word-break:keep-all; }
+  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 36px; }
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
+  /* 로그인 상태 줄은 로그인한 뒤에만 나타난다. 로그아웃 상태의 첫 화면에는
+     로그인 관련 요소가 전혀 보이지 않고, 만들기를 누르는 순간 팝업으로 뜬다. */
+  .mode-auth-row{ display:flex; justify-content:center; gap:8px; margin:0 0 22px; }
+  .mode-auth-row[hidden]{ display:none; }
   .mode-choice-title{ display:block; font-size:16px; font-weight:600; color:var(--ink); margin:0 0 4px; }
   .mode-choice-desc{ display:block; font-size:13px; color:var(--muted); line-height:1.5; }
   .mode-indicator{ display:inline-block; font-size:12px; color:var(--muted); background:var(--surface-soft); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; margin:0 0 14px; }
+
+  .auth-row{ display:flex; justify-content:center; gap:8px; margin:0 0 14px; }
+  .auth-row[hidden]{ display:none; }
+  .auth-chip{ font-size:12px; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; text-decoration:none; }
+  .auth-chip:active{ background:var(--hairline); }
+
+  .auth-modal{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:420; display:none; align-items:center; justify-content:center; padding:24px; }
+  .auth-modal.open{ display:flex; }
+  .auth-card{ width:100%; max-width:340px; background:var(--canvas); border-radius:var(--radius-md); padding:20px; }
+  .auth-card h2{ font-size:17px; font-weight:600; margin:0 0 4px; }
+  .auth-card .auth-sub{ font-size:12.5px; color:var(--muted); margin:0 0 16px; line-height:1.5; }
+  .auth-msg{ font-size:12.5px; line-height:1.5; margin:0 0 12px; display:none; }
+  .auth-msg.show{ display:block; }
+  .auth-msg.err{ color:var(--error); }
+  .auth-msg.ok{ color:var(--primary); }
+  .auth-actions{ display:flex; gap:8px; margin-top:4px; }
+  .auth-actions button{ flex:1; padding:13px 0; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; font-family:inherit; }
+  .auth-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+  .auth-toggle{ display:block; width:100%; margin-top:12px; padding:0; border:none; background:none; font-family:inherit; font-size:12.5px; color:var(--muted); text-decoration:underline; cursor:pointer; }
+
+  /* 임시저장 이어쓰기 안내. 모드 선택 화면(400)보다 위에 떠야 한다. */
+  .resume-modal{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:430; display:none; align-items:center; justify-content:center; padding:24px; }
+  .resume-modal.open{ display:flex; }
+  .resume-card{ width:100%; max-width:340px; background:var(--canvas); border-radius:var(--radius-md); padding:20px; }
+  .resume-card h2{ font-size:17px; font-weight:600; margin:0 0 6px; }
+  .resume-card p{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 14px; word-break:keep-all; }
+  .resume-info{ font-size:13px; line-height:1.7; color:var(--ink); background:var(--surface-soft); border-radius:var(--radius-sm); padding:12px; margin:0 0 14px; }
+  .resume-info b{ font-weight:600; }
+  .resume-warn{ font-size:12px; color:var(--muted); line-height:1.5; margin:12px 0 0; }
+  .resume-actions{ display:flex; gap:8px; }
+  .resume-actions button{ flex:1; padding:13px 0; font-family:inherit; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  .resume-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
 
   .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
 
@@ -227,11 +276,20 @@
 <div class="mode-select-screen" id="modeSelectScreen">
   <div class="mode-select-inner">
     <div class="mode-select-head">
-      <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-logo">
+      <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
     </div>
-    <h1 class="mode-select-title">사진대장 &amp; 매뉴얼 &amp; 고장 보고서</h1>
-    <p class="mode-select-sub">무엇을 작성하시겠어요?</p>
+    <div class="mode-title-row">
+      <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot">
+      <h1 class="mode-select-title">뚝 DOC !</h1>
+    </div>
+    <p class="mode-select-sub">일잘알 자동 문서 생성기</p>
+
+    <div class="mode-auth-row" id="modeAuthRow" hidden>
+      <span class="auth-chip" id="modeAuthChip"></span>
+      <a class="auth-chip" href="search.html">보관함 조회</a>
+    </div>
+
     <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
       <span class="mode-choice-title">사진대장 만들기</span>
       <span class="mode-choice-desc">현장 사진과 설명을 정리하는 보고서</span>
@@ -241,7 +299,7 @@
       <span class="mode-choice-desc">사진마다 순번을 매겨 절차를 안내하는 문서</span>
     </button>
     <button type="button" class="mode-choice-btn" id="chooseFaultModeBtn">
-      <span class="mode-choice-title">고장보고서 만들기</span>
+      <span class="mode-choice-title">고장 보고서 만들기</span>
       <span class="mode-choice-desc">고장 요약과 관련 사진을 정리하는 핫라인 메모</span>
     </button>
   </div>
@@ -251,13 +309,18 @@
 
   <div class="app-header">
     <div class="app-banner-row">
-      <img src="manual-logo.gif" alt="한국지역난방공사" class="app-header-logo">
+      <img src="manual-logo.gif" alt="한국지역난방공사" class="app-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
     <h1 class="app-title" id="appTitle">사진대장</h1>
 
     <div style="text-align:center;">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
+    </div>
+
+    <div class="auth-row" id="authRow" hidden>
+      <span class="auth-chip" id="authChip">로그인</span>
+      <a class="auth-chip" id="archiveLink" href="search.html">보관함 조회</a>
     </div>
 
     <div class="field-row" id="docTypeGroup" hidden>
@@ -273,17 +336,7 @@
       </div>
       <div class="field-group">
         <label class="field-label" for="fieldSelect">분야</label>
-        <select id="fieldSelect" class="field-input">
-          <option value="전기">전기</option>
-          <option value="기계">기계</option>
-          <option value="제어">제어</option>
-          <option value="전산">전산</option>
-          <option value="운영">운영</option>
-          <option value="건축">건축</option>
-          <option value="토목">토목</option>
-          <option value="화공">화공</option>
-          <option value="기타">기타</option>
-        </select>
+        <select id="fieldSelect" class="field-input"></select>
       </div>
     </div>
 
@@ -313,21 +366,13 @@
 
       <div class="field-group">
         <label class="field-label" for="faultFieldSelect">고장분야</label>
-        <select id="faultFieldSelect" class="field-input">
-          <option value="전기">전기</option>
-          <option value="기계">기계</option>
-          <option value="제어">제어</option>
-          <option value="전산">전산</option>
-          <option value="운영">운영</option>
-          <option value="열수송">열수송</option>
-          <option value="기타">기타</option>
-        </select>
+        <select id="faultFieldSelect" class="field-input"></select>
       </div>
 
       <div class="field-row">
         <div class="field-group">
           <label class="field-label" for="faultBranch">지사</label>
-          <input type="text" id="faultBranch" class="field-input" placeholder="예: 양산지사">
+          <select id="faultBranch" class="field-input"></select>
         </div>
         <div class="field-group">
           <label class="field-label" for="faultFacility">설비명</label>
@@ -373,7 +418,7 @@
         </div>
         <div class="field-group">
           <label class="field-label" for="faultDuration">기간 (자동 계산)</label>
-          <input type="text" id="faultDuration" class="field-input" placeholder="중단일시와 예상복구(조치) 일시를 입력하면 자동 계산됩니다" readonly>
+          <input type="text" id="faultDuration" class="field-input" placeholder="중단일시와 복구일시를 입력하면 자동 계산됩니다" readonly>
         </div>
       </div>
 
@@ -394,11 +439,11 @@
 
       <div class="field-row">
         <div class="field-group">
-          <label class="field-label" for="faultRecoverDate">예상복구(조치) 일자</label>
+          <label class="field-label" for="faultRecoverDate">복구 일자</label>
           <input type="date" id="faultRecoverDate" class="field-input">
         </div>
         <div class="field-group">
-          <label class="field-label" for="faultRecoverTime">예상복구(조치) 시각</label>
+          <label class="field-label" for="faultRecoverTime">복구 시각</label>
           <div class="time-picker" data-time-for="faultRecoverTime"><select class="field-input time-hour" aria-label="시"></select><span class="time-colon">:</span><select class="field-input time-min" aria-label="분"></select></div><input type="hidden" id="faultRecoverTime">
         </div>
         <div class="field-group">
@@ -416,7 +461,7 @@
     </div>
 
     <div class="count-row">
-      <span class="count-badge" id="countBadge">등록 사진 0 / 30</span>
+      <span class="count-badge" id="countBadge">등록 사진 0 / 30 (3장이하 권장)</span>
     </div>
 
     <button type="button" class="add-btn" id="addBtn">사진 추가</button>
@@ -427,9 +472,8 @@
       <div class="guide-body">
         <b>사용 순서</b>
         <ol>
-          <li>파일명을 입력합니다. (매뉴얼 모드에서는 [매뉴얼 종류]·[분야]·[개정번호]도 함께 지정하며, 선택한 값이 출력물 상단 표에 표시됩니다.)</li>
-          <li>고장 보고서 모드에서는 발생일시·고장분야·지사·설비명 등 [1. 고장 요약] 항목을 채웁니다. 날짜와 시각은 달력·시계에서 선택하면 출력물에 자동 반영되고, [기간]은 중단일시와 예상복구(조치) 일시의 차이로 자동 계산됩니다. 사진을 넣지 않으면 [2. 관련 사진] 없이 고장 요약만 출력됩니다.</li>
-          <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
+          <li>파일명(문서 제목)과 내용을 입력 합니다.</li>
+          <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영" 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
@@ -441,7 +485,7 @@
         </ol>
         <b>사용 가이드 추천</b>
         <ol>
-          <li>사진대장 또는 매뉴얼 작성 시 사용
+          <li>사진대장, 매뉴얼, 고장 보고서 작성 시 사용
             <ul>
               <li>[메일로 전송]을 통해 회사메일로 전송</li>
               <li>자료 교환 후 사용</li>
@@ -457,9 +501,9 @@
         <b>안내</b>
         <ul>
           <li>모든 사진/문서 처리는 이 브라우저 안에서만 이루어지며 외부 서버로 전송되지 않습니다.</li>
-          <li>[메일로 전송]을 누르면 PDF가 자동으로 다운로드되고 Gmail 작성 화면이 새 탭으로 열립니다. 첨부파일은 Gmail 화면에서 직접 추가해야 합니다(브라우저 보안 정책상 외부 웹사이트가 Gmail에 파일을 자동으로 넣을 수는 없습니다).</li>
+          <li>[메일로 전송]을 누르면 PDF가 자동으로 다운로드되고 Gmail 작성 화면이 새 탭으로 열립니다. 첨부파일은 Gmail 화면에서 직접 추가해야 합니다.</li>
           <li>새로고침하거나 화면을 닫으면 등록한 내용은 사라집니다.</li>
-          <li>만든이: Steven Kim</li>
+          <li>개발자: Steven Kim</li>
         </ul>
       </div>
     </details>
@@ -470,6 +514,7 @@
   </div>
 
   <div class="footer-bar">
+    <button type="button" class="footer-btn" id="saveDraftBtn">임시저장</button>
     <button type="button" class="footer-btn" id="previewBtn">미리보기</button>
     <button type="button" class="footer-btn" id="pdfBtn">PDF 출력</button>
     <button type="button" class="footer-btn primary" id="mailBtn">메일로 전송</button>
@@ -546,10 +591,66 @@
   </div>
 </div>
 
+<div class="resume-modal" id="resumeModal">
+  <div class="resume-card">
+    <h2>이어서 작성하시겠습니까?</h2>
+    <p>임시저장해 둔 내용이 있습니다.</p>
+    <div class="resume-info" id="resumeInfo"></div>
+    <div class="resume-actions">
+      <button type="button" id="resumeDiscardBtn">새로 시작</button>
+      <button type="button" class="primary" id="resumeContinueBtn">이어서 작성</button>
+    </div>
+    <p class="resume-warn">'새로 시작'을 누르면 임시저장한 내용은 삭제됩니다.</p>
+  </div>
+</div>
+
+<div class="auth-modal" id="authModal">
+  <div class="auth-card">
+    <h2 id="authTitle">로그인</h2>
+    <p class="auth-sub" id="authSub">로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.</p>
+    <p class="auth-msg" id="authMsg"></p>
+
+    <div class="field-group" id="authNameGroup" hidden>
+      <label class="field-label" for="authName">이름 (작성자로 표기됩니다)</label>
+      <input type="text" id="authName" class="field-input" placeholder="예: 김철수" autocomplete="name">
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="authEmail">이메일</label>
+      <input type="email" id="authEmail" class="field-input" placeholder="user@kdhc.co.kr" autocomplete="username">
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="authPassword">비밀번호</label>
+      <input type="password" id="authPassword" class="field-input" placeholder="6자 이상" autocomplete="current-password">
+    </div>
+
+    <div class="auth-actions">
+      <button type="button" id="authCancelBtn">취소</button>
+      <button type="button" class="primary" id="authSubmitBtn">로그인</button>
+    </div>
+    <button type="button" class="auth-toggle" id="authToggleBtn">계정이 없으신가요? 회원가입</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="libs/html2canvas.min.js"></script>
 <script src="libs/jspdf.umd.min.js"></script>
+<script src="libs/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="archive.js"></script>
+<script src="draft.js"></script>
+<script>
+  /* 서비스 워커 등록 — 앱 설치와 오프라인 실행에 필요하다.
+     file:// 로 열면(사내망 단일 파일 사본) 등록이 불가능하고 콘솔 오류만 나므로
+     http(s) 로 열렸을 때만 시도한다. */
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (err) {
+        console.error('서비스 워커 등록 실패:', err);
+      });
+    });
+  }
+</script>
 
 <script>
 (function(){
@@ -608,8 +709,48 @@
   var modeIndicatorEl = document.getElementById('modeIndicator');
   var appTitleEl = document.getElementById('appTitle');
 
+  var modeAuthRowEl = document.getElementById('modeAuthRow');
+  var modeAuthChipEl = document.getElementById('modeAuthChip');
+
+  // 로그인 팝업 때문에 미뤄 둔 모드. 로그인에 성공하면 이어서 그 모드로 들어간다.
+  var pendingMode = null;
+
+  // ---- 선택 목록 ------------------------------------------------------------
+
+  var BRANCHES = [
+    '중앙지사', '강남지사', '파주지사', '삼송지사', '고양사업소', '화성지사',
+    '동탄지사', '판교지사', '광교지사', '용인지사', '분당사업소', '평택지사',
+    '광주전남지사', '양산지사', '대구지사', '세종지사', '김해사업소', '청주지사'
+  ];
+  var MANUAL_FIELDS = ['전기', '기계', '제어', '전산', '운영', '건축', '토목', '화공', '사무', '기타'];
+  var FAULT_FIELDS = ['전기', '기계', '제어', '전산', '운영', '열수송', '기타'];
+
+  /* 가나다순으로 채운다. localeCompare(…,'ko')에 정렬을 맡기면 한글 자모 순서를
+     직접 계산할 필요가 없고, 위 목록에 항목을 추가할 때 순서를 신경 쓰지 않아도 된다. */
+  function fillSortedSelect(id, values, defaultValue){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var sorted = values.slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });
+    el.innerHTML = '';
+    sorted.forEach(function(v){ el.appendChild(new Option(v, v)); });
+    if(sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
+  }
+
+  fillSortedSelect('faultBranch', BRANCHES, '양산지사');
+  fillSortedSelect('fieldSelect', MANUAL_FIELDS, '전기');
+  fillSortedSelect('faultFieldSelect', FAULT_FIELDS, '전기');
+
   var MODE_LABELS = { manual: '매뉴얼', fault: '고장 보고서', report: '사진대장' };
   var MODE_PLACEHOLDERS = { manual: '예: 현장 매뉴얼', fault: '예: 고장 보고서', report: '예: 사진대장' };
+
+  /* 받침 유무에 따라 조사를 고른다. '사진대장을' / '고장 보고서를' 처럼
+     안내 문구가 어색해지지 않도록. */
+  function withParticle(word, afterFinal, afterVowel){
+    var code = word.charCodeAt(word.length - 1);
+    var isHangul = code >= 0xac00 && code <= 0xd7a3;
+    var hasFinal = isHangul && (code - 0xac00) % 28 !== 0;
+    return word + (hasFinal ? afterFinal : afterVowel);
+  }
 
   function updateModeIndicator(){
     var label = MODE_LABELS[appMode] || MODE_LABELS.report;
@@ -621,8 +762,18 @@
     faultFieldsEl.hidden = appMode !== 'fault';
   }
   function selectMode(mode){
+    /* 첫 화면에는 로그인 요소를 두지 않고, 만들기를 누른 이 시점에 팝업을 띄운다.
+       고른 모드를 기억해 두었다가 로그인에 성공하면 그대로 이어서 들어간다. */
+    if(loginRequired()){
+      pendingMode = mode;
+      openAuthModal('로그인하면 ' + withParticle(MODE_LABELS[mode], '을', '를')
+        + ' 만들 수 있고, 출력한 PDF가 보관함에 자동 저장됩니다.');
+      return;
+    }
+    pendingMode = null;
     appMode = mode;
     updateModeIndicator();
+    if(mode === 'fault') prefillFaultTimes();
     modeSelectScreen.classList.add('closed');
   }
   chooseReportModeBtn.addEventListener('click', function(){ selectMode('report'); });
@@ -1720,6 +1871,33 @@
   }
   initTimePickers();
 
+  // 시/분 select 두 개와 숨은 input을 함께 맞춘다 (사용자가 고른 것과 같은 상태로).
+  function setTimePickerValue(id, hhmm){
+    var wrap = document.querySelector('.time-picker[data-time-for="' + id + '"]');
+    var target = document.getElementById(id);
+    if(!wrap || !target) return;
+    var parts = String(hhmm || '').split(':');
+    if(parts.length !== 2) return;
+    wrap.querySelector('.time-hour').value = parts[0];
+    wrap.querySelector('.time-min').value = parts[1];
+    target.value = parts[0] + ':' + parts[1];
+    target.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  /* 중단·복구 일시의 초기값을 로그인 시각으로 채운다. 고장 보고서는 대개 로그인
+     직후에 작성하므로 손으로 넣을 일이 줄어든다. 이미 입력된 칸은 건드리지 않는다. */
+  function prefillFaultTimes(){
+    if(!authLoginAt) return;
+    var d = authLoginAt;
+    var dateStr = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    var timeStr = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    [['faultStopDate', 'faultStopTime'], ['faultRecoverDate', 'faultRecoverTime']].forEach(function(pair){
+      if(!faultValue(pair[0]) && faultInputs[pair[0]]) faultInputs[pair[0]].value = dateStr;
+      if(!faultValue(pair[1])) setTimePickerValue(pair[1], timeStr);
+    });
+    refreshFaultDuration();
+  }
+
   // "2025-07-14" + "20:27" -> "2025.7.14. 20:27"
   function formatFaultDateTime(dateId, timeId){
     var d = faultValue(dateId);
@@ -2102,6 +2280,301 @@
     });
   }
 
+  // ---- 로그인 ---------------------------------------------------------------
+
+  var authRowEl = document.getElementById('authRow');
+  var authChipEl = document.getElementById('authChip');
+  var authModalEl = document.getElementById('authModal');
+  var authTitleEl = document.getElementById('authTitle');
+  var authMsgEl = document.getElementById('authMsg');
+  var authNameGroupEl = document.getElementById('authNameGroup');
+  var authNameEl = document.getElementById('authName');
+  var authEmailEl = document.getElementById('authEmail');
+  var authPasswordEl = document.getElementById('authPassword');
+  var authSubmitBtn = document.getElementById('authSubmitBtn');
+  var authCancelBtn = document.getElementById('authCancelBtn');
+  var authToggleBtn = document.getElementById('authToggleBtn');
+  var authSignUpMode = false;
+  var authUser = null;
+  var authLoginAt = null;      // 로그인한 시각 — 고장 보고서 일시 초기값에 쓴다
+  var authIntroNote = '';      // 만들기 버튼에서 띄웠을 때 팝업에 보여 줄 안내
+  var SIGNUP_EMAIL_DOMAIN = 'kdhc.co.kr';
+
+  function isAllowedSignupEmail(email){
+    return String(email || '').trim().toLowerCase().slice(-(SIGNUP_EMAIL_DOMAIN.length + 1))
+      === '@' + SIGNUP_EMAIL_DOMAIN;
+  }
+
+  function archiveAvailable(){
+    return !!(window.Archive && Archive.isEnabled());
+  }
+
+  function setAuthMsg(text, kind){
+    authMsgEl.textContent = text || '';
+    authMsgEl.className = 'auth-msg' + (text ? ' show ' + (kind || '') : '');
+  }
+
+  function renderAuthState(){
+    if(!archiveAvailable()){
+      authRowEl.hidden = true;
+    }else{
+      authRowEl.hidden = false;
+      authChipEl.textContent = authUser
+        ? Archive.displayName(authUser) + ' · 로그아웃'
+        : '로그인';
+    }
+    renderModeAuth();
+  }
+
+  /* 보관함이 설정되지 않은 사본(사내망·오프라인)에서는 로그인 자체가 불가능하므로
+     문서 작성을 막지 않는다. 설정된 경우에만 로그인을 요구한다. */
+  function loginRequired(){
+    return archiveAvailable() && !authUser;
+  }
+
+  /* 첫 화면은 로그인 여부와 무관하게 그대로 두고, 로그인한 뒤에만 이름·로그아웃 줄을
+     덧붙인다. 로그아웃 상태에서는 아무것도 보이지 않는다. */
+  function renderModeAuth(){
+    var show = archiveAvailable() && !!authUser;
+    modeAuthRowEl.hidden = !show;
+    if(show) modeAuthChipEl.textContent = Archive.displayName(authUser) + ' · 로그아웃';
+  }
+
+  // 로그인 상태가 바뀌는 유일한 통로. 새로 로그인한 순간을 여기서 기록한다.
+  function setAuthUser(user){
+    var wasLoggedIn = !!authUser;
+    authUser = user || null;
+    if(authUser && !wasLoggedIn) authLoginAt = new Date();
+    if(!authUser) authLoginAt = null;
+    renderAuthState();
+  }
+
+  function setAuthMode(signUp){
+    authSignUpMode = signUp;
+    authTitleEl.textContent = signUp ? '회원가입' : '로그인';
+    document.getElementById('authSub').textContent = signUp
+      ? '회사 이메일(@' + SIGNUP_EMAIL_DOMAIN + ')로만 가입할 수 있습니다.'
+      : (authIntroNote || '로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.');
+    authSubmitBtn.textContent = signUp ? '가입' : '로그인';
+    authNameGroupEl.hidden = !signUp;
+    authToggleBtn.textContent = signUp ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입';
+    authPasswordEl.setAttribute('autocomplete', signUp ? 'new-password' : 'current-password');
+    setAuthMsg('');
+  }
+
+  function openAuthModal(note){
+    authIntroNote = note || '';
+    setAuthMode(false);
+    authModalEl.classList.add('open');
+  }
+  function closeAuthModal(){
+    authModalEl.classList.remove('open');
+    authPasswordEl.value = '';
+    authIntroNote = '';
+    pendingMode = null;        // 취소했으면 미뤄 둔 모드도 버린다
+    pendingDraft = false;
+    setAuthMsg('');
+  }
+
+  authChipEl.addEventListener('click', function(){
+    if(!authUser){ openAuthModal(); return; }
+    if(!window.confirm('로그아웃하시겠습니까?')) return;
+    Archive.signOut().then(function(){
+      setAuthUser(null);
+      showToast('로그아웃했습니다.');
+    });
+  });
+
+  modeAuthChipEl.addEventListener('click', function(){
+    if(!authUser) return;
+    if(!window.confirm('로그아웃하시겠습니까?')) return;
+    Archive.signOut().then(function(){
+      setAuthUser(null);
+      showToast('로그아웃했습니다.');
+    });
+  });
+
+  authCancelBtn.addEventListener('click', closeAuthModal);
+  authModalEl.addEventListener('click', function(e){
+    if(e.target === authModalEl) closeAuthModal();
+  });
+  authToggleBtn.addEventListener('click', function(){ setAuthMode(!authSignUpMode); });
+
+  authSubmitBtn.addEventListener('click', function(){
+    var email = authEmailEl.value.trim();
+    var password = authPasswordEl.value;
+    var name = authNameEl.value.trim();
+
+    if(!email || !password){
+      setAuthMsg('이메일과 비밀번호를 입력해 주세요.', 'err');
+      return;
+    }
+    if(authSignUpMode && !name){
+      setAuthMsg('작성자로 표기할 이름을 입력해 주세요.', 'err');
+      return;
+    }
+    // 빠른 안내용. 실제 차단은 서버(db/signup-domain-hook.sql)가 담당합니다.
+    if(authSignUpMode && !isAllowedSignupEmail(email)){
+      setAuthMsg('회사 이메일(@' + SIGNUP_EMAIL_DOMAIN + ')로만 가입할 수 있습니다.', 'err');
+      return;
+    }
+
+    authSubmitBtn.disabled = true;
+    setAuthMsg('처리 중입니다...', '');
+
+    var task = authSignUpMode
+      ? Archive.signUp(email, password, name)
+      : Archive.signIn(email, password);
+
+    task.then(function(user){
+      authSubmitBtn.disabled = false;
+      if(authSignUpMode && !user){
+        setAuthMsg('가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.', 'ok');
+        return;
+      }
+      // closeAuthModal이 비우기 전에 챙겨 둔다
+      var next = pendingMode;
+      var wantsDraft = pendingDraft;
+      setAuthUser(user);
+      closeAuthModal();
+      showToast(Archive.displayName(user) + '님으로 로그인했습니다.');
+      if(wantsDraft) resumeDraft();     // 이어쓰기를 누르고 로그인한 경우
+      else if(next) selectMode(next);   // 누르려던 만들기로 그대로 이어 준다
+    }).catch(function(err){
+      authSubmitBtn.disabled = false;
+      console.error(err);
+      var msg = (err && err.message) || '';
+      if(/Invalid login credentials/i.test(msg)) msg = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      else if(/already registered/i.test(msg)) msg = '이미 가입된 이메일입니다. 로그인해 주세요.';
+      else if(/Password should be/i.test(msg)) msg = '비밀번호는 6자 이상이어야 합니다.';
+      else if(/Email not confirmed/i.test(msg)) msg = '메일 인증이 완료되지 않았습니다. 받은 메일의 링크를 눌러 주세요.';
+      // 그 밖의 메시지는 그대로 노출 — 가입 도메인 제한 훅의 한국어 안내가 여기로 옵니다.
+      setAuthMsg(msg || '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', 'err');
+    });
+  });
+
+  /* 세션 확인은 비동기다. 그 전에 임시저장 안내창을 띄우면, 이미 로그인해 둔
+     사용자에게도 loginRequired()가 true로 보여 로그인을 다시 요구하게 된다.
+     그래서 확인이 끝난 뒤에 실행할 일을 여기 모아 둔다. */
+  var authSettled = false;
+  var authSettledWaiters = [];
+
+  function markAuthSettled(){
+    if(authSettled) return;
+    authSettled = true;
+    authSettledWaiters.forEach(function(fn){ fn(); });
+    authSettledWaiters = [];
+  }
+
+  function whenAuthSettled(fn){
+    if(authSettled) fn();
+    else authSettledWaiters.push(fn);
+  }
+
+  if(archiveAvailable()){
+    Archive.currentUser().then(function(user){
+      setAuthUser(user);
+      markAuthSettled();
+    }).catch(function(err){
+      // 세션 확인 자체가 실패하면(네트워크 등) 로그인 화면을 보여 준다.
+      console.error(err);
+      setAuthUser(null);
+      markAuthSettled();
+    });
+    Archive.onAuthChange(function(user){
+      setAuthUser(user);
+      markAuthSettled();
+    });
+  }else{
+    renderAuthState();
+    markAuthSettled();
+  }
+
+  // ---- 문서 보관(Supabase) --------------------------------------------------
+
+  // 입력값은 한국 현지 시각이고 DB 컬럼은 timestamptz이므로, 현지 시각으로 해석한
+  // 뒤 UTC 순간으로 변환해 저장한다. 문자열을 그대로 보내면 UTC로 오해되어
+  // 조회 화면에서 9시간 밀려 보인다.
+  function isoOrNull(dateId, timeId){
+    var d = faultValue(dateId);
+    if(!d) return null;
+    var t = faultValue(timeId) || '00:00';
+    var local = new Date(d + 'T' + t + ':00');
+    if(isNaN(local.getTime())) return null;
+    return local.toISOString();
+  }
+
+  function intOrNull(id){
+    var v = faultValue(id).replace(/[^0-9]/g, '');
+    return v === '' ? null : parseInt(v, 10);
+  }
+
+  function durationMinutes(){
+    var sd = faultValue('faultStopDate'), st = faultValue('faultStopTime');
+    var rd = faultValue('faultRecoverDate'), rt = faultValue('faultRecoverTime');
+    if(!sd || !st || !rd || !rt) return null;
+    var start = new Date(sd + 'T' + st), end = new Date(rd + 'T' + rt);
+    if(isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    var mins = Math.round((end.getTime() - start.getTime()) / 60000);
+    return mins < 0 ? null : mins;
+  }
+
+  function buildArchiveMeta(filename, pageCount){
+    var docType = appMode === 'manual' ? 'manual' : (appMode === 'fault' ? 'fault' : 'photo');
+    var meta = {
+      doc_type: docType,
+      file_name: filename,
+      title: getReportTitle(),
+      page_count: pageCount,
+      photo_count: photos.length
+    };
+
+    if(docType === 'manual'){
+      meta.manual_type = docTypeSelectEl.value;
+      meta.field = fieldSelectEl.value;
+      meta.revision = revisionInputEl.value.trim() || null;
+    }else if(docType === 'fault'){
+      meta.field = faultValue('faultFieldSelect') || null;
+      meta.occurred_at = isoOrNull('faultOccurredDate', 'faultOccurredTime');
+      meta.branch = faultValue('faultBranch') || null;
+      meta.facility = faultValue('faultFacility') || null;
+      meta.device = faultValue('faultDevice') || null;
+      meta.fault_content = faultValue('faultContent') || null;
+      meta.situation = faultValue('faultSituation') || null;
+      meta.cause = faultValue('faultCause') || null;
+      meta.recover_at = isoOrNull('faultRecoverDate', 'faultRecoverTime');
+      meta.recover_note = faultValue('faultRecoverNote') || null;
+      meta.action_taken = faultValue('faultAction') || null;
+      meta.outage_none = isNoOutage();
+      if(!isNoOutage()){
+        meta.outage_apt = intOrNull('faultApt');
+        meta.outage_bldg = intOrNull('faultBuilding');
+        meta.outage_at = isoOrNull('faultStopDate', 'faultStopTime');
+        meta.outage_mins = durationMinutes();
+      }
+    }
+    return meta;
+  }
+
+  function archiveGeneratedPdf(pdf, filename){
+    if(!window.Archive || !Archive.isEnabled()) return;
+    Archive.currentUser().then(function(user){
+      if(!user){
+        showToast('로그인하면 출력한 문서가 보관함에 자동 저장됩니다.');
+        return;
+      }
+      var pageCount = computeDocPages().length;
+      var blob;
+      try{ blob = pdf.output('blob'); }catch(e){ return; }
+      return Archive.saveDocument(buildArchiveMeta(filename, pageCount), blob).then(function(){
+        showToast('보관함에 저장했습니다.');
+      });
+    }).catch(function(err){
+      console.error(err);
+      showToast('보관함 저장에 실패했습니다. PDF 다운로드는 정상 완료되었습니다.');
+    });
+  }
+
   function generatePDF(){
     if(isGenerating) return;
     if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
@@ -2120,6 +2593,8 @@
         showToast('다운로드가 차단되었습니다. 브라우저 설정을 확인해 주세요.');
       }
       setGenerating(false);
+      // 다운로드가 우선. 보관 저장은 실패해도 출력물에 영향이 없도록 뒤에서 처리.
+      archiveGeneratedPdf(pdf, filename);
     }).catch(function(err){
       console.error(err);
       showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
@@ -2191,8 +2666,181 @@
 
   mailBtn.addEventListener('click', generateMail);
 
+  // ---- 임시저장 -------------------------------------------------------------
+
+  var resumeModalEl = document.getElementById('resumeModal');
+  var resumeInfoEl = document.getElementById('resumeInfo');
+  var resumeContinueBtn = document.getElementById('resumeContinueBtn');
+  var resumeDiscardBtn = document.getElementById('resumeDiscardBtn');
+  var saveDraftBtn = document.getElementById('saveDraftBtn');
+  var pendingDraft = false;      // 로그인 팝업 때문에 미뤄 둔 이어쓰기
+
+  function draftAvailable(){
+    return !!(window.Draft && Draft.isEnabled());
+  }
+
+  var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect'];
+
+  /* 사진의 sketchedCache·rotatedCache 는 baseDataURL + strokes + rotation 으로
+     다시 만들 수 있는 파생물이라 저장하지 않는다. 그대로 담으면 용량이 3배가 된다. */
+  function collectDraft(){
+    var fields = {};
+    DRAFT_FIELD_IDS.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) fields[id] = el.value;
+    });
+    Object.keys(faultInputs).forEach(function(id){
+      if(faultInputs[id]) fields[id] = faultInputs[id].value;
+    });
+
+    return {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      appMode: appMode,
+      fields: fields,
+      outageNone: !!(faultNoOutageEl && faultNoOutageEl.checked),
+      idCounter: idCounter,
+      photos: photos.map(function(p){
+        return {
+          id: p.id,
+          baseDataURL: p.baseDataURL,
+          naturalW: p.naturalW,
+          naturalH: p.naturalH,
+          rotation: p.rotation,
+          description: p.description,
+          strokes: p.strokes
+        };
+      })
+    };
+  }
+
+  function saveDraft(){
+    if(!draftAvailable()){
+      showToast('이 브라우저에서는 임시저장을 사용할 수 없습니다.');
+      return;
+    }
+    var payload = collectDraft();
+    var meta = {
+      savedAt: payload.savedAt,
+      appMode: payload.appMode,
+      fileName: payload.fields.fileNameInput || '',
+      photoCount: payload.photos.length
+    };
+    saveDraftBtn.disabled = true;
+    Draft.save(payload, meta).then(function(){
+      saveDraftBtn.disabled = false;
+      showToast('임시저장했습니다. 앱을 닫아도 이어서 작성할 수 있습니다.');
+    }).catch(function(err){
+      saveDraftBtn.disabled = false;
+      console.error(err);
+      showToast((err && err.message) || '임시저장에 실패했습니다.');
+    });
+  }
+
+  saveDraftBtn.addEventListener('click', saveDraft);
+
+  // 저장해 둔 값을 화면에 되돌린다. 사진 캐시는 여기서 다시 만든다.
+  function applyDraft(payload){
+    appMode = payload.appMode || 'report';
+    updateModeIndicator();
+
+    var fields = payload.fields || {};
+    DRAFT_FIELD_IDS.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el && typeof fields[id] === 'string') el.value = fields[id];
+    });
+    Object.keys(faultInputs).forEach(function(id){
+      var el = faultInputs[id];
+      if(el && typeof fields[id] === 'string') el.value = fields[id];
+    });
+    // 시/분 select 는 숨은 input 과 따로 있어서 별도로 맞춰 준다
+    ['faultOccurredTime', 'faultStopTime', 'faultRecoverTime'].forEach(function(id){
+      if(fields[id]) setTimePickerValue(id, fields[id]);
+    });
+    if(faultNoOutageEl){
+      faultNoOutageEl.checked = !!payload.outageNone;
+      refreshOutageEnabled();
+    }
+    refreshFaultDuration();
+
+    idCounter = payload.idCounter || 0;
+    photos = (payload.photos || []).map(function(p){
+      return {
+        id: p.id,
+        baseDataURL: p.baseDataURL,
+        naturalW: p.naturalW,
+        naturalH: p.naturalH,
+        rotation: p.rotation || 0,
+        description: p.description || '',
+        strokes: p.strokes || [],
+        sketchedCache: null,
+        rotatedCache: null
+      };
+    });
+
+    // 캐시를 순서대로 다시 만든 뒤 목록을 그린다
+    return photos.reduce(function(chain, item){
+      return chain
+        .then(function(){ return composeSketchedCache(item); })
+        .then(function(){ return computeRotatedCache(item); });
+    }, Promise.resolve()).then(function(){
+      updateCountDisplay();
+      renderList();
+      modeSelectScreen.classList.add('closed');
+    });
+  }
+
+  function closeResumeModal(){
+    resumeModalEl.classList.remove('open');
+  }
+
+  function resumeDraft(){
+    /* 이어쓰기도 문서 작성이므로 만들기 버튼과 같은 로그인 관문을 통과해야 한다.
+       로그인이 필요하면 팝업을 띄우고, 성공한 뒤 이 함수로 되돌아온다. */
+    if(loginRequired()){
+      pendingDraft = true;
+      closeResumeModal();
+      openAuthModal('로그인하면 임시저장해 둔 내용을 이어서 작성할 수 있습니다.');
+      return;
+    }
+    pendingDraft = false;
+    closeResumeModal();
+    showToast('임시저장한 내용을 불러오는 중입니다...');
+    Draft.load().then(function(payload){
+      if(!payload) throw new Error('임시저장한 내용을 찾지 못했습니다.');
+      return applyDraft(payload);
+    }).then(function(){
+      showToast('이어서 작성합니다.');
+    }).catch(function(err){
+      console.error(err);
+      showToast((err && err.message) || '임시저장한 내용을 불러오지 못했습니다.');
+    });
+  }
+
+  resumeContinueBtn.addEventListener('click', resumeDraft);
+  resumeDiscardBtn.addEventListener('click', function(){
+    closeResumeModal();
+    Draft.clear().then(function(){ showToast('임시저장한 내용을 삭제했습니다.'); });
+  });
+
+  // 앱을 열 때 임시저장이 있으면 물어본다.
+  function offerResume(){
+    if(!draftAvailable()) return;
+    Draft.peek().then(function(meta){
+      if(!meta) return;
+      var label = MODE_LABELS[meta.appMode] || MODE_LABELS.report;
+      var when = Draft.formatSavedAt(meta.savedAt);
+      resumeInfoEl.textContent = label
+        + (meta.fileName ? ' · ' + meta.fileName : '')
+        + ' · 사진 ' + (meta.photoCount || 0) + '장'
+        + (when ? ' · ' + when + ' 저장' : '');
+      resumeModalEl.classList.add('open');
+    });
+  }
+
   updateCountDisplay();
   renderList();
+  whenAuthSettled(offerResume);
 })();
 </script>
 </body>
