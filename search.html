@@ -50,7 +50,10 @@
 
   .card{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin-bottom:10px; }
   .card-top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  /* 제목과 개정번호를 한 덩어리로 묶어, 종류 배지는 계속 오른쪽 끝에 붙게 한다 */
+  .card-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; min-width:0; }
   .card-title{ font-size:15px; font-weight:600; word-break:break-all; }
+  .rev-chip{ flex:none; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--surface-strong); border-radius:var(--radius-full); padding:2px 8px; }
   .badge{ flex:none; font-size:11px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radius-full); padding:3px 9px; }
   .meta{ font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:6px; }
   .meta b{ color:var(--ink); font-weight:600; }
@@ -108,12 +111,12 @@
   <!-- 조회 -->
   <div id="browser" class="hidden">
     <div class="tabs">
-      <button type="button" class="tab active" data-type="photo">사진대장</button>
-      <button type="button" class="tab" data-type="manual">매뉴얼</button>
+      <button type="button" class="tab active" data-type="manual">매뉴얼</button>
       <button type="button" class="tab" data-type="fault">고장 보고서</button>
     </div>
 
     <div class="filters">
+      <!-- 두 종류 공통 -->
       <div class="frow">
         <div class="fgroup">
           <label for="fFileName">파일명</label>
@@ -130,25 +133,21 @@
             <option value="정비 매뉴얼">정비 매뉴얼</option>
           </select>
         </div>
+      </div>
+
+      <div class="frow">
         <div class="fgroup" id="gField">
           <label for="fField">분야</label>
           <select id="fField"><option value="">전체</option></select>
         </div>
+        <div class="fgroup" id="gBranch">
+          <label for="fBranch">지사</label>
+          <select id="fBranch"><option value="">전체</option></select>
+        </div>
       </div>
 
+      <!-- 고장 보고서 전용 -->
       <div class="frow" id="faultFilters">
-        <div class="fgroup">
-          <label for="fFrom">발생일자 (시작)</label>
-          <input type="date" id="fFrom">
-        </div>
-        <div class="fgroup">
-          <label for="fTo">발생일자 (종료)</label>
-          <input type="date" id="fTo">
-        </div>
-        <div class="fgroup">
-          <label for="fBranch">지사</label>
-          <input type="text" id="fBranch" placeholder="예: 양산">
-        </div>
         <div class="fgroup">
           <label for="fFacility">설비명</label>
           <input type="text" id="fFacility" placeholder="예: 변압기">
@@ -177,16 +176,31 @@
 (function(){
   'use strict';
 
-  // 작성 화면(index.html)의 목록과 같아야 한다. 빠진 분야가 있으면 그 분야로 저장한
+  // 작성 화면(index.html)의 목록과 같아야 한다. 빠진 항목이 있으면 그 값으로 저장한
   // 문서를 조회로 걸러낼 수 없다.
   var MANUAL_FIELDS = ['전기','기계','제어','전산','운영','건축','토목','화공','사무','기타'];
   var FAULT_FIELDS  = ['전기','기계','제어','전산','운영','열수송','기타'];
+  var BRANCHES = [
+    '중앙지사','강남지사','파주지사','삼송지사','고양사업소','화성지사',
+    '동탄지사','판교지사','광교지사','용인지사','분당사업소','평택지사',
+    '광주전남지사','양산지사','대구지사','세종지사','김해사업소','청주지사'
+  ];
   var TYPE_LABELS   = { photo:'사진대장', manual:'매뉴얼', fault:'고장 보고서' };
+
+  // '기타'는 가나다순이면 중간에 끼므로 맨 아래로 내린다 (작성 화면과 같은 규칙).
+  var LAST_OPTIONS = ['기타'];
+
+  function sortKorean(values){
+    var head = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) === -1; });
+    var tail = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) !== -1; });
+    head.sort(function(a, b){ return a.localeCompare(b, 'ko'); });
+    return head.concat(tail);
+  }
 
   var el = function(id){ return document.getElementById(id); };
   var notConfigured = el('notConfigured'), loginGate = el('loginGate'), browser = el('browser');
   var statusEl = el('status'), resultsEl = el('results'), userChip = el('userChip');
-  var currentType = 'photo';
+  var currentType = 'manual';   // 첫 탭
 
   function show(node, on){ node.classList.toggle('hidden', !on); }
 
@@ -195,23 +209,28 @@
     statusEl.className = 'status' + (isErr ? ' err' : '');
   }
 
-  function fillFieldOptions(){
-    var list = (currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS)
-      .slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });   // 작성 화면과 같은 가나다순
-    var sel = el('fField');
+  function fillSelect(id, values){
+    var sel = el(id);
+    var keep = sel.value;
     sel.innerHTML = '<option value="">전체</option>';
-    list.forEach(function(v){
+    sortKorean(values).forEach(function(v){
       var o = document.createElement('option');
       o.value = v; o.textContent = v;
       sel.appendChild(o);
     });
+    // 탭을 바꿔도 같은 값이 남아 있으면 유지한다
+    if(keep && values.indexOf(keep) !== -1) sel.value = keep;
+  }
+
+  function fillFieldOptions(){
+    fillSelect('fField', currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS);
   }
 
   function applyTypeVisibility(){
     show(el('gManualType'), currentType === 'manual');
-    show(el('gField'), currentType !== 'photo');
     show(el('faultFilters'), currentType === 'fault');
     fillFieldOptions();
+    fillSelect('fBranch', BRANCHES);   // 지사는 두 종류 공통
   }
 
   function fmtDateTime(iso){
@@ -230,6 +249,17 @@
     return d.getFullYear() + '.' + (d.getMonth()+1) + '.' + d.getDate() + '.';
   }
 
+  /* 두 시각의 차이. 정지기간처럼 저장하지 않고 그때그때 계산하는 값에 쓴다
+     (occurred_at·outage_at·recover_at 로 구할 수 있어 컬럼을 늘릴 필요가 없다). */
+  function spanText(fromIso, toIso){
+    if(!fromIso || !toIso) return '';
+    var a = new Date(fromIso), b = new Date(toIso);
+    if(isNaN(a.getTime()) || isNaN(b.getTime())) return '';
+    var mins = Math.round((b.getTime() - a.getTime()) / 60000);
+    if(mins < 0) return '';
+    return Archive.minutesToText(mins);
+  }
+
   function metaLine(label, value){
     if(!value) return '';
     return '<div>' + label + ' <b>' + String(value).replace(/[<>&]/g, function(c){
@@ -237,41 +267,74 @@
     }) + '</b></div>';
   }
 
+  // 개정번호는 text 컬럼이라 그대로 정렬하면 '10' 이 '3' 보다 앞에 온다. 숫자로 본다.
+  function revNumber(v){
+    var n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
+    return isNaN(n) ? -1 : n;
+  }
+
+  /* 같은 파일명끼리 모아 개정번호 높은 것부터 보여 준다. 묶음 자체의 순서는
+     서버가 넘겨 준 작성일 최신순을 그대로 따르므로, 최근 문서가 위에 남는다. */
+  function groupByRevision(rows){
+    var groups = {}, order = [];
+    rows.forEach(function(r){
+      var key = r.file_name || '';
+      if(!groups[key]){ groups[key] = []; order.push(key); }
+      groups[key].push(r);
+    });
+    var out = [];
+    order.forEach(function(key){
+      groups[key].sort(function(a, b){ return revNumber(b.revision) - revNumber(a.revision); });
+      out = out.concat(groups[key]);
+    });
+    return out;
+  }
+
   function renderRow(row){
     var card = document.createElement('div');
     card.className = 'card';
 
+    /* 파일명은 카드 제목으로 이미 보이므로 목록에서 빼고, 종류별로 정해진 순서대로
+       쌓는다. 작성자·작성일이 맨 뒤인 것도 그 순서에 맞춘 것. */
     var meta = '';
-    meta += metaLine('작성자', row.author_name);
-    meta += metaLine('작성일', fmtDateTime(row.created_at));
 
     if(row.doc_type === 'manual'){
       meta += metaLine('종류', row.manual_type);
       meta += metaLine('분야', row.field ? row.field + '분야' : '');
-      meta += metaLine('개정번호', row.revision);
-    }else if(row.doc_type === 'fault'){
-      meta += metaLine('발생일시', fmtDateTime(row.occurred_at));
-      meta += metaLine('고장분야', row.field ? row.field + '분야' : '');
       meta += metaLine('지사', row.branch);
+      meta += metaLine('작성자', row.author_name);
+      meta += metaLine('작성일', fmtDateTime(row.created_at));
+    }else if(row.doc_type === 'fault'){
+      meta += metaLine('지사', row.branch);
+      meta += metaLine('고장분야', row.field ? row.field + '분야' : '');
       meta += metaLine('설비명', row.facility);
       meta += metaLine('고장내용', row.fault_content);
-      if(row.outage_none){
-        meta += metaLine('열공급 중단', '해당없음');
-      }else if(row.outage_mins !== null && row.outage_mins !== undefined){
-        meta += metaLine('중단 기간', Archive.minutesToText(row.outage_mins));
-      }
+      meta += metaLine('발생일시', fmtDateTime(row.occurred_at));
+      // 복구일시를 고르지 않고 "미정" 처럼 직접 적은 경우도 있다
+      meta += metaLine('복구일시', fmtDateTime(row.recover_at) || row.recover_note);
+      meta += metaLine('정지기간', spanText(row.occurred_at, row.recover_at));
+      meta += metaLine('열공급 정지기간',
+        row.outage_none ? '해당없음' : spanText(row.outage_at, row.recover_at));
+      meta += metaLine('작성자', row.author_name);
+      meta += metaLine('작성일', fmtDateTime(row.created_at));
     }
-    meta += metaLine('사진', row.photo_count ? row.photo_count + '장' : '없음');
+
+    // 개정번호는 제목 옆에 붙여 목록을 훑으면서 바로 판별할 수 있게 한다
+    var revChip = (row.doc_type === 'manual' && row.revision)
+      ? '<span class="rev-chip"></span>' : '';
 
     card.innerHTML =
       '<div class="card-top">' +
-        '<span class="card-title"></span>' +
+        '<span class="card-head">' +
+          '<span class="card-title"></span>' + revChip +
+        '</span>' +
         '<span class="badge">' + (TYPE_LABELS[row.doc_type] || row.doc_type) + '</span>' +
       '</div>' +
       '<div class="meta">' + meta + '</div>' +
       '<div class="card-actions"><button type="button">PDF 열기</button></div>';
 
     card.querySelector('.card-title').textContent = row.file_name;
+    if(revChip) card.querySelector('.rev-chip').textContent = '개정 ' + row.revision;
     var btn = card.querySelector('.card-actions button');
     btn.addEventListener('click', function(){
       btn.disabled = true;
@@ -291,13 +354,14 @@
     setStatus('조회 중입니다...');
     resultsEl.innerHTML = '';
 
-    var filters = { docType: currentType, fileName: el('fFileName').value.trim() };
+    var filters = {
+      docType: currentType,
+      fileName: el('fFileName').value.trim(),
+      field: el('fField').value,
+      branch: el('fBranch').value
+    };
     if(currentType === 'manual') filters.manualType = el('fManualType').value;
-    if(currentType !== 'photo') filters.field = el('fField').value;
     if(currentType === 'fault'){
-      filters.occurredFrom = el('fFrom').value;
-      filters.occurredTo = el('fTo').value;
-      filters.branch = el('fBranch').value.trim();
       filters.facility = el('fFacility').value.trim();
       filters.faultContent = el('fContent').value.trim();
     }
@@ -308,6 +372,7 @@
         return;
       }
       setStatus(rows.length + '건을 찾았습니다.');
+      if(currentType === 'manual') rows = groupByRevision(rows);
       var frag = document.createDocumentFragment();
       rows.forEach(function(r){ frag.appendChild(renderRow(r)); });
       resultsEl.appendChild(frag);
@@ -330,9 +395,9 @@
 
   el('searchBtn').addEventListener('click', runSearch);
   el('resetBtn').addEventListener('click', function(){
-    ['fFileName','fFrom','fTo','fBranch','fFacility','fContent'].forEach(function(id){ el(id).value = ''; });
-    el('fManualType').value = '';
-    el('fField').value = '';
+    ['fFileName','fFacility','fContent','fBranch','fManualType','fField'].forEach(function(id){
+      el(id).value = '';
+    });
     runSearch();
   });
 

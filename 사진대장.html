@@ -83,7 +83,7 @@
   .time-picker{ display:flex; align-items:center; gap:6px; }
   .time-picker select.field-input{ flex:1; min-width:0; text-align:center; padding-left:8px; padding-right:26px; background-position:right 8px center; }
   .time-colon{ font-size:16px; color:var(--muted); }
-  #faultOutageFields.disabled{ opacity:.45; pointer-events:none; }
+  #faultOutageFields.disabled, #faultSituationFields.disabled{ opacity:.45; pointer-events:none; }
   #faultFields[hidden]{ display:none; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
   .field-input{ width:100%; padding:14px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-size:16px; background:var(--canvas); color:var(--ink); height:56px; }
@@ -156,6 +156,8 @@
   .mh-logo{ width:18.5%; }
   .mh-logo img{ height:10mm; width:auto; display:block; margin:0 auto 0.5mm; }
   .mh-org{ font-size:11px; font-weight:700; white-space:nowrap; }
+  /* 한국지역난방공사 바로 아래 같은 칸에 지사명 */
+  .mh-branch{ font-size:10px; font-weight:500; white-space:nowrap; margin-top:0.3mm; }
   .mh-doctype{ width:60.5%; font-size:21px; font-weight:700; letter-spacing:0.28em; text-indent:0.28em; white-space:nowrap; }
   .mh-title{ font-size:13.5px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
   .mh-label{ width:12.5%; font-size:12px; white-space:nowrap; }
@@ -203,11 +205,22 @@
   .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 44px; }
   .mode-select-logo{ height:38px; width:auto; display:block; }
   .mode-select-banner{ height:22px; width:auto; display:block; }
-  /* 마스코트를 제목 왼쪽에 나란히 — 제목 글자 크기에 맞춰 커지도록 em 단위 */
-  .mode-title-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 8px; }
-  .mode-select-mascot{ height:3.4em; width:auto; display:block; flex:none; }
-  .mode-select-title{ font-size:21px; font-weight:600; letter-spacing:-0.44px; color:var(--ink); margin:0; word-break:keep-all; }
-  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 36px; }
+  /* 마스코트 + 제목을 하나의 로고처럼 묶어 첫눈에 각인되도록 크게 보여 준다.
+     마스코트 높이는 em 단위라 제목 글자 크기를 바꾸면 같이 따라온다. */
+  /* 기준 글자 크기를 묶음(row)에 두어야 마스코트의 em 이 제목과 함께 움직인다.
+     제목에 font-size 를 두면 형제인 img 는 그 값을 상속받지 못한다. */
+  .mode-title-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 10px; font-size:40px; }
+  .mode-select-mascot{ height:2.1em; width:auto; display:block; flex:none; }
+  .mode-select-title{ font-size:1em; font-weight:800; letter-spacing:-1.6px; color:var(--ink); margin:0; word-break:keep-all; line-height:1.05; }
+  /* DOC 만 브랜드 색으로 빼서 워드마크처럼 보이게 */
+  .mode-select-title .t-doc{ color:var(--primary); }
+  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 36px; }
+
+  /* 좁은 화면에서 로고가 넘치지 않게 */
+  @media (max-width:359px){
+    .mode-title-row{ font-size:33px; }
+    .mode-select-title{ letter-spacing:-1.2px; }
+  }
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
@@ -281,7 +294,7 @@
     </div>
     <div class="mode-title-row">
       <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot">
-      <h1 class="mode-select-title">뚝 DOC !</h1>
+      <h1 class="mode-select-title">뚝 <span class="t-doc">DOC</span>!</h1>
     </div>
     <p class="mode-select-sub">일잘알 자동 문서 생성기</p>
 
@@ -327,6 +340,7 @@
       <div class="field-group">
         <label class="field-label" for="docTypeSelect">매뉴얼 종류</label>
         <select id="docTypeSelect" class="field-input">
+          <option value="">선택</option>
           <option value="업무 매뉴얼">업무 매뉴얼</option>
           <option value="조작 매뉴얼">조작 매뉴얼</option>
           <option value="운전 매뉴얼">운전 매뉴얼</option>
@@ -337,6 +351,10 @@
       <div class="field-group">
         <label class="field-label" for="fieldSelect">분야</label>
         <select id="fieldSelect" class="field-input"></select>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="manualBranchSelect">지사</label>
+        <select id="manualBranchSelect" class="field-input"></select>
       </div>
     </div>
 
@@ -428,8 +446,13 @@
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="faultSituation">상황(운전자/목격자 진술 포함)</label>
-        <textarea id="faultSituation" class="field-textarea" rows="3" placeholder="상황을 입력하세요."></textarea>
+        <div class="fault-sub-head">
+          <span class="fault-sub-label">상황(운전자/목격자 진술 포함)</span>
+          <label class="check-inline"><input type="checkbox" id="faultNoSituation"> 해당없음</label>
+        </div>
+        <div id="faultSituationFields">
+          <textarea id="faultSituation" class="field-textarea" rows="3" placeholder="상황을 입력하세요."></textarea>
+        </div>
       </div>
 
       <div class="field-group">
@@ -450,6 +473,11 @@
           <label class="field-label" for="faultRecoverNote">직접 입력</label>
           <input type="text" id="faultRecoverNote" class="field-input" placeholder="예: 미정 / 부품 수급 후">
         </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="faultDownTime">설비 정지기간 (자동 계산)</label>
+        <input type="text" id="faultDownTime" class="field-input" placeholder="발생일시와 복구일시를 입력하면 자동 계산됩니다" readonly>
       </div>
 
       <div class="field-group">
@@ -673,15 +701,19 @@
   var docTypeSelectEl = document.getElementById('docTypeSelect');
   var docTypeGroupEl = document.getElementById('docTypeGroup');
   var fieldSelectEl = document.getElementById('fieldSelect');
+  var manualBranchSelectEl = document.getElementById('manualBranchSelect');
   var faultFieldsEl = document.getElementById('faultFields');
   var faultInputs = {};
   ['faultOccurredDate','faultOccurredTime','faultFieldSelect','faultBranch','faultFacility',
    'faultDevice','faultApt','faultBuilding','faultStopDate','faultStopTime','faultDuration',
+   'faultDownTime',
    'faultContent','faultSituation','faultCause','faultRecoverDate','faultRecoverTime',
    'faultRecoverNote','faultAction'
   ].forEach(function(id){ faultInputs[id] = document.getElementById(id); });
   var faultNoOutageEl = document.getElementById('faultNoOutage');
   var faultOutageFieldsEl = document.getElementById('faultOutageFields');
+  var faultNoSituationEl = document.getElementById('faultNoSituation');
+  var faultSituationFieldsEl = document.getElementById('faultSituationFields');
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
@@ -725,20 +757,36 @@
   var MANUAL_FIELDS = ['전기', '기계', '제어', '전산', '운영', '건축', '토목', '화공', '사무', '기타'];
   var FAULT_FIELDS = ['전기', '기계', '제어', '전산', '운영', '열수송', '기타'];
 
-  /* 가나다순으로 채운다. localeCompare(…,'ko')에 정렬을 맡기면 한글 자모 순서를
-     직접 계산할 필요가 없고, 위 목록에 항목을 추가할 때 순서를 신경 쓰지 않아도 된다. */
-  function fillSortedSelect(id, values, defaultValue){
-    var el = document.getElementById(id);
-    if(!el) return;
-    var sorted = values.slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });
-    el.innerHTML = '';
-    sorted.forEach(function(v){ el.appendChild(new Option(v, v)); });
-    if(sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
+  // '기타'는 가나다순으로 두면 중간에 끼는데(기계 → 기타 → 열수송), 목록 맨 아래가
+  // 자연스러우므로 정렬에서 빼고 마지막에 붙인다.
+  var LAST_OPTIONS = ['기타'];
+
+  function sortKorean(values){
+    var head = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) === -1; });
+    var tail = values.filter(function(v){ return LAST_OPTIONS.indexOf(v) !== -1; });
+    head.sort(function(a, b){ return a.localeCompare(b, 'ko'); });
+    return head.concat(tail);
   }
 
-  fillSortedSelect('faultBranch', BRANCHES, '양산지사');
-  fillSortedSelect('fieldSelect', MANUAL_FIELDS, '전기');
-  fillSortedSelect('faultFieldSelect', FAULT_FIELDS, '전기');
+  /* 가나다순으로 채운다. localeCompare(…,'ko')에 정렬을 맡기면 한글 자모 순서를
+     직접 계산할 필요가 없고, 위 목록에 항목을 추가할 때 순서를 신경 쓰지 않아도 된다.
+     placeholder 를 주면 값이 빈 안내 항목을 맨 앞에 넣어 미선택 상태로 시작한다. */
+  function fillSortedSelect(id, values, defaultValue, placeholder){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var sorted = sortKorean(values);
+    el.innerHTML = '';
+    if(placeholder) el.appendChild(new Option(placeholder, ''));
+    sorted.forEach(function(v){ el.appendChild(new Option(v, v)); });
+    if(defaultValue && sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
+  }
+
+  /* 분류 항목은 초기값을 두지 않는다. 기본값이 들어가 있으면 고르지 않고 지나쳐도
+     그 값이 그대로 문서에 찍혀, 틀린 지사·분야가 조용히 출력된다. */
+  fillSortedSelect('faultBranch', BRANCHES, null, '선택');
+  fillSortedSelect('manualBranchSelect', BRANCHES, null, '선택');
+  fillSortedSelect('fieldSelect', MANUAL_FIELDS, null, '선택');
+  fillSortedSelect('faultFieldSelect', FAULT_FIELDS, null, '선택');
 
   var MODE_LABELS = { manual: '매뉴얼', fault: '고장 보고서', report: '사진대장' };
   var MODE_PLACEHOLDERS = { manual: '예: 현장 매뉴얼', fault: '예: 고장 보고서', report: '예: 사진대장' };
@@ -1683,6 +1731,15 @@
     logoCell.appendChild(logo);
     logoCell.appendChild(org);
 
+    // 같은 칸에서 한국지역난방공사 바로 아랫줄
+    var branchName = manualBranchSelectEl ? manualBranchSelectEl.value : '';
+    if(branchName){
+      var branch = document.createElement('div');
+      branch.className = 'mh-branch';
+      branch.textContent = branchName;
+      logoCell.appendChild(branch);
+    }
+
     var docTypeCell = document.createElement('td');
     docTypeCell.className = 'mh-doctype';
     docTypeCell.rowSpan = 2;
@@ -1692,7 +1749,7 @@
     var fieldCell = document.createElement('td');
     fieldCell.className = 'mh-field';
     fieldCell.colSpan = 2;
-    fieldCell.textContent = fieldSelectEl.value + '분야';
+    fieldCell.textContent = fieldSelectEl.value ? fieldSelectEl.value + '분야' : '';
 
     var row1 = document.createElement('tr');
     row1.appendChild(logoCell);
@@ -1803,27 +1860,44 @@
     return v;
   }
 
-  // 기간 = 예상복구(조치) 일시 - 중단일시, in minutes, rolled up to 시간/분.
-  function computeFaultDuration(){
-    var sd = faultValue('faultStopDate'), st = faultValue('faultStopTime');
-    var rd = faultValue('faultRecoverDate'), rt = faultValue('faultRecoverTime');
-    if(!sd || !st || !rd || !rt) return '';
+  // 두 일시의 차이를 분으로. 값이 모자라거나 순서가 거꾸로면 null.
+  function spanMinutes(startDateId, startTimeId, endDateId, endTimeId){
+    var sd = faultValue(startDateId), st = faultValue(startTimeId);
+    var ed = faultValue(endDateId), et = faultValue(endTimeId);
+    if(!sd || !st || !ed || !et) return null;
     var start = new Date(sd + 'T' + st);
-    var end = new Date(rd + 'T' + rt);
-    if(isNaN(start.getTime()) || isNaN(end.getTime())) return '';
+    var end = new Date(ed + 'T' + et);
+    if(isNaN(start.getTime()) || isNaN(end.getTime())) return null;
     var mins = Math.round((end.getTime() - start.getTime()) / 60000);
-    if(mins < 0) return '';
+    return mins < 0 ? null : mins;
+  }
+
+  // 90 -> "1시간 30분"
+  function minutesText(mins){
+    if(mins === null || mins === undefined) return '';
     if(mins < 60) return mins + '분';
     var hours = Math.floor(mins / 60);
     var rest = mins % 60;
     return rest === 0 ? hours + '시간' : hours + '시간 ' + rest + '분';
   }
 
-  function refreshFaultDuration(){
-    if(faultInputs.faultDuration) faultInputs.faultDuration.value = computeFaultDuration();
+  // 열공급 기간 = 복구일시 - 중단일시
+  function computeFaultDuration(){
+    return minutesText(spanMinutes('faultStopDate', 'faultStopTime', 'faultRecoverDate', 'faultRecoverTime'));
   }
 
-  ['faultStopDate','faultStopTime','faultRecoverDate','faultRecoverTime'].forEach(function(id){
+  // 설비 정지기간 = 복구일시 - 발생일시
+  function computeFaultDownTime(){
+    return minutesText(spanMinutes('faultOccurredDate', 'faultOccurredTime', 'faultRecoverDate', 'faultRecoverTime'));
+  }
+
+  function refreshFaultDuration(){
+    if(faultInputs.faultDuration) faultInputs.faultDuration.value = computeFaultDuration();
+    if(faultInputs.faultDownTime) faultInputs.faultDownTime.value = computeFaultDownTime();
+  }
+
+  ['faultStopDate','faultStopTime','faultRecoverDate','faultRecoverTime',
+   'faultOccurredDate','faultOccurredTime'].forEach(function(id){
     var el = faultInputs[id];
     if(!el) return;
     el.addEventListener('change', refreshFaultDuration);
@@ -1842,6 +1916,20 @@
     });
   }
   if(faultNoOutageEl) faultNoOutageEl.addEventListener('change', refreshOutageEnabled);
+
+  // 상황도 열공급 중단과 같은 방식 — 해당없음이면 입력을 잠그고 출력물에 '해당없음'
+  function isNoSituation(){
+    return !!(faultNoSituationEl && faultNoSituationEl.checked);
+  }
+
+  function refreshSituationEnabled(){
+    var off = isNoSituation();
+    faultSituationFieldsEl.classList.toggle('disabled', off);
+    faultSituationFieldsEl.querySelectorAll('textarea').forEach(function(el){
+      el.disabled = off;
+    });
+  }
+  if(faultNoSituationEl) faultNoSituationEl.addEventListener('change', refreshSituationEnabled);
 
   function pad2(n){
     return (n < 10 ? '0' : '') + n;
@@ -1884,14 +1972,16 @@
     target.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  /* 중단·복구 일시의 초기값을 로그인 시각으로 채운다. 고장 보고서는 대개 로그인
-     직후에 작성하므로 손으로 넣을 일이 줄어든다. 이미 입력된 칸은 건드리지 않는다. */
+  /* 발생·중단 일시의 초기값을 '고장 보고서 만들기'를 누른 시각으로 채운다.
+     앱 실행 시각을 쓰면, 앱으로 설치해 화면을 오래 켜 둔 경우 한참 지난 값이
+     들어간다. 누른 시각이면 언제 열어 두었든 항상 지금이 된다.
+     복구 일시는 채우지 않는다 — 아직 정해지지 않은 값이라 비워 두고 직접 고르게 한다.
+     이미 입력된 칸은 건드리지 않는다. */
   function prefillFaultTimes(){
-    if(!authLoginAt) return;
-    var d = authLoginAt;
+    var d = new Date();
     var dateStr = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
     var timeStr = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
-    [['faultStopDate', 'faultStopTime'], ['faultRecoverDate', 'faultRecoverTime']].forEach(function(pair){
+    [['faultOccurredDate', 'faultOccurredTime'], ['faultStopDate', 'faultStopTime']].forEach(function(pair){
       if(!faultValue(pair[0]) && faultInputs[pair[0]]) faultInputs[pair[0]].value = dateStr;
       if(!faultValue(pair[1])) setTimePickerValue(pair[1], timeStr);
     });
@@ -2012,11 +2102,18 @@
     }
 
     addRow([faultCell('고장내용', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
-    addRow([faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'), faultCell(faultText('faultSituation'), 'fr-body', 4)]);
-    addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
     addRow([
-      faultCell('예상복구(조치) 일시', 'fr-label'),
-      faultCell(formatFaultRecovery(), 'fr-body', 4)
+      faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'),
+      isNoSituation()
+        ? faultCell('해당없음', 'fr-center', 4)
+        : faultCell(faultText('faultSituation'), 'fr-body', 4)
+    ]);
+    addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
+    // 4칸을 2:2로 나눠 왼쪽은 복구일시, 오른쪽은 자동 계산된 설비 정지기간
+    addRow([
+      faultCell('복구일시/설비정지기간', 'fr-label'),
+      faultCell(formatFaultRecovery(), 'fr-center', 2),
+      faultCell(computeFaultDownTime() || '-', 'fr-center', 2)
     ]);
     addRow([faultCell('조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
 
@@ -2106,6 +2203,23 @@
   function buildDocPage(pageItems, titleText, pageIdx, pageCount){
     if(appMode === 'fault') return buildFaultPageElement(pageItems, titleText, pageIdx, pageCount);
     return buildPageElement(pageItems, titleText, pageIdx * 4, pageIdx + 1, pageCount);
+  }
+
+  /* 초기값을 없앤 분류 항목들은 비어 있으면 출력물에 빈칸으로 찍히므로,
+     출력 직전에 확인해 무엇을 골라야 하는지 알려 준다. */
+  function ensureSelectionsForOutput(){
+    var missing = [];
+    if(appMode === 'manual'){
+      if(!docTypeSelectEl.value) missing.push('매뉴얼 종류');
+      if(!fieldSelectEl.value) missing.push('분야');
+      if(!manualBranchSelectEl.value) missing.push('지사');
+    }else if(appMode === 'fault'){
+      if(!faultValue('faultFieldSelect')) missing.push('고장분야');
+      if(!faultValue('faultBranch')) missing.push('지사');
+    }
+    if(missing.length === 0) return true;
+    showToast(withParticle(missing.join(', '), '을', '를') + ' 선택해 주세요.');
+    return false;
   }
 
   // In fault mode photos are optional: confirm, then print the summary alone.
@@ -2296,7 +2410,6 @@
   var authToggleBtn = document.getElementById('authToggleBtn');
   var authSignUpMode = false;
   var authUser = null;
-  var authLoginAt = null;      // 로그인한 시각 — 고장 보고서 일시 초기값에 쓴다
   var authIntroNote = '';      // 만들기 버튼에서 띄웠을 때 팝업에 보여 줄 안내
   var SIGNUP_EMAIL_DOMAIN = 'kdhc.co.kr';
 
@@ -2342,10 +2455,7 @@
 
   // 로그인 상태가 바뀌는 유일한 통로. 새로 로그인한 순간을 여기서 기록한다.
   function setAuthUser(user){
-    var wasLoggedIn = !!authUser;
     authUser = user || null;
-    if(authUser && !wasLoggedIn) authLoginAt = new Date();
-    if(!authUser) authLoginAt = null;
     renderAuthState();
   }
 
@@ -2519,8 +2629,11 @@
     return mins < 0 ? null : mins;
   }
 
+  /* 사진대장은 보관 대상이 아니다. ERP 첨부용으로 그때그때 만드는 문서라
+     조회할 일이 없고, 저장 용량만 차지한다. archiveGeneratedPdf가 미리 걸러내므로
+     여기로는 매뉴얼과 고장 보고서만 들어온다. */
   function buildArchiveMeta(filename, pageCount){
-    var docType = appMode === 'manual' ? 'manual' : (appMode === 'fault' ? 'fault' : 'photo');
+    var docType = appMode === 'manual' ? 'manual' : 'fault';
     var meta = {
       doc_type: docType,
       file_name: filename,
@@ -2530,9 +2643,10 @@
     };
 
     if(docType === 'manual'){
-      meta.manual_type = docTypeSelectEl.value;
-      meta.field = fieldSelectEl.value;
+      meta.manual_type = docTypeSelectEl.value || null;
+      meta.field = fieldSelectEl.value || null;
       meta.revision = revisionInputEl.value.trim() || null;
+      meta.branch = manualBranchSelectEl.value || null;   // 보관함에서 지사로 조회하려면 함께 저장해야 한다
     }else if(docType === 'fault'){
       meta.field = faultValue('faultFieldSelect') || null;
       meta.occurred_at = isoOrNull('faultOccurredDate', 'faultOccurredTime');
@@ -2540,7 +2654,7 @@
       meta.facility = faultValue('faultFacility') || null;
       meta.device = faultValue('faultDevice') || null;
       meta.fault_content = faultValue('faultContent') || null;
-      meta.situation = faultValue('faultSituation') || null;
+      meta.situation = isNoSituation() ? '해당없음' : (faultValue('faultSituation') || null);
       meta.cause = faultValue('faultCause') || null;
       meta.recover_at = isoOrNull('faultRecoverDate', 'faultRecoverTime');
       meta.recover_note = faultValue('faultRecoverNote') || null;
@@ -2558,6 +2672,8 @@
 
   function archiveGeneratedPdf(pdf, filename){
     if(!window.Archive || !Archive.isEnabled()) return;
+    // 사진대장은 보관하지 않는다 — 조회 대상이 아니므로 안내도 띄우지 않는다.
+    if(appMode !== 'manual' && appMode !== 'fault') return;
     Archive.currentUser().then(function(user){
       if(!user){
         showToast('로그인하면 출력한 문서가 보관함에 자동 저장됩니다.');
@@ -2583,6 +2699,7 @@
     }
     var filename = getValidatedFileName();
     if(!filename) return;
+    if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
     setGenerating(true, '생성 중...', null);
 
@@ -2627,6 +2744,7 @@
     }
     var filename = getValidatedFileName();
     if(!filename) return;
+    if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
 
     var preOpenedWindow = window.open('', '_blank');
@@ -2679,7 +2797,8 @@
     return !!(window.Draft && Draft.isEnabled());
   }
 
-  var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect'];
+  var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect',
+    'manualBranchSelect'];
 
   /* 사진의 sketchedCache·rotatedCache 는 baseDataURL + strokes + rotation 으로
      다시 만들 수 있는 파생물이라 저장하지 않는다. 그대로 담으면 용량이 3배가 된다. */
@@ -2699,6 +2818,7 @@
       appMode: appMode,
       fields: fields,
       outageNone: !!(faultNoOutageEl && faultNoOutageEl.checked),
+      situationNone: !!(faultNoSituationEl && faultNoSituationEl.checked),
       idCounter: idCounter,
       photos: photos.map(function(p){
         return {
@@ -2760,6 +2880,10 @@
     if(faultNoOutageEl){
       faultNoOutageEl.checked = !!payload.outageNone;
       refreshOutageEnabled();
+    }
+    if(faultNoSituationEl){
+      faultNoSituationEl.checked = !!payload.situationNone;
+      refreshSituationEnabled();
     }
     refreshFaultDuration();
 
