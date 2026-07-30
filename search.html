@@ -262,8 +262,10 @@
     meta += metaLine('작성일', fmtDateTime(row.created_at));
 
     if(row.doc_type === 'manual'){
+      meta += metaLine('파일명', row.file_name);
       meta += metaLine('종류', row.manual_type);
       meta += metaLine('분야', row.field ? row.field + '분야' : '');
+      meta += metaLine('지사', row.branch);
       meta += metaLine('개정번호', row.revision);
     }else if(row.doc_type === 'fault'){
       meta += metaLine('발생일시', fmtDateTime(row.occurred_at));

@@ -205,11 +205,22 @@
   .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 44px; }
   .mode-select-logo{ height:38px; width:auto; display:block; }
   .mode-select-banner{ height:22px; width:auto; display:block; }
-  /* 마스코트를 제목 왼쪽에 나란히 — 제목 글자 크기에 맞춰 커지도록 em 단위 */
-  .mode-title-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 8px; }
-  .mode-select-mascot{ height:3.4em; width:auto; display:block; flex:none; }
-  .mode-select-title{ font-size:21px; font-weight:600; letter-spacing:-0.44px; color:var(--ink); margin:0; word-break:keep-all; }
-  .mode-select-sub{ font-size:14px; color:var(--muted); margin:0 0 36px; }
+  /* 마스코트 + 제목을 하나의 로고처럼 묶어 첫눈에 각인되도록 크게 보여 준다.
+     마스코트 높이는 em 단위라 제목 글자 크기를 바꾸면 같이 따라온다. */
+  /* 기준 글자 크기를 묶음(row)에 두어야 마스코트의 em 이 제목과 함께 움직인다.
+     제목에 font-size 를 두면 형제인 img 는 그 값을 상속받지 못한다. */
+  .mode-title-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 10px; font-size:40px; }
+  .mode-select-mascot{ height:2.1em; width:auto; display:block; flex:none; }
+  .mode-select-title{ font-size:1em; font-weight:800; letter-spacing:-1.6px; color:var(--ink); margin:0; word-break:keep-all; line-height:1.05; }
+  /* DOC 만 브랜드 색으로 빼서 워드마크처럼 보이게 */
+  .mode-select-title .t-doc{ color:var(--primary); }
+  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 36px; }
+
+  /* 좁은 화면에서 로고가 넘치지 않게 */
+  @media (max-width:359px){
+    .mode-title-row{ font-size:33px; }
+    .mode-select-title{ letter-spacing:-1.2px; }
+  }
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
@@ -283,7 +294,7 @@
     </div>
     <div class="mode-title-row">
       <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot">
-      <h1 class="mode-select-title">뚝 DOC !</h1>
+      <h1 class="mode-select-title">뚝 <span class="t-doc">DOC</span>!</h1>
     </div>
     <p class="mode-select-sub">일잘알 자동 문서 생성기</p>
 
