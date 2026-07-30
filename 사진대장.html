@@ -83,7 +83,7 @@
   .time-picker{ display:flex; align-items:center; gap:6px; }
   .time-picker select.field-input{ flex:1; min-width:0; text-align:center; padding-left:8px; padding-right:26px; background-position:right 8px center; }
   .time-colon{ font-size:16px; color:var(--muted); }
-  #faultOutageFields.disabled{ opacity:.45; pointer-events:none; }
+  #faultOutageFields.disabled, #faultSituationFields.disabled{ opacity:.45; pointer-events:none; }
   #faultFields[hidden]{ display:none; }
   .field-label{ display:block; font-size:14px; margin-bottom:6px; color:var(--muted); font-weight:500; }
   .field-input{ width:100%; padding:14px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-size:16px; background:var(--canvas); color:var(--ink); height:56px; }
@@ -434,8 +434,13 @@
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="faultSituation">상황(운전자/목격자 진술 포함)</label>
-        <textarea id="faultSituation" class="field-textarea" rows="3" placeholder="상황을 입력하세요."></textarea>
+        <div class="fault-sub-head">
+          <span class="fault-sub-label">상황(운전자/목격자 진술 포함)</span>
+          <label class="check-inline"><input type="checkbox" id="faultNoSituation"> 해당없음</label>
+        </div>
+        <div id="faultSituationFields">
+          <textarea id="faultSituation" class="field-textarea" rows="3" placeholder="상황을 입력하세요."></textarea>
+        </div>
       </div>
 
       <div class="field-group">
@@ -672,7 +677,6 @@
   var replaceTargetId = null;
   var isGenerating = false;
   var appMode = 'report';
-  var appStartedAt = new Date();   // 고장 보고서의 발생·중단 일시 초기값에 쓴다
 
   var fileNameInputEl = document.getElementById('fileNameInput');
   var revisionInputEl = document.getElementById('revisionInput');
@@ -690,6 +694,8 @@
   ].forEach(function(id){ faultInputs[id] = document.getElementById(id); });
   var faultNoOutageEl = document.getElementById('faultNoOutage');
   var faultOutageFieldsEl = document.getElementById('faultOutageFields');
+  var faultNoSituationEl = document.getElementById('faultNoSituation');
+  var faultSituationFieldsEl = document.getElementById('faultSituationFields');
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
   var addFileInputEl = document.getElementById('addFileInput');
@@ -1872,6 +1878,20 @@
   }
   if(faultNoOutageEl) faultNoOutageEl.addEventListener('change', refreshOutageEnabled);
 
+  // 상황도 열공급 중단과 같은 방식 — 해당없음이면 입력을 잠그고 출력물에 '해당없음'
+  function isNoSituation(){
+    return !!(faultNoSituationEl && faultNoSituationEl.checked);
+  }
+
+  function refreshSituationEnabled(){
+    var off = isNoSituation();
+    faultSituationFieldsEl.classList.toggle('disabled', off);
+    faultSituationFieldsEl.querySelectorAll('textarea').forEach(function(el){
+      el.disabled = off;
+    });
+  }
+  if(faultNoSituationEl) faultNoSituationEl.addEventListener('change', refreshSituationEnabled);
+
   function pad2(n){
     return (n < 10 ? '0' : '') + n;
   }
@@ -1913,12 +1933,13 @@
     target.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  /* 발생·중단 일시의 초기값을 앱을 실행한 시각으로 채운다. 고장 보고서는 대개
-     앱을 열고 바로 작성하므로 손으로 넣을 일이 줄어든다.
+  /* 발생·중단 일시의 초기값을 '고장 보고서 만들기'를 누른 시각으로 채운다.
+     앱 실행 시각을 쓰면, 앱으로 설치해 화면을 오래 켜 둔 경우 한참 지난 값이
+     들어간다. 누른 시각이면 언제 열어 두었든 항상 지금이 된다.
      복구 일시는 채우지 않는다 — 아직 정해지지 않은 값이라 비워 두고 직접 고르게 한다.
      이미 입력된 칸은 건드리지 않는다. */
   function prefillFaultTimes(){
-    var d = appStartedAt;
+    var d = new Date();
     var dateStr = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
     var timeStr = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
     [['faultOccurredDate', 'faultOccurredTime'], ['faultStopDate', 'faultStopTime']].forEach(function(pair){
@@ -2042,7 +2063,12 @@
     }
 
     addRow([faultCell('고장내용', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
-    addRow([faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'), faultCell(faultText('faultSituation'), 'fr-body', 4)]);
+    addRow([
+      faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'),
+      isNoSituation()
+        ? faultCell('해당없음', 'fr-center', 4)
+        : faultCell(faultText('faultSituation'), 'fr-body', 4)
+    ]);
     addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
     addRow([
       faultCell('예상복구(조치) 일시', 'fr-label'),
@@ -2545,8 +2571,11 @@
     return mins < 0 ? null : mins;
   }
 
+  /* 사진대장은 보관 대상이 아니다. ERP 첨부용으로 그때그때 만드는 문서라
+     조회할 일이 없고, 저장 용량만 차지한다. archiveGeneratedPdf가 미리 걸러내므로
+     여기로는 매뉴얼과 고장 보고서만 들어온다. */
   function buildArchiveMeta(filename, pageCount){
-    var docType = appMode === 'manual' ? 'manual' : (appMode === 'fault' ? 'fault' : 'photo');
+    var docType = appMode === 'manual' ? 'manual' : 'fault';
     var meta = {
       doc_type: docType,
       file_name: filename,
@@ -2567,7 +2596,7 @@
       meta.facility = faultValue('faultFacility') || null;
       meta.device = faultValue('faultDevice') || null;
       meta.fault_content = faultValue('faultContent') || null;
-      meta.situation = faultValue('faultSituation') || null;
+      meta.situation = isNoSituation() ? '해당없음' : (faultValue('faultSituation') || null);
       meta.cause = faultValue('faultCause') || null;
       meta.recover_at = isoOrNull('faultRecoverDate', 'faultRecoverTime');
       meta.recover_note = faultValue('faultRecoverNote') || null;
@@ -2585,6 +2614,8 @@
 
   function archiveGeneratedPdf(pdf, filename){
     if(!window.Archive || !Archive.isEnabled()) return;
+    // 사진대장은 보관하지 않는다 — 조회 대상이 아니므로 안내도 띄우지 않는다.
+    if(appMode !== 'manual' && appMode !== 'fault') return;
     Archive.currentUser().then(function(user){
       if(!user){
         showToast('로그인하면 출력한 문서가 보관함에 자동 저장됩니다.');
@@ -2727,6 +2758,7 @@
       appMode: appMode,
       fields: fields,
       outageNone: !!(faultNoOutageEl && faultNoOutageEl.checked),
+      situationNone: !!(faultNoSituationEl && faultNoSituationEl.checked),
       idCounter: idCounter,
       photos: photos.map(function(p){
         return {
@@ -2788,6 +2820,10 @@
     if(faultNoOutageEl){
       faultNoOutageEl.checked = !!payload.outageNone;
       refreshOutageEnabled();
+    }
+    if(faultNoSituationEl){
+      faultNoSituationEl.checked = !!payload.situationNone;
+      refreshSituationEnabled();
     }
     refreshFaultDuration();
 
