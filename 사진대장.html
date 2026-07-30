@@ -246,11 +246,11 @@
 <div class="mode-select-screen" id="modeSelectScreen">
   <div class="mode-select-inner">
     <div class="mode-select-head">
-      <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-logo">
+      <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
     </div>
-    <h1 class="mode-select-title">사진대장 &amp; 매뉴얼 &amp; 고장 보고서</h1>
-    <p class="mode-select-sub">무엇을 작성하시겠어요?</p>
+    <h1 class="mode-select-title">뚝 DOC !</h1>
+    <p class="mode-select-sub">일잘알 자동 문서 생성기</p>
     <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
       <span class="mode-choice-title">사진대장 만들기</span>
       <span class="mode-choice-desc">현장 사진과 설명을 정리하는 보고서</span>
@@ -260,7 +260,7 @@
       <span class="mode-choice-desc">사진마다 순번을 매겨 절차를 안내하는 문서</span>
     </button>
     <button type="button" class="mode-choice-btn" id="chooseFaultModeBtn">
-      <span class="mode-choice-title">고장보고서 만들기</span>
+      <span class="mode-choice-title">고장 보고서 만들기</span>
       <span class="mode-choice-desc">고장 요약과 관련 사진을 정리하는 핫라인 메모</span>
     </button>
   </div>
@@ -270,7 +270,7 @@
 
   <div class="app-header">
     <div class="app-banner-row">
-      <img src="manual-logo.gif" alt="한국지역난방공사" class="app-header-logo">
+      <img src="manual-logo.gif" alt="한국지역난방공사" class="app-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
     <h1 class="app-title" id="appTitle">사진대장</h1>
@@ -306,6 +306,7 @@
           <option value="건축">건축</option>
           <option value="토목">토목</option>
           <option value="화공">화공</option>
+          <option value="사무">사무</option>
           <option value="기타">기타</option>
         </select>
       </div>
@@ -397,7 +398,7 @@
         </div>
         <div class="field-group">
           <label class="field-label" for="faultDuration">기간 (자동 계산)</label>
-          <input type="text" id="faultDuration" class="field-input" placeholder="중단일시와 예상복구(조치) 일시를 입력하면 자동 계산됩니다" readonly>
+          <input type="text" id="faultDuration" class="field-input" placeholder="중단일시와 복구일시를 입력하면 자동 계산됩니다" readonly>
         </div>
       </div>
 
@@ -418,11 +419,11 @@
 
       <div class="field-row">
         <div class="field-group">
-          <label class="field-label" for="faultRecoverDate">예상복구(조치) 일자</label>
+          <label class="field-label" for="faultRecoverDate">복구 일자</label>
           <input type="date" id="faultRecoverDate" class="field-input">
         </div>
         <div class="field-group">
-          <label class="field-label" for="faultRecoverTime">예상복구(조치) 시각</label>
+          <label class="field-label" for="faultRecoverTime">복구 시각</label>
           <div class="time-picker" data-time-for="faultRecoverTime"><select class="field-input time-hour" aria-label="시"></select><span class="time-colon">:</span><select class="field-input time-min" aria-label="분"></select></div><input type="hidden" id="faultRecoverTime">
         </div>
         <div class="field-group">
@@ -440,7 +441,7 @@
     </div>
 
     <div class="count-row">
-      <span class="count-badge" id="countBadge">등록 사진 0 / 30</span>
+      <span class="count-badge" id="countBadge">등록 사진 0 / 30 (3장이하 권장)</span>
     </div>
 
     <button type="button" class="add-btn" id="addBtn">사진 추가</button>
@@ -451,12 +452,10 @@
       <div class="guide-body">
         <b>사용 순서</b>
         <ol>
-          <li>파일명을 입력합니다. (매뉴얼 모드에서는 [매뉴얼 종류]·[분야]·[개정번호]도 함께 지정하며, 선택한 값이 출력물 상단 표에 표시됩니다.)</li>
-          <li>고장 보고서 모드에서는 발생일시·고장분야·지사·설비명 등 [1. 고장 요약] 항목을 채웁니다. 날짜와 시각은 달력·시계에서 선택하면 출력물에 자동 반영되고, [기간]은 중단일시와 예상복구(조치) 일시의 차이로 자동 계산됩니다. 사진을 넣지 않으면 [2. 관련 사진] 없이 고장 요약만 출력됩니다.</li>
-          <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영"(스마트폰 기본 카메라 앱으로 최고 화질 촬영) 중 선택합니다.</li>
+          <li>파일명(문서 제목)과 내용을 입력 합니다.</li>
+          <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영" 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
-          <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 편집 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
           <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
           <li>[편집] 안의 [자르기]를 누르고 남길 영역을 드래그한 뒤 [자르기 적용]을 누르면 사진을 잘라낼 수 있습니다. [되돌리기]를 누르면 그린 내용은 물론 자르기도 한 단계씩 취소됩니다.</li>
@@ -465,7 +464,7 @@
         </ol>
         <b>사용 가이드 추천</b>
         <ol>
-          <li>사진대장 또는 매뉴얼 작성 시 사용
+          <li>사진대장, 매뉴얼, 고장 보고서 작성 시 사용
             <ul>
               <li>[메일로 전송]을 통해 회사메일로 전송</li>
               <li>자료 교환 후 사용</li>
@@ -481,9 +480,9 @@
         <b>안내</b>
         <ul>
           <li>모든 사진/문서 처리는 이 브라우저 안에서만 이루어지며 외부 서버로 전송되지 않습니다.</li>
-          <li>[메일로 전송]을 누르면 PDF가 자동으로 다운로드되고 Gmail 작성 화면이 새 탭으로 열립니다. 첨부파일은 Gmail 화면에서 직접 추가해야 합니다(브라우저 보안 정책상 외부 웹사이트가 Gmail에 파일을 자동으로 넣을 수는 없습니다).</li>
+          <li>[메일로 전송]을 누르면 PDF가 자동으로 다운로드되고 Gmail 작성 화면이 새 탭으로 열립니다. 첨부파일은 Gmail 화면에서 직접 추가해야 합니다.</li>
           <li>새로고침하거나 화면을 닫으면 등록한 내용은 사라집니다.</li>
-          <li>만든이: Steven Kim</li>
+          <li>개발자: Steven Kim</li>
         </ul>
       </div>
     </details>
