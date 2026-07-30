@@ -50,7 +50,10 @@
 
   .card{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin-bottom:10px; }
   .card-top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  /* 제목과 개정번호를 한 덩어리로 묶어, 종류 배지는 계속 오른쪽 끝에 붙게 한다 */
+  .card-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; min-width:0; }
   .card-title{ font-size:15px; font-weight:600; word-break:break-all; }
+  .rev-chip{ flex:none; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--surface-strong); border-radius:var(--radius-full); padding:2px 8px; }
   .badge{ flex:none; font-size:11px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radius-full); padding:3px 9px; }
   .meta{ font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:6px; }
   .meta b{ color:var(--ink); font-weight:600; }
@@ -264,6 +267,29 @@
     }) + '</b></div>';
   }
 
+  // 개정번호는 text 컬럼이라 그대로 정렬하면 '10' 이 '3' 보다 앞에 온다. 숫자로 본다.
+  function revNumber(v){
+    var n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
+    return isNaN(n) ? -1 : n;
+  }
+
+  /* 같은 파일명끼리 모아 개정번호 높은 것부터 보여 준다. 묶음 자체의 순서는
+     서버가 넘겨 준 작성일 최신순을 그대로 따르므로, 최근 문서가 위에 남는다. */
+  function groupByRevision(rows){
+    var groups = {}, order = [];
+    rows.forEach(function(r){
+      var key = r.file_name || '';
+      if(!groups[key]){ groups[key] = []; order.push(key); }
+      groups[key].push(r);
+    });
+    var out = [];
+    order.forEach(function(key){
+      groups[key].sort(function(a, b){ return revNumber(b.revision) - revNumber(a.revision); });
+      out = out.concat(groups[key]);
+    });
+    return out;
+  }
+
   function renderRow(row){
     var card = document.createElement('div');
     card.className = 'card';
@@ -279,6 +305,7 @@
       meta += metaLine('작성자', row.author_name);
       meta += metaLine('작성일', fmtDateTime(row.created_at));
     }else if(row.doc_type === 'fault'){
+      meta += metaLine('지사', row.branch);
       meta += metaLine('고장분야', row.field ? row.field + '분야' : '');
       meta += metaLine('설비명', row.facility);
       meta += metaLine('고장내용', row.fault_content);
@@ -292,15 +319,22 @@
       meta += metaLine('작성일', fmtDateTime(row.created_at));
     }
 
+    // 개정번호는 제목 옆에 붙여 목록을 훑으면서 바로 판별할 수 있게 한다
+    var revChip = (row.doc_type === 'manual' && row.revision)
+      ? '<span class="rev-chip"></span>' : '';
+
     card.innerHTML =
       '<div class="card-top">' +
-        '<span class="card-title"></span>' +
+        '<span class="card-head">' +
+          '<span class="card-title"></span>' + revChip +
+        '</span>' +
         '<span class="badge">' + (TYPE_LABELS[row.doc_type] || row.doc_type) + '</span>' +
       '</div>' +
       '<div class="meta">' + meta + '</div>' +
       '<div class="card-actions"><button type="button">PDF 열기</button></div>';
 
     card.querySelector('.card-title').textContent = row.file_name;
+    if(revChip) card.querySelector('.rev-chip').textContent = '개정 ' + row.revision;
     var btn = card.querySelector('.card-actions button');
     btn.addEventListener('click', function(){
       btn.disabled = true;
@@ -338,6 +372,7 @@
         return;
       }
       setStatus(rows.length + '건을 찾았습니다.');
+      if(currentType === 'manual') rows = groupByRevision(rows);
       var frag = document.createDocumentFragment();
       rows.forEach(function(r){ frag.appendChild(renderRow(r)); });
       resultsEl.appendChild(frag);
