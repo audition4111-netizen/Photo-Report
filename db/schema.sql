@@ -79,6 +79,18 @@ create index if not exists documents_facility_trgm_idx
   on public.documents using gin (facility gin_trgm_ops);
 
 -- ---------------------------------------------------------------------------
+-- 테이블 접근 권한
+--   프로젝트에 따라 public 스키마 기본 권한이 자동으로 주어지지 않는 경우가 있어
+--   (그러면 로그인해도 "permission denied for table documents" 로 실패)
+--   로그인 역할에 명시적으로 부여합니다. 실제 행 제한은 아래 RLS 정책이 담당합니다.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.documents to authenticated;
+
+-- 비로그인(anon)은 어떤 경우에도 접근 불가
+revoke all on public.documents from anon;
+
+-- ---------------------------------------------------------------------------
 -- RLS — anon 키는 공개 페이지에 노출되므로 이 정책이 유일한 방어선입니다.
 -- ---------------------------------------------------------------------------
 alter table public.documents enable row level security;
