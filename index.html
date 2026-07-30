@@ -201,17 +201,10 @@
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
-  /* 로그인 전에는 만들기 버튼을 눌러도 진행되지 않음을 눈으로 알 수 있게 */
-  .mode-choice-btn[disabled]{ opacity:.4; cursor:not-allowed; }
-  .mode-choice-btn[disabled]:active{ background:var(--canvas); }
-
-  .mode-auth{ margin:0 0 28px; padding:16px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--surface-soft); }
-  .mode-auth[hidden]{ display:none; }
-  .mode-auth-msg{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 12px; word-break:keep-all; }
-  .mode-auth-msg b{ color:var(--ink); font-weight:600; }
-  .mode-auth-btn{ width:100%; padding:13px 0; font-family:inherit; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--primary); background:var(--primary); color:#fff; cursor:pointer; }
-  .mode-auth-btn.secondary{ background:var(--canvas); border-color:var(--ink); color:var(--ink); }
-  .mode-auth-links{ display:flex; justify-content:center; gap:8px; margin:10px 0 0; }
+  /* 로그인 상태 줄은 로그인한 뒤에만 나타난다. 로그아웃 상태의 첫 화면에는
+     로그인 관련 요소가 전혀 보이지 않고, 만들기를 누르는 순간 팝업으로 뜬다. */
+  .mode-auth-row{ display:flex; justify-content:center; gap:8px; margin:0 0 22px; }
+  .mode-auth-row[hidden]{ display:none; }
   .mode-choice-title{ display:block; font-size:16px; font-weight:600; color:var(--ink); margin:0 0 4px; }
   .mode-choice-desc{ display:block; font-size:13px; color:var(--muted); line-height:1.5; }
   .mode-indicator{ display:inline-block; font-size:12px; color:var(--muted); background:var(--surface-soft); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; margin:0 0 14px; }
@@ -269,12 +262,9 @@
     </div>
     <p class="mode-select-sub">일잘알 자동 문서 생성기</p>
 
-    <div class="mode-auth" id="modeAuth" hidden>
-      <p class="mode-auth-msg" id="modeAuthMsg"></p>
-      <button type="button" class="mode-auth-btn" id="modeAuthBtn">로그인 / 회원가입</button>
-      <div class="mode-auth-links" id="modeAuthLinks" hidden>
-        <a class="auth-chip" href="search.html">보관함 조회</a>
-      </div>
+    <div class="mode-auth-row" id="modeAuthRow" hidden>
+      <span class="auth-chip" id="modeAuthChip"></span>
+      <a class="auth-chip" href="search.html">보관함 조회</a>
     </div>
 
     <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
@@ -669,17 +659,11 @@
   var modeIndicatorEl = document.getElementById('modeIndicator');
   var appTitleEl = document.getElementById('appTitle');
 
-  var modeAuthEl = document.getElementById('modeAuth');
-  var modeAuthMsgEl = document.getElementById('modeAuthMsg');
-  var modeAuthBtnEl = document.getElementById('modeAuthBtn');
-  var modeAuthLinksEl = document.getElementById('modeAuthLinks');
-  var modeChoiceBtns = [chooseReportModeBtn, chooseManualModeBtn, chooseFaultModeBtn];
+  var modeAuthRowEl = document.getElementById('modeAuthRow');
+  var modeAuthChipEl = document.getElementById('modeAuthChip');
 
-  // 세션 확인은 비동기라 잠깐 틈이 생긴다. 보관함이 설정된 경우 우선 잠가 두고,
-  // 확인 결과에 따라 renderModeAuth()가 풀어 준다.
-  if(window.Archive && Archive.isEnabled()){
-    modeChoiceBtns.forEach(function(btn){ btn.disabled = true; });
-  }
+  // 로그인 팝업 때문에 미뤄 둔 모드. 로그인에 성공하면 이어서 그 모드로 들어간다.
+  var pendingMode = null;
 
   // ---- 선택 목록 ------------------------------------------------------------
 
@@ -709,6 +693,15 @@
   var MODE_LABELS = { manual: '매뉴얼', fault: '고장 보고서', report: '사진대장' };
   var MODE_PLACEHOLDERS = { manual: '예: 현장 매뉴얼', fault: '예: 고장 보고서', report: '예: 사진대장' };
 
+  /* 받침 유무에 따라 조사를 고른다. '사진대장을' / '고장 보고서를' 처럼
+     안내 문구가 어색해지지 않도록. */
+  function withParticle(word, afterFinal, afterVowel){
+    var code = word.charCodeAt(word.length - 1);
+    var isHangul = code >= 0xac00 && code <= 0xd7a3;
+    var hasFinal = isHangul && (code - 0xac00) % 28 !== 0;
+    return word + (hasFinal ? afterFinal : afterVowel);
+  }
+
   function updateModeIndicator(){
     var label = MODE_LABELS[appMode] || MODE_LABELS.report;
     appTitleEl.textContent = label;
@@ -719,11 +712,15 @@
     faultFieldsEl.hidden = appMode !== 'fault';
   }
   function selectMode(mode){
-    // 버튼도 비활성화해 두지만, '모드 변경'으로 되돌아오는 경로가 있어 여기서도 막는다.
+    /* 첫 화면에는 로그인 요소를 두지 않고, 만들기를 누른 이 시점에 팝업을 띄운다.
+       고른 모드를 기억해 두었다가 로그인에 성공하면 그대로 이어서 들어간다. */
     if(loginRequired()){
-      openAuthModal();
+      pendingMode = mode;
+      openAuthModal('로그인하면 ' + withParticle(MODE_LABELS[mode], '을', '를')
+        + ' 만들 수 있고, 출력한 PDF가 보관함에 자동 저장됩니다.');
       return;
     }
+    pendingMode = null;
     appMode = mode;
     updateModeIndicator();
     if(mode === 'fault') prefillFaultTimes();
@@ -2250,6 +2247,7 @@
   var authSignUpMode = false;
   var authUser = null;
   var authLoginAt = null;      // 로그인한 시각 — 고장 보고서 일시 초기값에 쓴다
+  var authIntroNote = '';      // 만들기 버튼에서 띄웠을 때 팝업에 보여 줄 안내
   var SIGNUP_EMAIL_DOMAIN = 'kdhc.co.kr';
 
   function isAllowedSignupEmail(email){
@@ -2284,26 +2282,12 @@
     return archiveAvailable() && !authUser;
   }
 
+  /* 첫 화면은 로그인 여부와 무관하게 그대로 두고, 로그인한 뒤에만 이름·로그아웃 줄을
+     덧붙인다. 로그아웃 상태에서는 아무것도 보이지 않는다. */
   function renderModeAuth(){
-    if(!archiveAvailable()){
-      modeAuthEl.hidden = true;
-    }else{
-      modeAuthEl.hidden = false;
-      if(authUser){
-        modeAuthMsgEl.textContent =
-          Archive.displayName(authUser) + '님으로 로그인했습니다. 출력한 PDF는 보관함에 자동 저장됩니다.';
-        modeAuthBtnEl.textContent = '로그아웃';
-        modeAuthBtnEl.classList.add('secondary');
-        modeAuthLinksEl.hidden = false;
-      }else{
-        modeAuthMsgEl.textContent = '문서를 만들려면 먼저 로그인해 주세요.';
-        modeAuthBtnEl.textContent = '로그인 / 회원가입';
-        modeAuthBtnEl.classList.remove('secondary');
-        modeAuthLinksEl.hidden = true;
-      }
-    }
-    var gated = loginRequired();
-    modeChoiceBtns.forEach(function(btn){ btn.disabled = gated; });
+    var show = archiveAvailable() && !!authUser;
+    modeAuthRowEl.hidden = !show;
+    if(show) modeAuthChipEl.textContent = Archive.displayName(authUser) + ' · 로그아웃';
   }
 
   // 로그인 상태가 바뀌는 유일한 통로. 새로 로그인한 순간을 여기서 기록한다.
@@ -2320,7 +2304,7 @@
     authTitleEl.textContent = signUp ? '회원가입' : '로그인';
     document.getElementById('authSub').textContent = signUp
       ? '회사 이메일(@' + SIGNUP_EMAIL_DOMAIN + ')로만 가입할 수 있습니다.'
-      : '로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.';
+      : (authIntroNote || '로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.');
     authSubmitBtn.textContent = signUp ? '가입' : '로그인';
     authNameGroupEl.hidden = !signUp;
     authToggleBtn.textContent = signUp ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입';
@@ -2328,13 +2312,16 @@
     setAuthMsg('');
   }
 
-  function openAuthModal(){
+  function openAuthModal(note){
+    authIntroNote = note || '';
     setAuthMode(false);
     authModalEl.classList.add('open');
   }
   function closeAuthModal(){
     authModalEl.classList.remove('open');
     authPasswordEl.value = '';
+    authIntroNote = '';
+    pendingMode = null;        // 취소했으면 미뤄 둔 모드도 버린다
     setAuthMsg('');
   }
 
@@ -2347,8 +2334,8 @@
     });
   });
 
-  modeAuthBtnEl.addEventListener('click', function(){
-    if(!authUser){ openAuthModal(); return; }
+  modeAuthChipEl.addEventListener('click', function(){
+    if(!authUser) return;
     if(!window.confirm('로그아웃하시겠습니까?')) return;
     Archive.signOut().then(function(){
       setAuthUser(null);
@@ -2394,9 +2381,11 @@
         setAuthMsg('가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.', 'ok');
         return;
       }
+      var next = pendingMode;      // closeAuthModal이 비우기 전에 챙겨 둔다
       setAuthUser(user);
       closeAuthModal();
       showToast(Archive.displayName(user) + '님으로 로그인했습니다.');
+      if(next) selectMode(next);   // 누르려던 만들기로 그대로 이어 준다
     }).catch(function(err){
       authSubmitBtn.disabled = false;
       console.error(err);

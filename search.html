@@ -173,7 +173,9 @@
 (function(){
   'use strict';
 
-  var MANUAL_FIELDS = ['기계','전기','제어','전산','운영','건축','토목','화공','기타'];
+  // 작성 화면(index.html)의 목록과 같아야 한다. 빠진 분야가 있으면 그 분야로 저장한
+  // 문서를 조회로 걸러낼 수 없다.
+  var MANUAL_FIELDS = ['전기','기계','제어','전산','운영','건축','토목','화공','사무','기타'];
   var FAULT_FIELDS  = ['전기','기계','제어','전산','운영','열수송','기타'];
   var TYPE_LABELS   = { photo:'사진대장', manual:'매뉴얼', fault:'고장 보고서' };
 
@@ -190,7 +192,8 @@
   }
 
   function fillFieldOptions(){
-    var list = currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS;
+    var list = (currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS)
+      .slice().sort(function(a, b){ return a.localeCompare(b, 'ko'); });   // 작성 화면과 같은 가나다순
     var sel = el('fField');
     sel.innerHTML = '<option value="">전체</option>';
     list.forEach(function(v){
