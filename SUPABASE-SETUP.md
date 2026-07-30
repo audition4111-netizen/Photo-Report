@@ -150,3 +150,4 @@ window.SUPABASE_CONFIG = {
 | 개인 메일로도 가입이 됨 | 3-1단계 훅이 **Enable** 되었는지, 함수명이 맞는지 확인 |
 | "PDF를 열지 못했습니다" | Storage 버킷 이름이 `documents` 인지 확인 |
 | 갑자기 전부 안 됨 | 무료 플랜 프로젝트가 정지되지 않았는지 (Supabase 대시보드에서 Restore) |
+| 예전 사진대장 기록이 남아 있음 | 사진대장은 이제 보관하지 않습니다. `db/cleanup-photo-archive.sql` 로 정리 |
