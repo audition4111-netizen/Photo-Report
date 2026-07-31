@@ -853,10 +853,11 @@
     if(defaultValue && sorted.indexOf(defaultValue) !== -1) el.value = defaultValue;
   }
 
-  /* 분류 항목은 초기값을 두지 않는다. 기본값이 들어가 있으면 고르지 않고 지나쳐도
-     그 값이 그대로 문서에 찍혀, 틀린 지사·분야가 조용히 출력된다. */
-  fillSortedSelect('faultBranch', BRANCHES, null, '선택');
-  fillSortedSelect('manualBranchSelect', BRANCHES, null, '선택');
+  /* 분야는 초기값을 두지 않는다. 기본값이 들어가 있으면 고르지 않고 지나쳐도
+     그 값이 그대로 문서에 찍혀, 틀린 분야가 조용히 출력된다.
+     지사는 대부분 양산지사에서 작성하므로 기본값으로 넣어 둔다. */
+  fillSortedSelect('faultBranch', BRANCHES, '양산지사', '선택');
+  fillSortedSelect('manualBranchSelect', BRANCHES, '양산지사', '선택');
   fillSortedSelect('fieldSelect', MANUAL_FIELDS, null, '선택');
   fillSortedSelect('faultFieldSelect', FAULT_FIELDS, null, '선택');
 
