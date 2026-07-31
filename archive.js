@@ -81,20 +81,51 @@
 
   var MAX_UPLOAD_ATTEMPTS = 50;
 
-  // pdf_path에 그대로 들어가는 경로용 새니타이즈. 로컬 다운로드 파일명에 쓰는
-  // sanitizeFileName()(index.html, '_'로 치환)과는 별개 — 여기는 지정된 문자만
-  // 제거하고 한글·공백은 그대로 둔다.
-  function sanitizeForStoragePath(name) {
-    return String(name || '')
-      .replace(/[\\/?#%:*"<>|]/g, '')
-      .replace(/[\x00-\x1f\x7f]/g, '')
-      .trim();
+  /* Supabase Storage는 오브젝트 키에 ASCII 외 문자(한글 포함)를 허용하지 않는다
+     (서버가 \w — 즉 [A-Za-z0-9_] — 와 일부 기호만 통과시킨다). 그래서 한글은
+     로마자(발음)로 바꿔 저장 경로에 넣는다. 화면에 보이는 한글 원문은 documents
+     테이블의 branch·title·file_name 컬럼에 그대로 저장되므로 조회 화면은 안 바뀐다. */
+  var HANGUL_BASE = 0xAC00, HANGUL_LAST = 0xD7A3;
+  var CHO = ['g', 'kk', 'n', 'd', 'tt', 'r', 'm', 'b', 'pp', 's', 'ss', '', 'j', 'jj', 'ch', 'k', 't', 'p', 'h'];
+  var JUNG = ['a', 'ae', 'ya', 'yae', 'eo', 'e', 'yeo', 'ye', 'o', 'wa', 'wae', 'oe', 'yo', 'u', 'wo', 'we', 'wi', 'yu', 'eu', 'ui', 'i'];
+  var JONG = ['', 'k', 'k', 'k', 'n', 'n', 'n', 't', 'l', 'k', 'm', 'l', 'l', 'l', 'p', 'l', 'm', 'p', 'p', 't', 't', 'ng', 'j', 'ch', 'k', 't', 'p', 'h'];
+
+  // 완성형 한글 음절 한 글자를 로마자로 (국립국어원 로마자 표기법 간이 버전)
+  function romanizeHangulSyllable(ch) {
+    var code = ch.charCodeAt(0) - HANGUL_BASE;
+    var jong = code % 28;
+    var jung = ((code - jong) / 28) % 21;
+    var cho = ((code - jong) / 28 - jung) / 21;
+    return CHO[cho] + JUNG[jung] + JONG[jong];
   }
 
-  // documents/{지사}/{연도}/{manual|fault}/{제목}.pdf
+  // Supabase Storage 키로 안전한 문자(영문·숫자·밑줄, 공백, 일부 기호)만 남긴다
+  var SAFE_KEY_CHAR = /[\w\-.'() &$@=;:+,]/;
+
+  // pdf_path에 그대로 들어가는 경로용 새니타이즈. 로컬 다운로드 파일명에 쓰는
+  // sanitizeFileName()(index.html, '_'로 치환)과는 별개다.
+  function sanitizeForStoragePath(name) {
+    var s = String(name || '')
+      .replace(/[\\/?#%:*"<>|]/g, '')   // OS에서도 꺼리는 문자 — 안전을 위해 우선 제거
+      .replace(/[\x00-\x1f\x7f]/g, '');
+
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      var code = ch.charCodeAt(0);
+      if (code >= HANGUL_BASE && code <= HANGUL_LAST) {
+        out += romanizeHangulSyllable(ch);
+      } else if (SAFE_KEY_CHAR.test(ch)) {
+        out += ch;   // 그 외 한글 자모·한자·이모지 등은 버린다(Storage가 거부하므로)
+      }
+    }
+    return out.trim();
+  }
+
+  // documents/{지사}/{연도}/{manual|fault}/{제목}.pdf (지사·제목은 로마자로 변환됨)
   function storagePath(docType, branch, title, year) {
-    var safeBranch = sanitizeForStoragePath(branch) || '미지정';
-    var safeTitle = sanitizeForStoragePath(title) || '문서';
+    var safeBranch = sanitizeForStoragePath(branch) || 'unknown';
+    var safeTitle = sanitizeForStoragePath(title) || 'document';
     var y = year || new Date().getFullYear();
     return safeBranch + '/' + y + '/' + docType + '/' + safeTitle + '.pdf';
   }
