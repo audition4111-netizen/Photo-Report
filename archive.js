@@ -122,12 +122,19 @@
     return out.trim();
   }
 
-  // documents/{지사}/{연도}/{manual|fault}/{제목}.pdf (지사·제목은 로마자로 변환됨)
-  function storagePath(docType, branch, title, year) {
+  /* documents/{지사}/{연도}/{분야}/{manual|fault}/({매뉴얼종류}/){제목}.pdf
+     지사·분야·매뉴얼종류·제목은 로마자로 변환됨. 매뉴얼만 종류별 폴더가 한 단계
+     더 있고, 고장 보고서는 분야 아래 바로 fault 폴더로 들어간다. */
+  function storagePath(docType, branch, field, manualType, title, year) {
     var safeBranch = sanitizeForStoragePath(branch) || 'unknown';
+    var safeField = sanitizeForStoragePath(field) || 'unknown';
     var safeTitle = sanitizeForStoragePath(title) || 'document';
     var y = year || new Date().getFullYear();
-    return safeBranch + '/' + y + '/' + docType + '/' + safeTitle + '.pdf';
+
+    var parts = [safeBranch, y, safeField, docType];
+    if (docType === 'manual') parts.push(sanitizeForStoragePath(manualType) || 'unknown');
+    parts.push(safeTitle + '.pdf');
+    return parts.join('/');
   }
 
   // Supabase Storage가 upsert:false에서 기존 경로와 충돌할 때 주는 오류 판별.
@@ -163,9 +170,10 @@
     return attempt(1);
   }
 
-  /* meta: doc_type, file_name, title, branch, year, photo_count, page_count 및
-     종류별 필드. author_id / author_name / pdf_path / pdf_bytes 는 여기서 채웁니다.
-     branch·title·year로 저장 경로(documents/{지사}/{연도}/{종류}/{제목}.pdf)를 만든다. */
+  /* meta: doc_type, file_name, title, branch, field, year, manual_type(매뉴얼만),
+     photo_count, page_count 및 종류별 필드. author_id / author_name / pdf_path /
+     pdf_bytes 는 여기서 채웁니다. branch·field·manual_type·title·year로 저장 경로
+     (documents/{지사}/{연도}/{분야}/{종류}/{매뉴얼종류}/{제목}.pdf)를 만든다. */
   function saveDocument(meta, pdfBlob) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
@@ -173,7 +181,7 @@
     return currentUser().then(function (user) {
       if (!user) throw new Error('로그인이 필요합니다.');
 
-      var basePath = storagePath(meta.doc_type, meta.branch, meta.title, meta.year);
+      var basePath = storagePath(meta.doc_type, meta.branch, meta.field, meta.manual_type, meta.title, meta.year);
 
       return uploadWithRetry(c, basePath, pdfBlob).then(function (path) {
         var row = Object.assign({}, meta, {
