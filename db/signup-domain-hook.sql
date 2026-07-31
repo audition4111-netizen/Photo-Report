@@ -62,7 +62,7 @@ begin
 
   return jsonb_build_object(
     'error', jsonb_build_object(
-      'message', '회사 이메일(@kdhc.co.kr)로만 가입할 수 있습니다.',
+      'message', '회사 이메일로만 가입할 수 있습니다.',
       'http_code', 403
     )
   );

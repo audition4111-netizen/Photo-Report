@@ -115,11 +115,12 @@ create policy "documents_update_own"
   using (author_id = auth.uid())
   with check (author_id = auth.uid());
 
+-- 본인 명의 문서, 또는 관리자(김영섭) 계정은 모든 문서를 삭제할 수 있다
 drop policy if exists "documents_delete_own" on public.documents;
 create policy "documents_delete_own"
   on public.documents for delete
   to authenticated
-  using (author_id = auth.uid());
+  using (author_id = auth.uid() or auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr');
 
 -- ---------------------------------------------------------------------------
 -- Storage — 비공개 버킷 'documents'
@@ -140,9 +141,10 @@ create policy "docs_storage_insert"
   to authenticated
   with check (bucket_id = 'documents');
 
--- 업로드한 본인만 삭제
+-- 업로드한 본인, 또는 관리자(김영섭) 계정만 삭제
 drop policy if exists "docs_storage_delete_own" on storage.objects;
 create policy "docs_storage_delete_own"
   on storage.objects for delete
   to authenticated
-  using (bucket_id = 'documents' and owner = auth.uid());
+  using (bucket_id = 'documents'
+    and (owner = auth.uid() or auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr'));

@@ -35,9 +35,16 @@
   .tab.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
 
   .filters{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin:0 0 16px; }
-  .frow{ display:flex; gap:10px; flex-wrap:wrap; }
-  .fgroup{ flex:1; min-width:150px; margin-bottom:12px; }
-  .fgroup:last-child{ margin-bottom:0; }
+  /* 항상 2열: 지사·분야가 첫 줄, 그 아래 종류별 나머지 항목이 온다 (모바일에서도 유지). */
+  .fgrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 10px; margin:0 0 4px; }
+  .fgroup{ min-width:0; margin-bottom:0; }
+  #gBranch{ order:1; }
+  #gField{ order:2; }
+  .fgrid.type-manual #gManualType{ order:3; }
+  .fgrid.type-manual #gFileName{ order:4; }
+  .fgrid.type-fault #gFacility{ order:3; }
+  .fgrid.type-fault #gContent{ order:4; }
+  .fgrid.type-fault #gFileName{ order:5; grid-column:1 / -1; }
   label{ display:block; font-size:13px; font-weight:500; color:var(--muted); margin:0 0 6px; }
   input, select{ width:100%; height:48px; padding:12px; font-family:inherit; font-size:15px; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--ink); }
   input:focus, select:focus{ outline:none; border-width:2px; border-color:var(--ink); padding:11px; }
@@ -57,8 +64,9 @@
   .badge{ flex:none; font-size:11px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radius-full); padding:3px 9px; }
   .meta{ font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:6px; }
   .meta b{ color:var(--ink); font-weight:600; }
-  .card-actions{ margin-top:10px; }
+  .card-actions{ margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .card-actions button{ height:40px; padding:0 16px; font-family:inherit; font-size:13px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  .card-actions .del-btn{ margin-left:auto; border-color:var(--error); color:var(--error); }
 
   .gate{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:20px; }
   .gate h2{ font-size:16px; font-weight:600; margin:0 0 6px; }
@@ -97,7 +105,7 @@
     <p class="msg" id="loginMsg"></p>
     <div class="fgroup">
       <label for="email">이메일</label>
-      <input type="email" id="email" placeholder="user@kdhc.co.kr" autocomplete="username">
+      <input type="email" id="email" autocomplete="username">
     </div>
     <div class="fgroup">
       <label for="password">비밀번호</label>
@@ -116,11 +124,15 @@
     </div>
 
     <div class="filters">
-      <!-- 두 종류 공통 -->
-      <div class="frow">
-        <div class="fgroup">
-          <label for="fFileName">파일명</label>
-          <input type="text" id="fFileName" placeholder="파일명 일부 입력">
+      <!-- 첫 줄: 지사·분야 (공통). 그 아래는 종류에 따라 배치가 바뀐다. -->
+      <div class="fgrid" id="fgrid">
+        <div class="fgroup" id="gBranch">
+          <label for="fBranch">지사</label>
+          <select id="fBranch"><option value="">전체</option></select>
+        </div>
+        <div class="fgroup" id="gField">
+          <label for="fField">분야</label>
+          <select id="fField"><option value="">전체</option></select>
         </div>
         <div class="fgroup" id="gManualType">
           <label for="fManualType">매뉴얼 종류</label>
@@ -133,28 +145,18 @@
             <option value="정비 매뉴얼">정비 매뉴얼</option>
           </select>
         </div>
-      </div>
-
-      <div class="frow">
-        <div class="fgroup" id="gField">
-          <label for="fField">분야</label>
-          <select id="fField"><option value="">전체</option></select>
-        </div>
-        <div class="fgroup" id="gBranch">
-          <label for="fBranch">지사</label>
-          <select id="fBranch"><option value="">전체</option></select>
-        </div>
-      </div>
-
-      <!-- 고장 보고서 전용 -->
-      <div class="frow" id="faultFilters">
-        <div class="fgroup">
+        <!-- 고장 보고서 전용 -->
+        <div class="fgroup" id="gFacility">
           <label for="fFacility">설비명</label>
           <input type="text" id="fFacility" placeholder="예: 변압기">
         </div>
-        <div class="fgroup">
+        <div class="fgroup" id="gContent">
           <label for="fContent">고장내용</label>
           <input type="text" id="fContent" placeholder="예: 방압변">
+        </div>
+        <div class="fgroup" id="gFileName">
+          <label for="fFileName">파일명</label>
+          <input type="text" id="fFileName" placeholder="파일명 일부 입력">
         </div>
       </div>
 
@@ -185,8 +187,6 @@
     '동탄지사','판교지사','광교지사','용인지사','분당사업소','평택지사',
     '광주전남지사','양산지사','대구지사','세종지사','김해사업소','청주지사'
   ];
-  var TYPE_LABELS   = { photo:'사진대장', manual:'매뉴얼', fault:'고장 보고서' };
-
   // '기타'는 가나다순이면 중간에 끼므로 맨 아래로 내린다 (작성 화면과 같은 규칙).
   var LAST_OPTIONS = ['기타'];
 
@@ -201,6 +201,7 @@
   var notConfigured = el('notConfigured'), loginGate = el('loginGate'), browser = el('browser');
   var statusEl = el('status'), resultsEl = el('results'), userChip = el('userChip');
   var currentType = 'manual';   // 첫 탭
+  var currentUser = null;
 
   function show(node, on){ node.classList.toggle('hidden', !on); }
 
@@ -227,8 +228,10 @@
   }
 
   function applyTypeVisibility(){
+    el('fgrid').className = 'fgrid type-' + currentType;
     show(el('gManualType'), currentType === 'manual');
-    show(el('faultFilters'), currentType === 'fault');
+    show(el('gFacility'), currentType === 'fault');
+    show(el('gContent'), currentType === 'fault');
     fillFieldOptions();
     fillSelect('fBranch', BRANCHES);   // 지사는 두 종류 공통
   }
@@ -273,21 +276,30 @@
     return isNaN(n) ? -1 : n;
   }
 
-  /* 같은 파일명끼리 모아 개정번호 높은 것부터 보여 준다. 묶음 자체의 순서는
-     서버가 넘겨 준 작성일 최신순을 그대로 따르므로, 최근 문서가 위에 남는다. */
-  function groupByRevision(rows){
-    var groups = {}, order = [];
-    rows.forEach(function(r){
-      var key = r.file_name || '';
-      if(!groups[key]){ groups[key] = []; order.push(key); }
-      groups[key].push(r);
+  function compareKorean(a, b){
+    return String(a || '').localeCompare(String(b || ''), 'ko');
+  }
+
+  // 매뉴얼: 지사-분야-종류-제목 순으로 가나다 정렬하고, 같은 제목이면 개정번호가 높은 것을 위로.
+  function sortManualRows(rows){
+    return rows.slice().sort(function(a, b){
+      return compareKorean(a.branch, b.branch)
+        || compareKorean(a.field, b.field)
+        || compareKorean(a.manual_type, b.manual_type)
+        || compareKorean(a.file_name, b.file_name)
+        || (revNumber(b.revision) - revNumber(a.revision));
     });
-    var out = [];
-    order.forEach(function(key){
-      groups[key].sort(function(a, b){ return revNumber(b.revision) - revNumber(a.revision); });
-      out = out.concat(groups[key]);
+  }
+
+  // 고장 보고서: 지사-분야-설비명-발생일시(최신순)-고장내용 순으로 정렬.
+  function sortFaultRows(rows){
+    return rows.slice().sort(function(a, b){
+      return compareKorean(a.branch, b.branch)
+        || compareKorean(a.field, b.field)
+        || compareKorean(a.facility, b.facility)
+        || (new Date(b.occurred_at || 0).getTime() - new Date(a.occurred_at || 0).getTime())
+        || compareKorean(a.fault_content, b.fault_content);
     });
-    return out;
   }
 
   function renderRow(row){
@@ -299,13 +311,11 @@
     var meta = '';
 
     if(row.doc_type === 'manual'){
-      meta += metaLine('종류', row.manual_type);
       meta += metaLine('분야', row.field ? row.field + '분야' : '');
-      meta += metaLine('지사', row.branch);
+      meta += metaLine('종류', row.manual_type);
       meta += metaLine('작성자', row.author_name);
       meta += metaLine('작성일', fmtDateTime(row.created_at));
     }else if(row.doc_type === 'fault'){
-      meta += metaLine('지사', row.branch);
       meta += metaLine('고장분야', row.field ? row.field + '분야' : '');
       meta += metaLine('설비명', row.facility);
       meta += metaLine('고장내용', row.fault_content);
@@ -323,19 +333,26 @@
     var revChip = (row.doc_type === 'manual' && row.revision)
       ? '<span class="rev-chip"></span>' : '';
 
+    var canDel = Archive.canDelete(currentUser, row);
+
     card.innerHTML =
       '<div class="card-top">' +
         '<span class="card-head">' +
           '<span class="card-title"></span>' + revChip +
         '</span>' +
-        '<span class="badge">' + (TYPE_LABELS[row.doc_type] || row.doc_type) + '</span>' +
+        '<span class="badge"></span>' +
       '</div>' +
       '<div class="meta">' + meta + '</div>' +
-      '<div class="card-actions"><button type="button">PDF 열기</button></div>';
+      '<div class="card-actions">' +
+        '<button type="button" class="pdf-btn">PDF 열기</button>' +
+        (canDel ? '<button type="button" class="del-btn">삭제</button>' : '') +
+      '</div>';
 
     card.querySelector('.card-title').textContent = row.file_name;
+    card.querySelector('.badge').textContent = row.branch || '';
     if(revChip) card.querySelector('.rev-chip').textContent = '개정 ' + row.revision;
-    var btn = card.querySelector('.card-actions button');
+
+    var btn = card.querySelector('.pdf-btn');
     btn.addEventListener('click', function(){
       btn.disabled = true;
       Archive.signedUrl(row.pdf_path).then(function(url){
@@ -347,7 +364,28 @@
         setStatus('PDF를 열지 못했습니다: ' + (err.message || ''), true);
       });
     });
+
+    var delBtn = card.querySelector('.del-btn');
+    if(delBtn){
+      delBtn.addEventListener('click', function(){
+        if(!window.confirm('"' + row.file_name + '" 문서를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
+        delBtn.disabled = true;
+        Archive.deleteDocument(row).then(function(){
+          card.remove();
+          showStatusAfterDelete();
+        }).catch(function(err){
+          delBtn.disabled = false;
+          console.error(err);
+          setStatus('삭제하지 못했습니다: ' + (err.message || ''), true);
+        });
+      });
+    }
     return card;
+  }
+
+  function showStatusAfterDelete(){
+    var left = resultsEl.querySelectorAll('.card').length;
+    setStatus(left === 0 ? '조건에 맞는 문서가 없습니다.' : left + '건을 찾았습니다.');
   }
 
   function runSearch(){
@@ -372,7 +410,7 @@
         return;
       }
       setStatus(rows.length + '건을 찾았습니다.');
-      if(currentType === 'manual') rows = groupByRevision(rows);
+      rows = currentType === 'manual' ? sortManualRows(rows) : sortFaultRows(rows);
       var frag = document.createDocumentFragment();
       rows.forEach(function(r){ frag.appendChild(renderRow(r)); });
       resultsEl.appendChild(frag);
@@ -402,6 +440,7 @@
   });
 
   function enterBrowser(user){
+    currentUser = user;
     show(loginGate, false);
     show(browser, true);
     userChip.textContent = Archive.displayName(user) + ' · 로그아웃';

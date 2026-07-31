@@ -5,6 +5,7 @@
   'use strict';
 
   var BUCKET = 'documents';
+  var ADMIN_EMAIL = 'audition411@kdhc.co.kr';
   var client = null;
 
   function config() {
@@ -177,6 +178,27 @@
     });
   }
 
+  // 작성자 본인 또는 관리자(김영섭)만 삭제할 수 있다. 실제 제한은 서버 RLS가 담당하고,
+  // 이건 화면에 삭제 버튼을 보여줄지 판단하는 용도다.
+  function canDelete(user, row) {
+    if (!user || !row) return false;
+    if (row.author_id && row.author_id === user.id) return true;
+    var email = (user.email || '').toLowerCase();
+    return email === ADMIN_EMAIL.toLowerCase();
+  }
+
+  // 문서 행과 저장된 PDF를 함께 지운다. 행 삭제가 RLS에 막히면 파일은 건드리지 않는다.
+  function deleteDocument(row) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.from('documents').delete().eq('id', row.id).then(function (res) {
+      if (res.error) throw res.error;
+      return c.storage.from(BUCKET).remove([row.pdf_path]).catch(function (err) {
+        console.error('PDF 파일 삭제 실패(행은 삭제됨):', err);
+      });
+    });
+  }
+
   // 비공개 버킷이므로 열람은 만료되는 서명 URL로만
   function signedUrl(path, seconds) {
     var c = getClient();
@@ -206,6 +228,8 @@
     onAuthChange: onAuthChange,
     saveDocument: saveDocument,
     queryDocuments: queryDocuments,
+    canDelete: canDelete,
+    deleteDocument: deleteDocument,
     signedUrl: signedUrl,
     minutesToText: minutesToText
   };
