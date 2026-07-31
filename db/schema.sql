@@ -30,6 +30,9 @@ create table if not exists public.documents (
   field         text,                 -- 분야 (매뉴얼 9종 / 고장보고서 7종 공용)
   revision      text,                 -- 개정번호
 
+  -- 저장 경로용 (documents/{지사}/{연도}/{종류}/{제목}.pdf)
+  year          integer,              -- PDF 생성 연도
+
   -- 고장 보고서 전용
   occurred_at   timestamptz,          -- 발생일시
   branch        text,                 -- 지사
@@ -49,6 +52,10 @@ create table if not exists public.documents (
 );
 
 comment on column public.documents.outage_mins is '기간을 분 단위 정수로 저장해 정렬·집계가 가능하게 함';
+
+-- 이미 만들어진 테이블에는 create table if not exists가 컬럼을 추가해 주지 않으므로 별도로 추가한다.
+alter table public.documents add column if not exists year integer;
+comment on column public.documents.year is 'PDF 생성 연도 — 저장 경로(documents/{지사}/{연도}/{종류}/{제목}.pdf)의 연도와 맞춘다';
 
 -- ---------------------------------------------------------------------------
 -- 조회 성능용 인덱스

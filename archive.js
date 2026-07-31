@@ -79,23 +79,62 @@
 
   // ---- 저장 -----------------------------------------------------------------
 
-  function storagePath(docType, id) {
-    var now = new Date();
-    var yyyy = now.getFullYear();
-    var mm = ('0' + (now.getMonth() + 1)).slice(-2);
-    return docType + '/' + yyyy + '/' + mm + '/' + id + '.pdf';
+  var MAX_UPLOAD_ATTEMPTS = 50;
+
+  // pdf_path에 그대로 들어가는 경로용 새니타이즈. 로컬 다운로드 파일명에 쓰는
+  // sanitizeFileName()(index.html, '_'로 치환)과는 별개 — 여기는 지정된 문자만
+  // 제거하고 한글·공백은 그대로 둔다.
+  function sanitizeForStoragePath(name) {
+    return String(name || '')
+      .replace(/[\\/?#%:*"<>|]/g, '')
+      .replace(/[\x00-\x1f\x7f]/g, '')
+      .trim();
   }
 
-  function uuid() {
-    if (global.crypto && global.crypto.randomUUID) return global.crypto.randomUUID();
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (ch) {
-      var r = (Math.random() * 16) | 0;
-      return (ch === 'x' ? r : ((r & 0x3) | 0x8)).toString(16);
-    });
+  // documents/{지사}/{연도}/{manual|fault}/{제목}.pdf
+  function storagePath(docType, branch, title, year) {
+    var safeBranch = sanitizeForStoragePath(branch) || '미지정';
+    var safeTitle = sanitizeForStoragePath(title) || '문서';
+    var y = year || new Date().getFullYear();
+    return safeBranch + '/' + y + '/' + docType + '/' + safeTitle + '.pdf';
   }
 
-  /* meta: doc_type, file_name, title, photo_count, page_count 및 종류별 필드.
-     author_id / author_name / pdf_path / pdf_bytes 는 여기서 채웁니다. */
+  // Supabase Storage가 upsert:false에서 기존 경로와 충돌할 때 주는 오류 판별.
+  // SDK 버전에 따라 문구가 다를 수 있어 메시지와 상태코드를 함께 본다.
+  function isDuplicatePathError(err) {
+    var msg = ((err && (err.message || err.error)) || '') + '';
+    var status = err && (err.statusCode || err.status);
+    return /already exists|duplicate/i.test(msg) || status === 409 || status === '409';
+  }
+
+  // 확장자 앞에 (n)을 끼워 넣는다: "제목.pdf" -> "제목(2).pdf"
+  function withSuffix(path, n) {
+    var dot = path.lastIndexOf('.');
+    if (dot === -1) return path + '(' + n + ')';
+    return path.slice(0, dot) + '(' + n + ')' + path.slice(dot);
+  }
+
+  // 동명 파일이 있으면 (2), (3)... 순으로 자동 증가시켜 재시도한다.
+  // 조용히 처리해야 하므로(사용자에게 팝업 노출 금지) 여기서는 어떤 UI도 건드리지 않는다.
+  function uploadWithRetry(c, basePath, pdfBlob) {
+    function attempt(n) {
+      var path = n === 1 ? basePath : withSuffix(basePath, n);
+      return c.storage.from(BUCKET)
+        .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: false })
+        .then(function (up) {
+          if (up.error) {
+            if (isDuplicatePathError(up.error) && n < MAX_UPLOAD_ATTEMPTS) return attempt(n + 1);
+            throw up.error;
+          }
+          return path;
+        });
+    }
+    return attempt(1);
+  }
+
+  /* meta: doc_type, file_name, title, branch, year, photo_count, page_count 및
+     종류별 필드. author_id / author_name / pdf_path / pdf_bytes 는 여기서 채웁니다.
+     branch·title·year로 저장 경로(documents/{지사}/{연도}/{종류}/{제목}.pdf)를 만든다. */
   function saveDocument(meta, pdfBlob) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
@@ -103,25 +142,17 @@
     return currentUser().then(function (user) {
       if (!user) throw new Error('로그인이 필요합니다.');
 
-      var id = uuid();
-      var path = storagePath(meta.doc_type, id);
+      var basePath = storagePath(meta.doc_type, meta.branch, meta.title, meta.year);
 
-      return c.storage.from(BUCKET)
-        .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: false })
-        .then(function (up) {
-          if (up.error) throw up.error;
+      return uploadWithRetry(c, basePath, pdfBlob).then(function (path) {
+        var row = Object.assign({}, meta, {
+          author_id: user.id,
+          author_name: displayName(user),
+          pdf_path: path,
+          pdf_bytes: pdfBlob.size
+        });
 
-          var row = Object.assign({}, meta, {
-            id: id,
-            author_id: user.id,
-            author_name: displayName(user),
-            pdf_path: path,
-            pdf_bytes: pdfBlob.size
-          });
-
-          return c.from('documents').insert(row).select().single();
-        })
-        .then(function (ins) {
+        return c.from('documents').insert(row).select().single().then(function (ins) {
           if (ins.error) {
             // 행 저장이 실패하면 업로드한 파일이 고아로 남지 않게 정리
             c.storage.from(BUCKET).remove([path]);
@@ -129,6 +160,7 @@
           }
           return ins.data;
         });
+      });
     });
   }
 
