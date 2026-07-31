@@ -91,6 +91,7 @@
   .msec-skip-btn{ flex:none; padding:6px 14px; font-family:inherit; font-size:12.5px; font-weight:600; border-radius:var(--radius-full); border:1px solid var(--hairline); background:var(--canvas); color:var(--muted); cursor:pointer; }
   .msec-skip-btn.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
   .manual-sec-body.skipped{ opacity:.45; pointer-events:none; }
+  .msec-hint{ margin:0; font-size:13px; color:var(--muted); line-height:1.5; }
   .msec-table-wrap:empty{ margin:0; }
   .msec-table-wrap{ margin-top:10px; }
   .msec-table{ width:100%; border-collapse:collapse; margin-bottom:8px; }
@@ -426,7 +427,7 @@
         <button type="button" class="msec-skip-btn" id="manualDetailSkipBtn">생략</button>
       </div>
       <div class="manual-sec-body" id="manualDetailBody">
-        <textarea id="manualDetail" class="field-textarea" rows="3" placeholder="세부 내용을 입력하세요. (아래에서 사진과 절차를 추가합니다)"></textarea>
+        <p class="msec-hint">아래에서 추가하는 사진과 절차가 이 항목의 내용으로 출력됩니다.</p>
       </div>
     </div>
 
@@ -2002,11 +2003,14 @@
 
   // ---- 매뉴얼 1~4번 항목(목적·준비물·주의사항·세부내용) ----------------------
 
+  /* 번호는 출력물에서 생략된 항목을 건너뛰고 다시 매기므로 여기엔 이름(label)만
+     두고, 실제 "n. 이름" 조립은 buildManualSummarySections()에서 한다. */
   var MANUAL_SECTION_DEFS = [
-    { key: 'purpose', heading: '1. 목적', textareaId: 'manualPurpose', bodyId: 'manualPurposeBody', skipBtnId: 'manualPurposeSkipBtn' },
-    { key: 'prep', heading: '2. 준비물', textareaId: 'manualPrep', bodyId: 'manualPrepBody', skipBtnId: 'manualPrepSkipBtn', hasTable: true },
-    { key: 'caution', heading: '3. 주의 사항', textareaId: 'manualCaution', bodyId: 'manualCautionBody', skipBtnId: 'manualCautionSkipBtn' },
-    { key: 'detail', heading: '4. 세부 내용', textareaId: 'manualDetail', bodyId: 'manualDetailBody', skipBtnId: 'manualDetailSkipBtn' }
+    { key: 'purpose', label: '목적', textareaId: 'manualPurpose', bodyId: 'manualPurposeBody', skipBtnId: 'manualPurposeSkipBtn' },
+    { key: 'prep', label: '준비물', textareaId: 'manualPrep', bodyId: 'manualPrepBody', skipBtnId: 'manualPrepSkipBtn', hasTable: true },
+    { key: 'caution', label: '주의 사항', textareaId: 'manualCaution', bodyId: 'manualCautionBody', skipBtnId: 'manualCautionSkipBtn' },
+    // 세부내용은 입력창 없이 제목만 — 바로 이어지는 사진·절차가 곧 이 항목의 내용이다.
+    { key: 'detail', label: '세부 내용', bodyId: 'manualDetailBody', skipBtnId: 'manualDetailSkipBtn' }
   ];
   var manualSkip = { purpose: false, prep: false, caution: false, detail: false };
 
@@ -2122,32 +2126,37 @@
     return table;
   }
 
-  // 생략한 항목은 통째로 건너뛰어 출력물에 나오지 않는다.
-  function buildManualSectionElement(def){
-    if(manualSkip[def.key]) return null;
+  // number는 생략된 항목을 건너뛰고 다시 매긴 순번 — 그대로 "n. 이름"이 된다.
+  // 세부내용(textareaId 없음)은 제목만 찍고 끝, 바로 뒤에 사진 절차가 이어진다.
+  function buildManualSectionElement(def, number){
     var wrap = document.createElement('div');
     wrap.className = 'man-sec';
 
     var heading = document.createElement('div');
     heading.className = 'man-sec-heading';
-    heading.textContent = def.heading;
+    heading.textContent = number + '. ' + def.label;
     wrap.appendChild(heading);
 
-    var body = document.createElement('div');
-    body.className = 'man-sec-body';
-    body.textContent = manualSectionText(def.textareaId);
-    wrap.appendChild(body);
+    if(def.textareaId){
+      var body = document.createElement('div');
+      body.className = 'man-sec-body';
+      body.textContent = manualSectionText(def.textareaId);
+      wrap.appendChild(body);
 
-    if(def.hasTable && manualPrepTable) wrap.appendChild(buildManualPrepTableElement());
+      if(def.hasTable && manualPrepTable) wrap.appendChild(buildManualPrepTableElement());
+    }
 
     return wrap;
   }
 
+  // 생략한 항목은 통째로 건너뛰고, 남은 항목끼리 번호를 1부터 다시 매긴다.
   function buildManualSummarySections(){
     var frag = document.createDocumentFragment();
+    var n = 0;
     MANUAL_SECTION_DEFS.forEach(function(def){
-      var el = buildManualSectionElement(def);
-      if(el) frag.appendChild(el);
+      if(manualSkip[def.key]) return;
+      n++;
+      frag.appendChild(buildManualSectionElement(def, n));
     });
     return frag;
   }
@@ -3020,7 +3029,7 @@
   }
 
   var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect',
-    'manualBranchSelect', 'manualPurpose', 'manualPrep', 'manualCaution', 'manualDetail'];
+    'manualBranchSelect', 'manualPurpose', 'manualPrep', 'manualCaution'];
 
   /* 사진의 sketchedCache·rotatedCache 는 baseDataURL + strokes + rotation 으로
      다시 만들 수 있는 파생물이라 저장하지 않는다. 그대로 담으면 용량이 3배가 된다. */
