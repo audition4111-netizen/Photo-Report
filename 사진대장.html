@@ -501,7 +501,7 @@
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="faultContent">고장내용</label>
+        <label class="field-label" for="faultContent">고장내용(추정 원인)</label>
         <textarea id="faultContent" class="field-textarea" rows="2" placeholder="고장 내용을 입력하세요."></textarea>
       </div>
 
@@ -513,11 +513,6 @@
         <div id="faultSituationFields">
           <textarea id="faultSituation" class="field-textarea" rows="3" placeholder="상황을 입력하세요."></textarea>
         </div>
-      </div>
-
-      <div class="field-group">
-        <label class="field-label" for="faultCause">추정 원인</label>
-        <textarea id="faultCause" class="field-textarea" rows="3" placeholder="추정 원인을 입력하세요."></textarea>
       </div>
 
       <div class="field-row">
@@ -772,7 +767,7 @@
   ['faultOccurredDate','faultOccurredTime','faultFieldSelect','faultBranch','faultFacility',
    'faultDevice','faultApt','faultBuilding','faultStopDate','faultStopTime','faultDuration',
    'faultDownTime',
-   'faultContent','faultSituation','faultCause','faultRecoverDate','faultRecoverTime',
+   'faultContent','faultSituation','faultRecoverDate','faultRecoverTime',
    'faultRecoverNote','faultAction'
   ].forEach(function(id){ faultInputs[id] = document.getElementById(id); });
   var faultNoOutageEl = document.getElementById('faultNoOutage');
@@ -2353,7 +2348,7 @@
       ]);
     }
 
-    addRow([faultCell('고장내용', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
+    addRow([faultCell('고장내용(추정 원인)', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
     // 상황을 생략하면 행 자체를 만들지 않는다 — 열공급 중단과 달리 '해당없음'을 찍지 않는다.
     if(!isNoSituation()){
       addRow([
@@ -2361,7 +2356,6 @@
         faultCell(faultText('faultSituation'), 'fr-body', 4)
       ]);
     }
-    addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
     // 4칸을 2:2로 나눠 왼쪽은 복구일시, 오른쪽은 자동 계산된 설비 정지기간
     addRow([
       faultCell('복구일시/설비정지기간', 'fr-label'),
@@ -2912,7 +2906,6 @@
       meta.device = faultValue('faultDevice') || null;
       meta.fault_content = faultValue('faultContent') || null;
       meta.situation = isNoSituation() ? '생략' : (faultValue('faultSituation') || null);
-      meta.cause = faultValue('faultCause') || null;
       meta.recover_at = isoOrNull('faultRecoverDate', 'faultRecoverTime');
       meta.recover_note = faultValue('faultRecoverNote') || null;
       meta.action_taken = isNoAction() ? '생략' : (faultValue('faultAction') || null);
