@@ -1,6 +1,6 @@
 {
-  "name": "뚝 DOC(계전부 전용) — 자동 문서 생성기",
-  "short_name": "뚝 DOC(계전부 전용)",
+  "name": "뚝 DOC(계전부 배포용) — 자동 문서 생성기",
+  "short_name": "뚝 DOC(계전부 배포용)",
   "description": "사진대장·매뉴얼·고장 보고서를 현장에서 바로 만드는 앱",
   "lang": "ko",
   "dir": "ltr",
