@@ -29,12 +29,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "shortcuts": [
-    {
-      "name": "보관함 조회",
-      "short_name": "보관함",
-      "url": "./search.html"
-    }
   ]
 }
