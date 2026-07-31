@@ -83,7 +83,7 @@
   .time-picker{ display:flex; align-items:center; gap:6px; }
   .time-picker select.field-input{ flex:1; min-width:0; text-align:center; padding-left:8px; padding-right:26px; background-position:right 8px center; }
   .time-colon{ font-size:16px; color:var(--muted); }
-  #faultOutageFields.disabled, #faultSituationFields.disabled{ opacity:.45; pointer-events:none; }
+  #faultOutageFields.disabled, #faultSituationFields.disabled, #faultActionFields.disabled{ opacity:.45; pointer-events:none; }
   #faultFields[hidden]{ display:none; }
   #manualSections[hidden]{ display:none; }
   .manual-sec-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:18px 0 8px; }
@@ -424,7 +424,6 @@
 
       <div class="manual-sec-head">
         <span class="fault-section-label">4. 세부 내용</span>
-        <button type="button" class="msec-skip-btn" id="manualDetailSkipBtn">생략</button>
       </div>
       <div class="manual-sec-body" id="manualDetailBody">
         <p class="msec-hint">아래에서 추가하는 사진과 절차가 이 항목의 내용으로 출력됩니다.</p>
@@ -511,7 +510,7 @@
       <div class="field-group">
         <div class="fault-sub-head">
           <span class="fault-sub-label">상황(운전자/목격자 진술 포함)</span>
-          <label class="check-inline"><input type="checkbox" id="faultNoSituation"> 해당없음</label>
+          <label class="check-inline"><input type="checkbox" id="faultNoSituation"> 생략</label>
         </div>
         <div id="faultSituationFields">
           <textarea id="faultSituation" class="field-textarea" rows="3" placeholder="상황을 입력하세요."></textarea>
@@ -544,8 +543,13 @@
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="faultAction">조치사항</label>
-        <textarea id="faultAction" class="field-textarea" rows="3" placeholder="조치 사항을 입력하세요."></textarea>
+        <div class="fault-sub-head">
+          <span class="fault-sub-label">조치사항</span>
+          <label class="check-inline"><input type="checkbox" id="faultNoAction"> 생략</label>
+        </div>
+        <div id="faultActionFields">
+          <textarea id="faultAction" class="field-textarea" rows="3" placeholder="조치 사항을 입력하세요."></textarea>
+        </div>
       </div>
 
       <div class="fault-section-label">2. 관련 사진</div>
@@ -777,6 +781,8 @@
   var faultOutageFieldsEl = document.getElementById('faultOutageFields');
   var faultNoSituationEl = document.getElementById('faultNoSituation');
   var faultSituationFieldsEl = document.getElementById('faultSituationFields');
+  var faultNoActionEl = document.getElementById('faultNoAction');
+  var faultActionFieldsEl = document.getElementById('faultActionFields');
   var manualSectionsEl = document.getElementById('manualSections');
   var manualPrepTableWrapEl = document.getElementById('manualPrepTableWrap');
   var manualPrepAddTableBtn = document.getElementById('manualPrepAddTableBtn');
@@ -1987,7 +1993,7 @@
   }
   if(faultNoOutageEl) faultNoOutageEl.addEventListener('change', refreshOutageEnabled);
 
-  // 상황도 열공급 중단과 같은 방식 — 해당없음이면 입력을 잠그고 출력물에 '해당없음'
+  // 상황도 열공급 중단과 같은 방식 — 생략하면 입력을 잠그고 출력물에서 그 행 자체가 빠진다.
   function isNoSituation(){
     return !!(faultNoSituationEl && faultNoSituationEl.checked);
   }
@@ -2001,6 +2007,20 @@
   }
   if(faultNoSituationEl) faultNoSituationEl.addEventListener('change', refreshSituationEnabled);
 
+  // 조치사항도 같은 방식 — 생략하면 입력을 잠그고 출력물에서 그 행이 빠진다.
+  function isNoAction(){
+    return !!(faultNoActionEl && faultNoActionEl.checked);
+  }
+
+  function refreshActionEnabled(){
+    var off = isNoAction();
+    faultActionFieldsEl.classList.toggle('disabled', off);
+    faultActionFieldsEl.querySelectorAll('textarea').forEach(function(el){
+      el.disabled = off;
+    });
+  }
+  if(faultNoActionEl) faultNoActionEl.addEventListener('change', refreshActionEnabled);
+
   // ---- 매뉴얼 1~4번 항목(목적·준비물·주의사항·세부내용) ----------------------
 
   /* 번호는 출력물에서 생략된 항목을 건너뛰고 다시 매기므로 여기엔 이름(label)만
@@ -2009,15 +2029,17 @@
     { key: 'purpose', label: '목적', textareaId: 'manualPurpose', bodyId: 'manualPurposeBody', skipBtnId: 'manualPurposeSkipBtn' },
     { key: 'prep', label: '준비물', textareaId: 'manualPrep', bodyId: 'manualPrepBody', skipBtnId: 'manualPrepSkipBtn', hasTable: true },
     { key: 'caution', label: '주의 사항', textareaId: 'manualCaution', bodyId: 'manualCautionBody', skipBtnId: 'manualCautionSkipBtn' },
-    // 세부내용은 입력창 없이 제목만 — 바로 이어지는 사진·절차가 곧 이 항목의 내용이다.
-    { key: 'detail', label: '세부 내용', bodyId: 'manualDetailBody', skipBtnId: 'manualDetailSkipBtn' }
+    // 세부내용은 입력창 없이 제목만 — 바로 이어지는 사진·절차가 곧 이 항목의 내용이라
+    // 사진 등록이 필수인 이상 생략이 의미가 없다. skipBtnId가 없으므로 항상 포함된다.
+    { key: 'detail', label: '세부 내용', bodyId: 'manualDetailBody' }
   ];
-  var manualSkip = { purpose: false, prep: false, caution: false, detail: false };
+  var manualSkip = { purpose: false, prep: false, caution: false };
 
   // 준비물 표. 만들기 전에는 null — "+ 표 추가"를 눌러야 생긴다.
   var manualPrepTable = null;
 
   function setManualSkip(def, skipped){
+    if(!def.skipBtnId) return;
     manualSkip[def.key] = skipped;
     var body = document.getElementById(def.bodyId);
     var btn = document.getElementById(def.skipBtnId);
@@ -2030,6 +2052,7 @@
   }
 
   MANUAL_SECTION_DEFS.forEach(function(def){
+    if(!def.skipBtnId) return;
     var btn = document.getElementById(def.skipBtnId);
     btn.addEventListener('click', function(){ setManualSkip(def, !manualSkip[def.key]); });
   });
@@ -2332,12 +2355,13 @@
     }
 
     addRow([faultCell('고장내용', 'fr-label'), faultCell(faultText('faultContent'), 'fr-body', 4)]);
-    addRow([
-      faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'),
-      isNoSituation()
-        ? faultCell('해당없음', 'fr-center', 4)
-        : faultCell(faultText('faultSituation'), 'fr-body', 4)
-    ]);
+    // 상황을 생략하면 행 자체를 만들지 않는다 — 열공급 중단과 달리 '해당없음'을 찍지 않는다.
+    if(!isNoSituation()){
+      addRow([
+        faultCell('상황(운전자/목격자\n진술 포함)', 'fr-label'),
+        faultCell(faultText('faultSituation'), 'fr-body', 4)
+      ]);
+    }
     addRow([faultCell('추정 원인', 'fr-label'), faultCell(faultText('faultCause'), 'fr-body', 4)]);
     // 4칸을 2:2로 나눠 왼쪽은 복구일시, 오른쪽은 자동 계산된 설비 정지기간
     addRow([
@@ -2345,7 +2369,10 @@
       faultCell(formatFaultRecovery(), 'fr-center', 2),
       faultCell(computeFaultDownTime() || '-', 'fr-center', 2)
     ]);
-    addRow([faultCell('조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
+    // 조치사항도 생략하면 행 자체를 만들지 않는다.
+    if(!isNoAction()){
+      addRow([faultCell('조치사항', 'fr-label'), faultCell(faultText('faultAction'), 'fr-body', 4)]);
+    }
 
     table.appendChild(tbody);
     return table;
@@ -2885,11 +2912,11 @@
       meta.facility = faultValue('faultFacility') || null;
       meta.device = faultValue('faultDevice') || null;
       meta.fault_content = faultValue('faultContent') || null;
-      meta.situation = isNoSituation() ? '해당없음' : (faultValue('faultSituation') || null);
+      meta.situation = isNoSituation() ? '생략' : (faultValue('faultSituation') || null);
       meta.cause = faultValue('faultCause') || null;
       meta.recover_at = isoOrNull('faultRecoverDate', 'faultRecoverTime');
       meta.recover_note = faultValue('faultRecoverNote') || null;
-      meta.action_taken = faultValue('faultAction') || null;
+      meta.action_taken = isNoAction() ? '생략' : (faultValue('faultAction') || null);
       meta.outage_none = isNoOutage();
       if(!isNoOutage()){
         meta.outage_apt = intOrNull('faultApt');
@@ -3050,6 +3077,7 @@
       fields: fields,
       outageNone: !!(faultNoOutageEl && faultNoOutageEl.checked),
       situationNone: !!(faultNoSituationEl && faultNoSituationEl.checked),
+      actionNone: !!(faultNoActionEl && faultNoActionEl.checked),
       manualSkip: manualSkip,
       manualPrepTable: manualPrepTable,
       idCounter: idCounter,
@@ -3117,6 +3145,10 @@
     if(faultNoSituationEl){
       faultNoSituationEl.checked = !!payload.situationNone;
       refreshSituationEnabled();
+    }
+    if(faultNoActionEl){
+      faultNoActionEl.checked = !!payload.actionNone;
+      refreshActionEnabled();
     }
     refreshFaultDuration();
 
