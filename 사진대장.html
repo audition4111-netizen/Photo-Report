@@ -66,7 +66,9 @@
   .field-row{ display:flex; gap:10px; }
   .field-row[hidden]{ display:none; }
   .field-row .field-group{ flex:1; min-width:0; }
-  .field-textarea{ width:100%; padding:13px 11px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-family:inherit; font-size:16px; line-height:1.5; resize:vertical; background:var(--canvas); color:var(--ink); min-height:56px; }
+  /* 입력란도 출력물과 같은 규칙으로 줄을 바꿔, 어느 어절이 넘어가는지
+     적으면서 바로 보이게 한다. (칸 너비가 달라 넘어가는 지점까지 같지는 않다) */
+  .field-textarea{ width:100%; padding:13px 11px; border:1px solid var(--hairline); border-radius:var(--radius-sm); font-family:inherit; font-size:16px; line-height:1.5; resize:vertical; background:var(--canvas); color:var(--ink); min-height:56px; word-break:keep-all; overflow-wrap:break-word; }
   .field-textarea:focus{ outline:none; border-width:2px; border-color:var(--ink); padding:12px 10px; }
   .unit-field{ position:relative; }
   .unit-field .field-input{ padding-right:46px; }
@@ -112,7 +114,17 @@
   .add-btn{ width:100%; padding:14px 24px; font-size:16px; font-weight:500; border:none; border-radius:var(--radius-sm); background:var(--primary); color:var(--on-primary); cursor:pointer; margin-bottom:14px; height:48px; }
   .add-btn:active{ background:var(--primary-active); }
   .add-btn:disabled{ background:var(--primary-disabled); cursor:not-allowed; }
+  /* 매뉴얼에서만 [텍스트 추가]가 [사진 추가] 옆에 함께 선다. 다른 모드에서는
+     hidden 이라 사진 버튼 혼자 한 줄을 그대로 차지한다. */
+  .add-btn-row{ display:flex; gap:8px; margin-bottom:14px; }
+  .add-btn-row .add-btn{ margin-bottom:0; }
+  .add-btn-row .add-btn[hidden]{ display:none; }
+  .add-btn.add-btn-text{ background:var(--canvas); color:var(--primary); border:1px solid var(--primary); }
+  .add-btn.add-btn-text:active{ background:var(--surface-soft); }
+  .add-btn.add-btn-text:disabled{ background:var(--canvas); color:var(--primary-disabled); border-color:var(--primary-disabled); }
   .add-hint{ font-size:12px; color:var(--muted); margin:-8px 0 14px; line-height:1.5; }
+  /* 두 번째 안내는 앞 안내 바로 아래에 붙으므로 끌어올리지 않는다 */
+  .add-hint + .add-hint{ margin-top:6px; }
 
   details.guide{ margin:0 0 14px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); overflow:hidden; }
   details.guide summary{ cursor:pointer; padding:12px 14px; font-size:13px; font-weight:500; color:var(--muted); }
@@ -130,8 +142,10 @@
   .item-index{ font-size:12px; color:var(--muted); }
   .thumb-wrap{ width:100%; height:220px; display:flex; align-items:center; justify-content:center; background:var(--surface-soft); border-radius:var(--radius-md); margin-bottom:12px; overflow:hidden; }
   .thumb-wrap img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
-  textarea.desc-input{ width:100%; border:1px solid var(--hairline); border-radius:var(--radius-sm); padding:13px 11px; font-size:16px; line-height:1.5; resize:none; overflow:hidden; font-family:inherit; margin-bottom:12px; min-height:44px; max-height:240px; background:var(--canvas); color:var(--ink); }
+  textarea.desc-input{ width:100%; border:1px solid var(--hairline); border-radius:var(--radius-sm); padding:13px 11px; font-size:16px; line-height:1.5; resize:none; overflow:hidden; font-family:inherit; margin-bottom:12px; min-height:44px; max-height:240px; background:var(--canvas); color:var(--ink); word-break:keep-all; overflow-wrap:break-word; }
   textarea.desc-input:focus{ outline:none; border-width:2px; border-color:var(--ink); padding:12px 10px; }
+  /* 텍스트 항목은 설명 한 줄이 아니라 본문이라 처음부터 넉넉하게 연다. */
+  textarea.desc-input.text-input{ min-height:120px; }
   .btn-row{ display:flex; gap:8px; }
   .btn{ flex:1; padding:9px 0; font-size:14px; font-weight:500; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
   .btn:active{ background:var(--surface-soft); }
@@ -167,7 +181,23 @@
   .photo-box{ flex:1 1 auto; min-height:0; height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
   .photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
   .desc-box{ flex:0 0 auto; min-height:9mm; padding:2.5mm 4mm; box-sizing:border-box; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .desc-text{ width:100%; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; font-size:14px; font-weight:700; line-height:1.5; text-align:center; }
+  .desc-text{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:14px; font-weight:700; line-height:1.5; text-align:center; }
+
+  /* 출력물 본문의 한 줄.
+     - word-break:keep-all — 한글의 기본 줄바꿈은 음절 단위라 "타이어"가
+       "타 / 이어"로 갈라진다. keep-all 이면 어절이 통째로 넘어간다.
+       (칸보다 긴 한 어절은 overflow-wrap 이 받아 넘침을 막는다)
+     - 단락기호는 왼쪽 칸에 따로 세우고 본문은 그 오른쪽에서만 흐르게 해서,
+       줄이 넘어갈 때 기호 자리가 아니라 기호 뒤 첫 글자에 맞춰 붙게 한다. */
+  .wrap-line{ display:flex; align-items:flex-start; }
+  .wrap-marker{ flex:none; white-space:pre; }
+  .wrap-body{ flex:1 1 auto; min-width:0; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; }
+  /* 사진 설명처럼 가운데로 맞춘 칸이라도, 기호를 단 줄은 목록이므로 왼쪽에 세운다 */
+  .wrap-line.has-marker .wrap-body{ text-align:left; }
+  /* 텍스트 항목은 사진 칸/설명 칸으로 나누지 않고 칸 하나를 통째로 쓴다.
+     위쪽 여백은 좌상단 순번 배지(2mm+6mm)를 피하려고 넉넉히 잡았다. */
+  .text-box{ flex:1 1 auto; min-height:0; display:flex; align-items:flex-start; padding:9mm 5mm 5mm; box-sizing:border-box; overflow:hidden; }
+  .text-body{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:12px; line-height:1.6; color:#000; }
 
   .manual-header{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 6mm; }
   .manual-header td{ border:1px solid #000; text-align:center; vertical-align:middle; padding:1mm 1.5mm; box-sizing:border-box; color:#000; }
@@ -184,9 +214,9 @@
 
   .man-sec{ margin:0 0 5mm; }
   .man-sec-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
-  .man-sec-body{ font-size:11.5px; color:#000; line-height:1.6; white-space:pre-wrap; word-break:break-word; overflow-wrap:break-word; padding-left:1em; }
+  .man-sec-body{ font-size:11.5px; color:#000; line-height:1.6; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; padding-left:1em; }
   .man-prep-table{ width:calc(100% - 1em); border-collapse:collapse; table-layout:fixed; margin:2mm 0 0 1em; }
-  .man-prep-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; text-align:center; color:#000; word-break:break-word; overflow-wrap:break-word; }
+  .man-prep-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; text-align:center; color:#000; word-break:keep-all; overflow-wrap:break-word; }
   .man-prep-table tr:first-child td{ font-weight:700; background:#f2f2f2; }
 
   .fr-head-row{ display:flex; align-items:center; justify-content:space-between; gap:6mm; margin:0 0 3mm; }
@@ -197,7 +227,7 @@
   .fr-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
   .fr-heading + .fr-heading{ margin-top:5mm; }
   .fr-table{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 5mm; }
-  .fr-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; line-height:1.45; color:#000; vertical-align:middle; word-break:break-word; overflow-wrap:break-word; }
+  .fr-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; line-height:1.45; color:#000; vertical-align:middle; word-break:keep-all; overflow-wrap:break-word; }
   .fr-label{ width:34mm; text-align:center; font-weight:700; background:#f2f2f2; white-space:pre-line; }
   .fr-sublabel{ width:24mm; text-align:center; font-weight:600; }
   .fr-body{ white-space:pre-wrap; }
@@ -206,7 +236,8 @@
   .fr-photo-cell{ border:1px solid #000; display:flex; flex-direction:column; box-sizing:border-box; }
   .fr-photo-box{ height:62mm; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:2mm; box-sizing:border-box; }
   .fr-photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
-  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:10px; font-weight:600; line-height:1.4; text-align:center; display:flex; align-items:center; justify-content:center; white-space:pre-wrap; word-break:break-word; box-sizing:border-box; }
+  /* 줄이 여러 개인 설명도 세로 가운데를 지키도록 세로 방향으로 쌓는다 */
+  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:10px; font-weight:600; line-height:1.4; text-align:center; display:flex; flex-direction:column; align-items:stretch; justify-content:center; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; box-sizing:border-box; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
@@ -426,7 +457,7 @@
         <span class="fault-section-label">4. 내용</span>
       </div>
       <div class="manual-sec-body" id="manualDetailBody">
-        <p class="msec-hint">아래에서 추가하는 사진과 절차가 이 항목의 내용으로 출력됩니다.</p>
+        <p class="msec-hint">아래에서 추가하는 사진과 텍스트가 등록한 순서대로 번호를 달고 이 항목의 내용으로 출력됩니다.</p>
       </div>
     </div>
 
@@ -554,8 +585,12 @@
       <span class="count-badge" id="countBadge">등록 사진 0 / 30</span>
     </div>
 
-    <button type="button" class="add-btn" id="addBtn">사진 추가</button>
+    <div class="add-btn-row">
+      <button type="button" class="add-btn" id="addBtn">사진 추가</button>
+      <button type="button" class="add-btn add-btn-text" id="addTextBtn" hidden>텍스트 추가</button>
+    </div>
     <div class="add-hint">이미지에서 여러 장을 한 번에 선택하거나, 스마트폰 기본 카메라 앱으로 바로 촬영해 등록할 수 있습니다.</div>
+    <div class="add-hint" id="addTextHint" hidden>사진 없이 글만 필요한 순번은 [텍스트 추가]로 만들면 칸 하나를 통째로 써서 내용을 적을 수 있습니다.</div>
 
     <details class="guide">
       <summary>사용 방법 안내 및 가이드</summary>
@@ -566,6 +601,7 @@
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영" 중 선택합니다.</li>
           <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
+          <li>매뉴얼에서는 [텍스트 추가]로 사진 없이 글만 들어가는 순번을 만들 수 있습니다. 사진과 텍스트는 누른 순서대로 번호가 이어집니다. (텍스트 최대 30개)</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 편집 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
           <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
@@ -747,15 +783,24 @@
   "use strict";
 
   var MAX_PHOTOS = 30;
+  var MAX_TEXTS = 30;
   var MAX_DIM = 1800;
   var MAX_FILE_SIZE = 30 * 1024 * 1024;
   var PX_PER_MM = 96 / 25.4;
 
+  /* photos 는 이름과 달리 "출력 칸" 목록이다. kind:'photo' 는 사진+설명 두 칸,
+     kind:'text' 는 글만 들어가는 한 칸이고, 매뉴얼의 순번은 이 배열 순서를 그대로
+     따른다. 사진과 텍스트를 한 배열에 두어야 서로 끼워 넣는 순서가 유지된다.
+     (kind 가 없는 항목은 예전 임시저장본이라 사진으로 본다) */
   var photos = [];
   var idCounter = 0;
   var replaceTargetId = null;
   var isGenerating = false;
   var appMode = 'report';
+
+  function isTextItem(item){ return !!item && item.kind === 'text'; }
+  function photoItems(){ return photos.filter(function(p){ return !isTextItem(p); }); }
+  function textCount(){ return photos.length - photoItems().length; }
 
   var fileNameInputEl = document.getElementById('fileNameInput');
   var revisionInputEl = document.getElementById('revisionInput');
@@ -783,6 +828,8 @@
   var manualPrepAddTableBtn = document.getElementById('manualPrepAddTableBtn');
   var countBadgeEl = document.getElementById('countBadge');
   var addBtn = document.getElementById('addBtn');
+  var addTextBtn = document.getElementById('addTextBtn');
+  var addTextHintEl = document.getElementById('addTextHint');
   var addFileInputEl = document.getElementById('addFileInput');
   var cameraFileInputEl = document.getElementById('cameraFileInput');
   var replaceFileInputEl = document.getElementById('replaceFileInput');
@@ -877,6 +924,10 @@
     docTypeGroupEl.hidden = appMode !== 'manual';
     manualSectionsEl.hidden = appMode !== 'manual';
     faultFieldsEl.hidden = appMode !== 'fault';
+    // 텍스트 칸은 매뉴얼에서만 의미가 있다 — 사진대장은 사진 전용이고,
+    // 고장 보고서는 칸 구성이 따로라 텍스트 칸이 들어갈 자리가 없다.
+    addTextBtn.hidden = appMode !== 'manual';
+    addTextHintEl.hidden = appMode !== 'manual';
   }
   function selectMode(mode){
     /* 첫 화면에는 로그인 요소를 두지 않고, 만들기를 누른 이 시점에 팝업을 띄운다.
@@ -1074,9 +1125,13 @@
   }
 
   function updateCountDisplay(){
-    countBadgeEl.textContent = '등록 사진 ' + photos.length + ' / ' + MAX_PHOTOS
+    var photoTotal = photoItems().length;
+    var texts = textCount();
+    countBadgeEl.textContent = '등록 사진 ' + photoTotal + ' / ' + MAX_PHOTOS
+      + (texts > 0 ? ' · 텍스트 ' + texts : '')
       + (appMode === 'fault' ? ' (3장 이하 권장)' : '');
-    addBtn.disabled = photos.length >= MAX_PHOTOS;
+    addBtn.disabled = photoTotal >= MAX_PHOTOS;
+    addTextBtn.disabled = texts >= MAX_TEXTS;
   }
 
   var TEXTAREA_MAX_HEIGHT = 240;
@@ -1098,7 +1153,9 @@
     if(photos.length === 0){
       var empty = document.createElement('div');
       empty.className = 'empty-state';
-      empty.textContent = "등록된 사진이 없습니다. '사진 추가' 버튼을 눌러 사진을 등록해 주세요.";
+      empty.textContent = appMode === 'manual'
+        ? "등록된 항목이 없습니다. '사진 추가' 또는 '텍스트 추가' 버튼을 눌러 내용을 등록해 주세요."
+        : "등록된 사진이 없습니다. '사진 추가' 버튼을 눌러 사진을 등록해 주세요.";
       photoListEl.appendChild(empty);
       return;
     }
@@ -1106,21 +1163,35 @@
       var el = document.createElement('div');
       el.className = 'photo-item';
       el.dataset.id = String(item.id);
-      el.innerHTML =
-        '<div class="item-top">' +
-          '<button type="button" class="drag-handle" data-action="order">↕ 순서 이동</button>' +
-          '<span class="item-index">' + (idx + 1) + '번</span>' +
-        '</div>' +
-        '<div class="thumb-wrap"><img alt="등록 사진 ' + (idx + 1) + '"></div>' +
-        '<textarea class="desc-input" placeholder="사진 설명을 입력하세요." rows="2"></textarea>' +
-        '<div class="btn-row">' +
-          '<button type="button" class="btn btn-outline" data-action="sketch">편집</button>' +
-          '<button type="button" class="btn btn-outline" data-action="replace">변경</button>' +
-          '<button type="button" class="btn btn-outline" data-action="rotate">회전</button>' +
-          '<button type="button" class="btn btn-danger" data-action="delete">삭제</button>' +
-        '</div>';
-      var rc = item.rotatedCache || { dataURL: item.baseDataURL };
-      el.querySelector('img').src = rc.dataURL;
+      /* 텍스트 항목에는 사진에만 있는 편집/변경/회전이 없다. 순번과 순서 이동,
+         삭제는 사진과 똑같이 두어 두 종류가 한 줄기로 이어지게 한다. */
+      if(isTextItem(item)){
+        el.innerHTML =
+          '<div class="item-top">' +
+            '<button type="button" class="drag-handle" data-action="order">↕ 순서 이동</button>' +
+            '<span class="item-index">' + (idx + 1) + '번 · 텍스트</span>' +
+          '</div>' +
+          '<textarea class="desc-input text-input" placeholder="내용을 입력하세요." rows="4"></textarea>' +
+          '<div class="btn-row">' +
+            '<button type="button" class="btn btn-danger" data-action="delete">삭제</button>' +
+          '</div>';
+      }else{
+        el.innerHTML =
+          '<div class="item-top">' +
+            '<button type="button" class="drag-handle" data-action="order">↕ 순서 이동</button>' +
+            '<span class="item-index">' + (idx + 1) + '번</span>' +
+          '</div>' +
+          '<div class="thumb-wrap"><img alt="등록 사진 ' + (idx + 1) + '"></div>' +
+          '<textarea class="desc-input" placeholder="사진 설명을 입력하세요." rows="2"></textarea>' +
+          '<div class="btn-row">' +
+            '<button type="button" class="btn btn-outline" data-action="sketch">편집</button>' +
+            '<button type="button" class="btn btn-outline" data-action="replace">변경</button>' +
+            '<button type="button" class="btn btn-outline" data-action="rotate">회전</button>' +
+            '<button type="button" class="btn btn-danger" data-action="delete">삭제</button>' +
+          '</div>';
+        var rc = item.rotatedCache || { dataURL: item.baseDataURL };
+        el.querySelector('img').src = rc.dataURL;
+      }
       var ta = el.querySelector('textarea');
       ta.value = item.description || '';
       photoListEl.appendChild(el);
@@ -1136,6 +1207,7 @@
   function pushPhoto(result){
     photos.push({
       id: ++idCounter,
+      kind: 'photo',
       baseDataURL: result.dataURL,
       naturalW: result.width,
       naturalH: result.height,
@@ -1148,11 +1220,33 @@
   }
 
   addBtn.addEventListener('click', function(){
-    if(photos.length >= MAX_PHOTOS){
+    if(photoItems().length >= MAX_PHOTOS){
       showToast('사진은 최대 30장까지 등록할 수 있습니다.');
       return;
     }
     openAddChoiceSheet();
+  });
+
+  // 방금 만든 빈 칸은 바로 적을 수 있게 화면에 띄우고 커서를 넣어 준다.
+  function focusItemInput(id){
+    var el = photoListEl.querySelector('.photo-item[data-id="' + id + '"]');
+    if(!el) return;
+    var ta = el.querySelector('textarea');
+    if(!ta) return;
+    if(el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+    ta.focus();
+  }
+
+  addTextBtn.addEventListener('click', function(){
+    if(textCount() >= MAX_TEXTS){
+      showToast('텍스트 칸은 최대 ' + MAX_TEXTS + '개까지 추가할 수 있습니다.');
+      return;
+    }
+    var id = ++idCounter;
+    photos.push({ id: id, kind: 'text', description: '' });
+    renderList();
+    updateCountDisplay();
+    focusItemInput(id);
   });
 
   function openAddChoiceSheet(){
@@ -1174,7 +1268,7 @@
 
   chooseCameraBtn.addEventListener('click', function(){
     closeAddChoiceSheet();
-    if(photos.length >= MAX_PHOTOS){
+    if(photoItems().length >= MAX_PHOTOS){
       showToast('사진은 최대 30장까지 등록할 수 있습니다.');
       return;
     }
@@ -1186,7 +1280,7 @@
     var file = e.target.files && e.target.files[0];
     e.target.value = '';
     if(!file) return;
-    if(photos.length >= MAX_PHOTOS){
+    if(photoItems().length >= MAX_PHOTOS){
       showToast('사진은 최대 30장까지 등록할 수 있습니다.');
       return;
     }
@@ -1201,12 +1295,12 @@
     var files = Array.from(e.target.files || []);
     e.target.value = '';
     if(files.length === 0) return;
-    if(photos.length >= MAX_PHOTOS){
+    if(photoItems().length >= MAX_PHOTOS){
       showToast('사진은 최대 30장까지 등록할 수 있습니다.');
       return;
     }
 
-    var remaining = MAX_PHOTOS - photos.length;
+    var remaining = MAX_PHOTOS - photoItems().length;
     var toProcess = files.slice(0, remaining);
     var skippedCount = files.length - toProcess.length;
     var errorCount = 0;
@@ -1661,7 +1755,10 @@
   });
 
   function confirmDeletePhoto(id){
-    if(window.confirm('이 사진과 설명을 삭제하시겠습니까?')){
+    var msg = isTextItem(findPhoto(id))
+      ? '이 텍스트 칸을 삭제하시겠습니까?'
+      : '이 사진과 설명을 삭제하시겠습니까?';
+    if(window.confirm(msg)){
       photos = photos.filter(function(p){ return p.id !== id; });
       renderList();
       updateCountDisplay();
@@ -1708,7 +1805,9 @@
     var from = indexOfPhoto(id);
     if(from < 0) return;
     if(photos.length < 2){
-      showToast('사진이 2장 이상일 때 순서를 변경할 수 있습니다.');
+      showToast(appMode === 'manual'
+        ? '항목이 2개 이상일 때 순서를 변경할 수 있습니다.'
+        : '사진이 2장 이상일 때 순서를 변경할 수 있습니다.');
       return;
     }
     orderTargetId = id;
@@ -1740,7 +1839,7 @@
     var moved = photos.splice(from, 1)[0];
     photos.splice(to, 0, moved);
     renderList();
-    showToast((from + 1) + '번 사진을 ' + (to + 1) + '번으로 옮겼습니다.');
+    showToast((from + 1) + '번 ' + (isTextItem(moved) ? '텍스트를 ' : '사진을 ') + (to + 1) + '번으로 옮겼습니다.');
   });
 
   orderCancelBtn.addEventListener('click', closeOrderPicker);
@@ -1778,6 +1877,140 @@
     var raw = fileNameInputEl.value.trim();
     if(raw) return raw;
     return MODE_LABELS[appMode] || MODE_LABELS.report;
+  }
+
+  /* ---- 출력물 줄바꿈 --------------------------------------------------------
+     손으로 적은 칸은 한 덩어리 문자열로 찍으면 두 가지가 어긋난다.
+       1) 한글의 기본 줄바꿈은 음절 단위라 "타이어"가 "타 / 이어"로 갈라진다.
+          → CSS 의 word-break:keep-all 이 맡는다.
+       2) "1) …"처럼 단락기호로 시작한 줄이 넘어가면 다음 줄이 기호 자리까지
+          되돌아가 문단 모양이 무너진다.
+          → 기호를 줄에서 떼어 왼쪽 칸에 세우고 본문은 그 오른쪽에서만 흐르게 해,
+            넘어간 줄이 기호 뒤 첫 글자에 맞춰 붙게 한다.
+     그래서 줄 단위로 쪼개어 marker/body 두 칸으로 그린다. */
+
+  /* 무엇을 단락기호로 볼지.
+       "1)" "(1)" "가)" "a)"  — 닫는 괄호는 본문과 헷갈릴 일이 없어 뒤 공백이 없어도 된다
+       "1. " "가. "          — 마침표형은 공백을 요구한다. 안 그러면 "2024.7.1"의
+                               "2024."이나 "타.이"의 "타."까지 기호로 잡힌다
+       "- " "· " "ㅇ "       — 기호형도 공백을 요구한다. "-5도"가 기호로 잡히면 안 된다
+       "①"                  — 원문자는 그 자체로 명확하다 */
+  var LINE_MARKER_RE = new RegExp(
+    '^\\s*(?:' +
+      '(?:\\(\\s*(?:\\d+|[가-힣]|[a-zA-Z])\\s*\\)|(?:\\d+|[가-힣]|[a-zA-Z])\\))\\s*' +
+      '|(?:\\d+|[가-힣]|[a-zA-Z])\\.\\s+' +
+      '|[①-⑮㉠-㉭]\\s*' +
+      '|[-–—*•·ㆍ○●◦▪▫□■◇◆※ㅇ]\\s+' +
+    ')'
+  );
+
+  function splitLineMarker(line){
+    var m = LINE_MARKER_RE.exec(line);
+    if(!m || !m[0]) return { marker: '', body: line };
+    return { marker: m[0], body: line.slice(m[0].length) };
+  }
+
+  /* ---- 외톨이 어절 ----------------------------------------------------------
+     "할 수 있음"의 "수", "않았으면 해"의 "해" 처럼 한 글자짜리 어절이 혼자
+     다음 줄로 넘어가면 뜻이 끊겨 읽힌다. 두 단계로 막는다.
+       1) 여기: 한 글자 어절 앞의 띄어쓰기를 줄바꿈 없는 공백으로 바꿔 앞 어절에
+          묶는다. 그러면 줄이 바뀔 때 둘이 같이 움직인다.
+       2) tightenOrphanLine(): 그래도 마지막 줄이 짧게 남으면 줄을 하나 더 쓰는
+          대신 자간을 조금 좁혀 앞 줄로 끌어올린다. */
+
+  var NBSP = ' ';
+  // 묶은 덩어리가 칸보다 길어지면 그 덩어리가 통째로 잘리므로 길이를 제한한다
+  var MAX_BOUND_LEN = 12;
+
+  function bindLoneSyllables(line){
+    var parts = String(line == null ? '' : line).split(' ');
+    if(parts.length < 2) return line;
+    var out = [parts[0]];
+    for(var i = 1; i < parts.length; i++){
+      var word = parts[i];
+      var prev = out[out.length - 1];
+      var lone = word.length === 1 && /[가-힣]/.test(word);
+      // prev 가 빈 문자열이면 원래 공백이 두 칸 이상이라는 뜻 — 그대로 둔다
+      if(lone && prev && (prev.length + 1 + word.length) <= MAX_BOUND_LEN){
+        out[out.length - 1] = prev + NBSP + word;
+      }else{
+        out.push(word);
+      }
+    }
+    return out.join(' ');
+  }
+
+  /* el 을 비우고 text 를 줄 단위로 다시 그린다. hanging 이 false 면 단락기호를
+     떼지 않고 줄만 나눈다(가운데로 맞춘 짧은 칸 등). */
+  function fillWrappedText(el, text, hanging){
+    el.textContent = '';
+    var lines = String(text == null ? '' : text).split('\n');
+    lines.forEach(function(line){
+      var row = document.createElement('div');
+      row.className = 'wrap-line';
+      var parsed = hanging === false ? { marker: '', body: line } : splitLineMarker(line);
+      if(parsed.marker){
+        row.className += ' has-marker';
+        var marker = document.createElement('span');
+        marker.className = 'wrap-marker';
+        marker.textContent = parsed.marker;
+        row.appendChild(marker);
+      }
+      var body = document.createElement('span');
+      body.className = 'wrap-body';
+      // 빈 줄도 한 줄 높이를 차지해야 원문의 줄 간격이 유지된다
+      if(parsed.body === '') body.appendChild(document.createElement('br'));
+      else body.textContent = bindLoneSyllables(parsed.body);
+      row.appendChild(body);
+      el.appendChild(row);
+    });
+  }
+
+  /* 묶어 놓고도 마지막 줄이 짧게 남는 경우 — 자간을 조금씩 좁혀 앞 줄로 끌어올린다.
+     좁혀도 줄 수가 줄지 않으면(=원래 그만큼 긴 글이면) 손대지 않고 되돌린다.
+     레이아웃을 재야 하므로 쪽을 화면(또는 오프스크린)에 붙인 뒤에 호출해야 한다. */
+  var TIGHTEN_STEPS = ['-0.01em', '-0.02em', '-0.03em', '-0.04em', '-0.05em'];
+  var ORPHAN_FILL_RATIO = 0.5;   // 마지막 줄이 칸 너비의 절반도 못 채우면 외톨이로 본다
+
+  function lineBoxCount(el){
+    var lh = parseFloat(window.getComputedStyle(el).lineHeight);
+    var h = el.getBoundingClientRect().height;
+    if(!lh || !h) return 0;        // 잴 수 없는 상황(숨겨진 요소 등)
+    return Math.max(1, Math.round(h / lh));
+  }
+
+  // 마지막 줄이 얼마나 찼는지(0~1). 잴 수 없으면 1로 보아 손대지 않는다.
+  function lastLineFillRatio(el){
+    var width = el.getBoundingClientRect().width;
+    if(!width || !document.createRange) return 1;
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var rects = range.getClientRects();
+    if(!rects || rects.length === 0) return 1;
+    var lineTop = -Infinity, lineWidth = 0;
+    for(var i = 0; i < rects.length; i++){
+      var r = rects[i];
+      if(!r.height) continue;
+      if(r.top > lineTop + 1){ lineTop = r.top; lineWidth = r.width; }   // 새 줄
+      else lineWidth += r.width;                                          // 같은 줄
+    }
+    return lineWidth / width;
+  }
+
+  function tightenOrphanLine(el){
+    el.style.letterSpacing = '';
+    var base = lineBoxCount(el);
+    if(base < 2) return;                                  // 한 줄이면 끌어올릴 게 없다
+    if(lastLineFillRatio(el) > ORPHAN_FILL_RATIO) return;  // 마지막 줄이 꽉 찼으면 외톨이가 아니다
+    for(var i = 0; i < TIGHTEN_STEPS.length; i++){
+      el.style.letterSpacing = TIGHTEN_STEPS[i];
+      if(lineBoxCount(el) < base) return;
+    }
+    el.style.letterSpacing = '';
+  }
+
+  function tightenPageText(pageEl){
+    pageEl.querySelectorAll('.wrap-body').forEach(tightenOrphanLine);
   }
 
   // "업무 매뉴얼" -> "업 무 매 뉴 얼" for the form's spaced-out document label.
@@ -1841,7 +2074,7 @@
 
     var titleCell = document.createElement('td');
     titleCell.className = 'mh-title';
-    titleCell.textContent = titleText || '매뉴얼';
+    titleCell.textContent = bindLoneSyllables(titleText || '매뉴얼');
 
     var pageLabelCell = document.createElement('td');
     pageLabelCell.className = 'mh-label';
@@ -1882,7 +2115,7 @@
 
       var title = document.createElement('div');
       title.className = 'page-title';
-      title.textContent = titleText || '사진대장';
+      title.textContent = bindLoneSyllables(titleText || '사진대장');
       page.appendChild(title);
     }
 
@@ -1899,6 +2132,20 @@
         box.appendChild(badge);
       }
 
+      /* 텍스트 항목은 사진 칸/설명 칸으로 나누지 않고 칸 하나를 통째로 쓴다.
+         격자에서 차지하는 자리와 순번은 사진과 똑같다. */
+      if(isTextItem(item)){
+        var textBox = document.createElement('div');
+        textBox.className = 'text-box';
+        var textBody = document.createElement('div');
+        textBody.className = 'text-body';
+        fillWrappedText(textBody, item.description || '');
+        textBox.appendChild(textBody);
+        box.appendChild(textBox);
+        grid.appendChild(box);
+        return;
+      }
+
       var photoBox = document.createElement('div');
       photoBox.className = 'photo-box';
       var img = document.createElement('img');
@@ -1911,7 +2158,7 @@
       descBox.className = 'desc-box';
       var descText = document.createElement('div');
       descText.className = 'desc-text';
-      descText.textContent = item.description || '';
+      fillWrappedText(descText, item.description || '');
       descBox.appendChild(descText);
 
       box.appendChild(photoBox);
@@ -2137,7 +2384,7 @@
       var tr = document.createElement('tr');
       row.forEach(function(val){
         var td = document.createElement('td');
-        td.textContent = val;
+        td.textContent = bindLoneSyllables(val);
         tr.appendChild(td);
       });
       table.appendChild(tr);
@@ -2159,7 +2406,7 @@
     if(def.textareaId){
       var body = document.createElement('div');
       body.className = 'man-sec-body';
-      body.textContent = manualSectionText(def.textareaId);
+      fillWrappedText(body, manualSectionText(def.textareaId));
       wrap.appendChild(body);
 
       if(def.hasTable && manualPrepTable) wrap.appendChild(buildManualPrepTableElement());
@@ -2274,11 +2521,14 @@
     return (v ? v : '-') + ' (' + unit + ')';
   }
 
+  /* 고장 보고서의 "2. 관련 사진"은 사진 격자라 텍스트 칸을 놓을 자리가 없다.
+     매뉴얼로 만들다 모드를 바꾼 경우를 대비해 사진만 골라 쪽을 나눈다. */
   function computeFaultPages(){
-    if(photos.length === 0) return [[]];
-    var pages = [photos.slice(0, FAULT_PHOTOS_FIRST_PAGE)];
-    for(var i = FAULT_PHOTOS_FIRST_PAGE; i < photos.length; i += FAULT_PHOTOS_PER_PAGE){
-      pages.push(photos.slice(i, i + FAULT_PHOTOS_PER_PAGE));
+    var items = photoItems();
+    if(items.length === 0) return [[]];
+    var pages = [items.slice(0, FAULT_PHOTOS_FIRST_PAGE)];
+    for(var i = FAULT_PHOTOS_FIRST_PAGE; i < items.length; i += FAULT_PHOTOS_PER_PAGE){
+      pages.push(items.slice(i, i + FAULT_PHOTOS_PER_PAGE));
     }
     return pages;
   }
@@ -2288,7 +2538,10 @@
     if(className) td.className = className;
     if(colSpan) td.colSpan = colSpan;
     if(rowSpan) td.rowSpan = rowSpan;
-    td.textContent = text;
+    /* 고장내용·상황·조치사항만 여러 줄 서술이라 단락기호를 떼어 준다.
+       나머지 칸(일시·지사·설비명 등)은 한 줄짜리 값이라 그대로 찍는다. */
+    if(className === 'fr-body') fillWrappedText(td, text);
+    else td.textContent = text;
     return td;
   }
 
@@ -2398,7 +2651,7 @@
     ruleTop.className = 'fr-title-rule';
     var title = document.createElement('div');
     title.className = 'fr-title';
-    title.textContent = titleText || '고장 보고서';
+    title.textContent = bindLoneSyllables(titleText || '고장 보고서');
     var ruleBottom = document.createElement('div');
     ruleBottom.className = 'fr-title-rule';
     titleBlock.appendChild(ruleTop);
@@ -2436,7 +2689,7 @@
 
         var cap = document.createElement('div');
         cap.className = 'fr-photo-cap';
-        cap.textContent = item.description || '';
+        fillWrappedText(cap, item.description || '');
 
         cell.appendChild(box);
         cell.appendChild(cap);
@@ -2476,11 +2729,15 @@
 
   // In fault mode photos are optional: confirm, then print the summary alone.
   function ensurePhotosForOutput(){
-    if(photos.length > 0) return true;
     if(appMode === 'fault'){
+      if(photoItems().length > 0) return true;
       return window.confirm('사진을 추가하지 않겠습니까?\n확인을 누르면 "2. 관련 사진" 없이 1. 고장 요약만 출력됩니다.');
     }
-    showToast('등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
+    // 매뉴얼은 텍스트 칸만으로도 문서가 성립한다.
+    if(photos.length > 0) return true;
+    showToast(appMode === 'manual'
+      ? '등록된 항목이 없습니다. 사진이나 텍스트를 먼저 추가해 주세요.'
+      : '등록된 사진이 없습니다. 사진을 먼저 추가해 주세요.');
     return false;
   }
 
@@ -2542,7 +2799,8 @@
     previewPagesEl.innerHTML = '';
     var countLine = document.createElement('div');
     countLine.className = 'page-count-line';
-    countLine.textContent = '전체 ' + pages.length + ' 페이지 / 사진 ' + photos.length + '장';
+    countLine.textContent = '전체 ' + pages.length + ' 페이지 / 사진 ' + photoItems().length + '장'
+      + (textCount() > 0 ? ' · 텍스트 ' + textCount() + '칸' : '');
     previewPagesEl.appendChild(countLine);
     pages.forEach(function(pageItems, pageIdx){
       var pageEl = buildDocPage(pageItems, titleText, pageIdx, pages.length);
@@ -2554,7 +2812,10 @@
     previewCountEl.textContent = '전체 ' + pages.length + ' 페이지';
     // Open before measuring: a display:none modal reports every height as 0.
     previewModalEl.classList.add('open');
-    previewPagesEl.querySelectorAll('.a4-page').forEach(fitPageLayout);
+    previewPagesEl.querySelectorAll('.a4-page').forEach(function(pageEl){
+      tightenPageText(pageEl);   // 자간이 줄 수를 바꾸므로 칸 높이를 재기 전에 먼저
+      fitPageLayout(pageEl);
+    });
     fitPreviewScale();
     setTimeout(fitPreviewScale, 50);
   }
@@ -2617,6 +2878,7 @@
         var pageEl = buildDocPage(pages[i], titleText, i, pages.length);
         offscreen.appendChild(pageEl);
         waitForImages(pageEl).then(function(){
+          tightenPageText(pageEl);   // 자간이 줄 수를 바꾸므로 칸 높이를 재기 전에 먼저
           fitPageLayout(pageEl);
           var rect = pageEl.getBoundingClientRect();
           var heightMM = Math.max(297, rect.height / PX_PER_MM);
@@ -2892,7 +3154,7 @@
       title: getReportTitle(),
       year: new Date().getFullYear(),   // 저장 경로(지사/연도/종류/제목.pdf)의 연도와 맞춘다
       page_count: pageCount,
-      photo_count: photos.length
+      photo_count: photoItems().length
     };
 
     if(docType === 'manual'){
@@ -3076,8 +3338,11 @@
       manualPrepTable: manualPrepTable,
       idCounter: idCounter,
       photos: photos.map(function(p){
+        // 텍스트 칸은 이미지 관련 항목이 통째로 없다
+        if(isTextItem(p)) return { id: p.id, kind: 'text', description: p.description };
         return {
           id: p.id,
+          kind: 'photo',
           baseDataURL: p.baseDataURL,
           naturalW: p.naturalW,
           naturalH: p.naturalH,
@@ -3099,7 +3364,7 @@
       savedAt: payload.savedAt,
       appMode: payload.appMode,
       fileName: payload.fields.fileNameInput || '',
-      photoCount: payload.photos.length
+      photoCount: payload.photos.filter(function(p){ return p.kind !== 'text'; }).length
     };
     saveDraftBtn.disabled = true;
     Draft.save(payload, meta).then(function(){
@@ -3155,8 +3420,12 @@
 
     idCounter = payload.idCounter || 0;
     photos = (payload.photos || []).map(function(p){
+      if(p.kind === 'text'){
+        return { id: p.id, kind: 'text', description: p.description || '' };
+      }
       return {
         id: p.id,
+        kind: 'photo',
         baseDataURL: p.baseDataURL,
         naturalW: p.naturalW,
         naturalH: p.naturalH,
@@ -3168,8 +3437,9 @@
       };
     });
 
-    // 캐시를 순서대로 다시 만든 뒤 목록을 그린다
+    // 캐시를 순서대로 다시 만든 뒤 목록을 그린다 (텍스트 칸은 만들 캐시가 없다)
     return photos.reduce(function(chain, item){
+      if(isTextItem(item)) return chain;
       return chain
         .then(function(){ return composeSketchedCache(item); })
         .then(function(){ return computeRotatedCache(item); });
