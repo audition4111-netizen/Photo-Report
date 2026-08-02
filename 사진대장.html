@@ -1910,6 +1910,36 @@
     return { marker: m[0], body: line.slice(m[0].length) };
   }
 
+  /* ---- 외톨이 어절 ----------------------------------------------------------
+     "할 수 있음"의 "수", "않았으면 해"의 "해" 처럼 한 글자짜리 어절이 혼자
+     다음 줄로 넘어가면 뜻이 끊겨 읽힌다. 두 단계로 막는다.
+       1) 여기: 한 글자 어절 앞의 띄어쓰기를 줄바꿈 없는 공백으로 바꿔 앞 어절에
+          묶는다. 그러면 줄이 바뀔 때 둘이 같이 움직인다.
+       2) tightenOrphanLine(): 그래도 마지막 줄이 짧게 남으면 줄을 하나 더 쓰는
+          대신 자간을 조금 좁혀 앞 줄로 끌어올린다. */
+
+  var NBSP = ' ';
+  // 묶은 덩어리가 칸보다 길어지면 그 덩어리가 통째로 잘리므로 길이를 제한한다
+  var MAX_BOUND_LEN = 12;
+
+  function bindLoneSyllables(line){
+    var parts = String(line == null ? '' : line).split(' ');
+    if(parts.length < 2) return line;
+    var out = [parts[0]];
+    for(var i = 1; i < parts.length; i++){
+      var word = parts[i];
+      var prev = out[out.length - 1];
+      var lone = word.length === 1 && /[가-힣]/.test(word);
+      // prev 가 빈 문자열이면 원래 공백이 두 칸 이상이라는 뜻 — 그대로 둔다
+      if(lone && prev && (prev.length + 1 + word.length) <= MAX_BOUND_LEN){
+        out[out.length - 1] = prev + NBSP + word;
+      }else{
+        out.push(word);
+      }
+    }
+    return out.join(' ');
+  }
+
   /* el 을 비우고 text 를 줄 단위로 다시 그린다. hanging 이 false 면 단락기호를
      떼지 않고 줄만 나눈다(가운데로 맞춘 짧은 칸 등). */
   function fillWrappedText(el, text, hanging){
@@ -1930,10 +1960,57 @@
       body.className = 'wrap-body';
       // 빈 줄도 한 줄 높이를 차지해야 원문의 줄 간격이 유지된다
       if(parsed.body === '') body.appendChild(document.createElement('br'));
-      else body.textContent = parsed.body;
+      else body.textContent = bindLoneSyllables(parsed.body);
       row.appendChild(body);
       el.appendChild(row);
     });
+  }
+
+  /* 묶어 놓고도 마지막 줄이 짧게 남는 경우 — 자간을 조금씩 좁혀 앞 줄로 끌어올린다.
+     좁혀도 줄 수가 줄지 않으면(=원래 그만큼 긴 글이면) 손대지 않고 되돌린다.
+     레이아웃을 재야 하므로 쪽을 화면(또는 오프스크린)에 붙인 뒤에 호출해야 한다. */
+  var TIGHTEN_STEPS = ['-0.01em', '-0.02em', '-0.03em', '-0.04em', '-0.05em'];
+  var ORPHAN_FILL_RATIO = 0.5;   // 마지막 줄이 칸 너비의 절반도 못 채우면 외톨이로 본다
+
+  function lineBoxCount(el){
+    var lh = parseFloat(window.getComputedStyle(el).lineHeight);
+    var h = el.getBoundingClientRect().height;
+    if(!lh || !h) return 0;        // 잴 수 없는 상황(숨겨진 요소 등)
+    return Math.max(1, Math.round(h / lh));
+  }
+
+  // 마지막 줄이 얼마나 찼는지(0~1). 잴 수 없으면 1로 보아 손대지 않는다.
+  function lastLineFillRatio(el){
+    var width = el.getBoundingClientRect().width;
+    if(!width || !document.createRange) return 1;
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var rects = range.getClientRects();
+    if(!rects || rects.length === 0) return 1;
+    var lineTop = -Infinity, lineWidth = 0;
+    for(var i = 0; i < rects.length; i++){
+      var r = rects[i];
+      if(!r.height) continue;
+      if(r.top > lineTop + 1){ lineTop = r.top; lineWidth = r.width; }   // 새 줄
+      else lineWidth += r.width;                                          // 같은 줄
+    }
+    return lineWidth / width;
+  }
+
+  function tightenOrphanLine(el){
+    el.style.letterSpacing = '';
+    var base = lineBoxCount(el);
+    if(base < 2) return;                                  // 한 줄이면 끌어올릴 게 없다
+    if(lastLineFillRatio(el) > ORPHAN_FILL_RATIO) return;  // 마지막 줄이 꽉 찼으면 외톨이가 아니다
+    for(var i = 0; i < TIGHTEN_STEPS.length; i++){
+      el.style.letterSpacing = TIGHTEN_STEPS[i];
+      if(lineBoxCount(el) < base) return;
+    }
+    el.style.letterSpacing = '';
+  }
+
+  function tightenPageText(pageEl){
+    pageEl.querySelectorAll('.wrap-body').forEach(tightenOrphanLine);
   }
 
   // "업무 매뉴얼" -> "업 무 매 뉴 얼" for the form's spaced-out document label.
@@ -1997,7 +2074,7 @@
 
     var titleCell = document.createElement('td');
     titleCell.className = 'mh-title';
-    titleCell.textContent = titleText || '매뉴얼';
+    titleCell.textContent = bindLoneSyllables(titleText || '매뉴얼');
 
     var pageLabelCell = document.createElement('td');
     pageLabelCell.className = 'mh-label';
@@ -2038,7 +2115,7 @@
 
       var title = document.createElement('div');
       title.className = 'page-title';
-      title.textContent = titleText || '사진대장';
+      title.textContent = bindLoneSyllables(titleText || '사진대장');
       page.appendChild(title);
     }
 
@@ -2307,7 +2384,7 @@
       var tr = document.createElement('tr');
       row.forEach(function(val){
         var td = document.createElement('td');
-        td.textContent = val;
+        td.textContent = bindLoneSyllables(val);
         tr.appendChild(td);
       });
       table.appendChild(tr);
@@ -2574,7 +2651,7 @@
     ruleTop.className = 'fr-title-rule';
     var title = document.createElement('div');
     title.className = 'fr-title';
-    title.textContent = titleText || '고장 보고서';
+    title.textContent = bindLoneSyllables(titleText || '고장 보고서');
     var ruleBottom = document.createElement('div');
     ruleBottom.className = 'fr-title-rule';
     titleBlock.appendChild(ruleTop);
@@ -2735,7 +2812,10 @@
     previewCountEl.textContent = '전체 ' + pages.length + ' 페이지';
     // Open before measuring: a display:none modal reports every height as 0.
     previewModalEl.classList.add('open');
-    previewPagesEl.querySelectorAll('.a4-page').forEach(fitPageLayout);
+    previewPagesEl.querySelectorAll('.a4-page').forEach(function(pageEl){
+      tightenPageText(pageEl);   // 자간이 줄 수를 바꾸므로 칸 높이를 재기 전에 먼저
+      fitPageLayout(pageEl);
+    });
     fitPreviewScale();
     setTimeout(fitPreviewScale, 50);
   }
@@ -2798,6 +2878,7 @@
         var pageEl = buildDocPage(pages[i], titleText, i, pages.length);
         offscreen.appendChild(pageEl);
         waitForImages(pageEl).then(function(){
+          tightenPageText(pageEl);   // 자간이 줄 수를 바꾸므로 칸 높이를 재기 전에 먼저
           fitPageLayout(pageEl);
           var rect = pageEl.getBoundingClientRect();
           var heightMM = Math.max(297, rect.height / PX_PER_MM);
