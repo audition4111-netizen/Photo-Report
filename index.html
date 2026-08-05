@@ -1605,8 +1605,10 @@
       sketchBaseDataURL = item.baseDataURL;
       sketchBaseW = item.naturalW;
       sketchBaseH = item.naturalH;
+      // text 는 tool/color/width/points 외에 표시 문자열(text)도 들고 있다 — 여기서
+      // 새 객체를 만들 때 빠뜨리면 편집기를 다시 열 때마다 표기한 글자가 사라진다.
       sketchStrokes = (item.strokes || []).map(function(s){
-        return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
+        return Object.assign({}, s, { points: s.points.slice() });
       });
       activeStroke = null;
       sketchUndoStack = [];
@@ -1785,8 +1787,10 @@
     item.baseDataURL = sketchBaseDataURL;
     item.naturalW = sketchBaseW;
     item.naturalH = sketchBaseH;
+    // text 는 tool/color/width/points 외에 표시 문자열(text)도 들고 있다 — 여기서
+    // 새 객체를 만들 때 빠뜨리면 저장 직후 표기한 글자가 조용히 사라진다.
     item.strokes = sketchStrokes.map(function(s){
-      return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
+      return Object.assign({}, s, { points: s.points.slice() });
     });
     sketchSaveBtn.disabled = true;
     refreshPhotoRender(item).then(function(){
