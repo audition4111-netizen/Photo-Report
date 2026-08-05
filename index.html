@@ -337,6 +337,7 @@
   .sk-row[hidden]{ display:none; }
   .sk-tool{ flex:1; min-width:56px; padding:10px 4px; font-size:13px; font-weight:500; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.28); background:transparent; color:#fff; cursor:pointer; }
   .sk-text-size-label{ flex:1; text-align:center; color:#fff; font-size:13px; font-weight:600; align-self:center; }
+  .sk-text-input{ flex:2; min-width:120px; padding:10px 12px; font-size:15px; font-family:inherit; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.28); background:#fff; color:#000; }
   .sk-tool.active{ background:#fff; color:#000; border-color:#fff; }
   .sk-swatch{ width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.4); cursor:pointer; padding:0; }
   .sk-swatch.active{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.45); }
@@ -720,6 +721,16 @@
       <button type="button" class="sk-tool" id="sketchTextSizeDownBtn">A− 작게</button>
       <span class="sk-text-size-label" id="sketchTextSizeLabel">보통</span>
       <button type="button" class="sk-tool" id="sketchTextSizeUpBtn">A+ 크게</button>
+    </div>
+    <!-- 사진 위를 누르면 이 줄이 나타난다. 예전에는 브라우저 기본 prompt() 창으로
+         입력받았는데, 그 창이 열려 있는 동안은 페이지의 다른 버튼(크기 조절 포함)이
+         전혀 반응하지 않아 "입력하면서 크기를 바로 조절"할 수 없었다. 이제는 이
+         입력창이 페이지 안에 그대로 있어서, 타이핑하거나 위 크기 버튼을 누르는
+         즉시 캔버스에 미리보기가 반영된다. -->
+    <div class="sk-row" id="sketchTextInputRow" hidden>
+      <input type="text" id="sketchTextInput" class="sk-text-input" placeholder="표시할 텍스트 입력" autocomplete="off">
+      <button type="button" class="sk-tool" id="sketchTextCancelBtn">취소</button>
+      <button type="button" class="sk-tool" id="sketchTextApplyBtn">적용</button>
     </div>
     <div class="sk-row">
       <button type="button" class="sk-tool" id="sketchUndoBtn">되돌리기</button>
@@ -1412,11 +1423,16 @@
   var sketchTextSizeDownBtn = document.getElementById('sketchTextSizeDownBtn');
   var sketchTextSizeUpBtn = document.getElementById('sketchTextSizeUpBtn');
   var sketchTextSizeLabelEl = document.getElementById('sketchTextSizeLabel');
+  var sketchTextInputRowEl = document.getElementById('sketchTextInputRow');
+  var sketchTextInputEl = document.getElementById('sketchTextInput');
+  var sketchTextApplyBtn = document.getElementById('sketchTextApplyBtn');
+  var sketchTextCancelBtn = document.getElementById('sketchTextCancelBtn');
 
   var SKETCH_MAX_EDGE = 1400;
   var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005, arrow: 0.006 };
   var HINT_DRAW = '손가락이나 마우스로 사진 위에 그려 주세요.';
-  var HINT_TEXT = '텍스트를 표시할 위치를 눌러 주세요. 크기는 위 [A− 작게]/[A+ 크게]로 조절하세요.';
+  var HINT_TEXT = '텍스트를 표시할 위치를 눌러 주세요.';
+  var HINT_TEXT_EDITING = '입력하면서 위 [A− 작게]/[A+ 크게]로 크기를 바로 조절해 보세요. [적용]으로 확정합니다.';
   var HINT_CROP = '남길 영역을 드래그한 뒤 [자르기 적용]을 누르세요.';
 
   /* 사진 너비 대비 비율(자르기/회전해도 같은 비율로 맞다) — 몇 단계로만 골라
@@ -1554,6 +1570,8 @@
   }
 
   function selectSketchTool(tool){
+    // 텍스트를 입력하던 중에 다른 도구로 옮기면 미확정 상태로 남지 않도록 취소한다.
+    if(sketchTool === 'text' && tool !== 'text' && activeStroke) cancelTextDraft();
     sketchTool = tool;
     sketchToolRowEl.querySelectorAll('.sk-tool').forEach(function(b){
       b.classList.toggle('active', b.dataset.tool === tool);
@@ -1567,6 +1585,44 @@
       cropRect = null;
       cropStart = null;
     }
+    redrawSketchCanvas();
+  }
+
+  /* 텍스트 입력 흐름 — 브라우저 기본 prompt() 대신 화면 안 입력창을 쓴다.
+     이유: prompt() 는 열려 있는 동안 페이지 전체가 멈춰서, 입력하면서 위
+     [A-/A+] 크기 버튼을 누르는 것 자체가 불가능했다(눌러도 반응 안 함).
+     여기서는 activeStroke 를 "아직 확정 안 된 텍스트"로 그대로 쓴다 — 다른
+     도구가 드래그 중에 쓰는 것과 같은 변수라, redrawSketchCanvas() 가 이미
+     activeStroke 를 함께 그려주는 로직을 그대로 재사용할 수 있다. */
+  function startTextDraft(point){
+    activeStroke = { tool: 'text', color: sketchColor, width: TEXT_SIZE_STEPS[textSizeIndex], points: [point], text: '' };
+    sketchTextInputEl.value = '';
+    sketchTextInputRowEl.hidden = false;
+    sketchHintEl.textContent = HINT_TEXT_EDITING;
+    sketchTextInputEl.focus();
+    redrawSketchCanvas();
+  }
+
+  function applyTextDraft(){
+    if(!activeStroke) return;
+    var text = sketchTextInputEl.value.trim();
+    if(text){
+      snapshotSketchState();
+      sketchStrokes.push({
+        tool: 'text', color: activeStroke.color, width: activeStroke.width,
+        points: activeStroke.points, text: text
+      });
+    }
+    activeStroke = null;
+    sketchTextInputRowEl.hidden = true;
+    sketchHintEl.textContent = HINT_TEXT;
+    redrawSketchCanvas();
+  }
+
+  function cancelTextDraft(){
+    activeStroke = null;
+    sketchTextInputRowEl.hidden = true;
+    sketchHintEl.textContent = HINT_TEXT;
     redrawSketchCanvas();
   }
 
@@ -1661,6 +1717,7 @@
     cropRect = null;
     cropStart = null;
     sketchUndoStack = [];
+    sketchTextInputRowEl.hidden = true;
   }
 
   function pointFromEvent(e){
@@ -1692,19 +1749,11 @@
     if(sketchTool === 'text'){
       // 다른 도구처럼 드래그가 아니라 누른 자리에 바로 찍는다 — 화살표로 가리킨 곳에
       // 설명을 붙이는 용도라, 위치를 옮겨가며 그릴 필요가 없다.
-      var textPoint = pointFromEvent(e);
-      var textValue = window.prompt('사진에 표시할 텍스트를 입력하세요.', '');
-      if(textValue && textValue.trim()){
-        snapshotSketchState();
-        sketchStrokes.push({
-          tool: 'text',
-          color: sketchColor,
-          width: TEXT_SIZE_STEPS[textSizeIndex],
-          points: [textPoint],
-          text: textValue.trim()
-        });
-      }
-      redrawSketchCanvas();
+      // 창을 새로 띄우지 않고(브라우저 기본 prompt()는 열려 있는 동안 페이지의
+      // 다른 버튼이 전혀 반응하지 않아 입력 중 크기 조절이 불가능했다) 화면 안의
+      // 입력창으로 받아, 타이핑·크기 조절이 즉시 캔버스 미리보기에 반영되게 한다.
+      if(activeStroke) applyTextDraft(); // 이전 입력 중이던 게 있으면 먼저 확정
+      startTextDraft(pointFromEvent(e));
       return;
     }
     activeStroke = {
@@ -1736,6 +1785,11 @@
   });
 
   function finishStroke(e){
+    // 텍스트는 드래그가 아니라 [적용]/[취소] 버튼으로만 끝난다 — 그런데 탭 한 번은
+    // pointerdown 바로 뒤에 pointerup 도 함께 발생시킨다. 여기서 걸러주지 않으면,
+    // 아래의 "점이 2개 안 모인 도형은 버린다" 로직이 방금 시작한 텍스트 입력을
+    // (점이 1개뿐이라) 곧바로 지워버린다.
+    if(activeStroke && activeStroke.tool === 'text') return;
     if(sketchTool === 'crop'){
       if(!cropStart) return;
       if(e) e.preventDefault();
@@ -1782,15 +1836,38 @@
     });
   });
 
+  // 입력하는 도중이면(activeStroke 가 아직 확정 안 된 텍스트) 크기를 바꾸는
+  // 즉시 미리보기에도 반영한다 — 이게 되게 하려고 prompt() 를 없앤 것이다.
+  function applyTextSizeToDraft(){
+    if(activeStroke && activeStroke.tool === 'text'){
+      activeStroke.width = TEXT_SIZE_STEPS[textSizeIndex];
+      redrawSketchCanvas();
+    }
+  }
   sketchTextSizeDownBtn.addEventListener('click', function(){
     textSizeIndex = Math.max(0, textSizeIndex - 1);
     updateTextSizeLabel();
+    applyTextSizeToDraft();
   });
   sketchTextSizeUpBtn.addEventListener('click', function(){
     textSizeIndex = Math.min(TEXT_SIZE_STEPS.length - 1, textSizeIndex + 1);
     updateTextSizeLabel();
+    applyTextSizeToDraft();
   });
   updateTextSizeLabel();
+
+  sketchTextInputEl.addEventListener('input', function(){
+    if(activeStroke && activeStroke.tool === 'text'){
+      activeStroke.text = sketchTextInputEl.value;
+      redrawSketchCanvas();
+    }
+  });
+  sketchTextInputEl.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); applyTextDraft(); }
+    else if(e.key === 'Escape'){ e.preventDefault(); cancelTextDraft(); }
+  });
+  sketchTextApplyBtn.addEventListener('click', applyTextDraft);
+  sketchTextCancelBtn.addEventListener('click', cancelTextDraft);
 
   sketchUndoBtn.addEventListener('click', function(){
     if(sketchUndoStack.length === 0){
@@ -1820,6 +1897,9 @@
   sketchCancelBtn.addEventListener('click', closeSketchEditor);
 
   sketchSaveBtn.addEventListener('click', function(){
+    // 입력 중이던 텍스트를 [적용] 없이 바로 [저장]을 눌러도 그 내용이 사라지지
+    // 않도록 먼저 확정한다.
+    if(activeStroke && activeStroke.tool === 'text') applyTextDraft();
     var item = findPhoto(sketchTargetId);
     if(!item){ closeSketchEditor(); return; }
     item.baseDataURL = sketchBaseDataURL;
