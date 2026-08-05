@@ -336,6 +336,7 @@
   .sk-row{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
   .sk-row[hidden]{ display:none; }
   .sk-tool{ flex:1; min-width:56px; padding:10px 4px; font-size:13px; font-weight:500; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.28); background:transparent; color:#fff; cursor:pointer; }
+  .sk-text-size-label{ flex:1; text-align:center; color:#fff; font-size:13px; font-weight:600; align-self:center; }
   .sk-tool.active{ background:#fff; color:#000; border-color:#fff; }
   .sk-swatch{ width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.4); cursor:pointer; padding:0; }
   .sk-swatch.active{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.45); }
@@ -712,6 +713,14 @@
       <button type="button" class="sk-swatch" data-color="#0070ff" style="background:#0070ff" aria-label="파랑"></button>
       <button type="button" class="sk-swatch" data-color="#000000" style="background:#000000" aria-label="검정"></button>
     </div>
+    <!-- 사진마다 필요한 글자 크기가 달라서(작은 테스트 사진과 고해상도 폰카메라
+         사진은 같은 비율이라도 실제로 보이는 크기가 크게 다르다) 하나의 값으로
+         고정하지 않고, 텍스트 도구를 고를 때만 이 줄로 직접 조절하게 한다. -->
+    <div class="sk-row" id="sketchTextSizeRow" hidden>
+      <button type="button" class="sk-tool" id="sketchTextSizeDownBtn">A− 작게</button>
+      <span class="sk-text-size-label" id="sketchTextSizeLabel">보통</span>
+      <button type="button" class="sk-tool" id="sketchTextSizeUpBtn">A+ 크게</button>
+    </div>
     <div class="sk-row">
       <button type="button" class="sk-tool" id="sketchUndoBtn">되돌리기</button>
       <button type="button" class="sk-tool" id="sketchClearBtn">전체 지우기</button>
@@ -1026,7 +1035,7 @@
       if(stroke.tool === 'text'){
         // 선을 긋는 도구들과 달리 경로(path)가 아니라 글자를 찍는다 — 어떤 사진
         // 배경 위에서도 읽히도록 흰 테두리를 두른 뒤 그 위에 글자색을 채운다.
-        var fontPx = Math.max(18, stroke.width * w);
+        var fontPx = Math.max(12, stroke.width * w);
         ctx.globalAlpha = 1;
         ctx.font = 'bold ' + fontPx + 'px sans-serif';
         ctx.textBaseline = 'top';
@@ -1399,14 +1408,30 @@
   var sketchCropApplyBtn = document.getElementById('sketchCropApplyBtn');
   var sketchCropResetBtn = document.getElementById('sketchCropResetBtn');
   var sketchHintEl = document.getElementById('sketchHint');
+  var sketchTextSizeRowEl = document.getElementById('sketchTextSizeRow');
+  var sketchTextSizeDownBtn = document.getElementById('sketchTextSizeDownBtn');
+  var sketchTextSizeUpBtn = document.getElementById('sketchTextSizeUpBtn');
+  var sketchTextSizeLabelEl = document.getElementById('sketchTextSizeLabel');
 
   var SKETCH_MAX_EDGE = 1400;
-  // text 는 선 굵기가 아니라 글자 크기 비율로 쓴다 — 자르기/회전 시 다른 굵기와 같은
-  // 방식(캔버스 폭 대비 비율)으로 다시 계산되므로 필드를 그대로 재사용한다.
-  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005, arrow: 0.006, text: 0.09 };
+  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005, arrow: 0.006 };
   var HINT_DRAW = '손가락이나 마우스로 사진 위에 그려 주세요.';
-  var HINT_TEXT = '텍스트를 표시할 위치를 눌러 주세요.';
+  var HINT_TEXT = '텍스트를 표시할 위치를 눌러 주세요. 크기는 위 [A− 작게]/[A+ 크게]로 조절하세요.';
   var HINT_CROP = '남길 영역을 드래그한 뒤 [자르기 적용]을 누르세요.';
+
+  /* 사진 너비 대비 비율(자르기/회전해도 같은 비율로 맞다) — 몇 단계로만 골라
+     쓰게 한다. 사진 해상도에 따라 "적당한 크기"가 크게 달라서(작은 테스트
+     사진과 고해상도 폰카메라 사진은 같은 비율도 실제 눈에 보이는 크기가
+     전혀 다르다) 값 하나로 고정하지 않고 사용자가 직접 골라 쓰게 한다. */
+  var TEXT_SIZE_STEPS = [0.012, 0.018, 0.025, 0.035, 0.05, 0.07, 0.09];
+  var TEXT_SIZE_LABELS = ['아주 작게', '작게', '보통', '크게', '아주 크게', '매우 크게', '최대'];
+  var textSizeIndex = 2; // 기본값 '보통'
+
+  function updateTextSizeLabel(){
+    sketchTextSizeLabelEl.textContent = TEXT_SIZE_LABELS[textSizeIndex];
+    sketchTextSizeDownBtn.disabled = textSizeIndex === 0;
+    sketchTextSizeUpBtn.disabled = textSizeIndex === TEXT_SIZE_STEPS.length - 1;
+  }
 
   var sketchTargetId = null;
   var sketchStrokes = [];
@@ -1536,6 +1561,7 @@
     var isCrop = tool === 'crop';
     sketchColorRowEl.hidden = isCrop;
     sketchCropRowEl.hidden = !isCrop;
+    sketchTextSizeRowEl.hidden = tool !== 'text';
     sketchHintEl.textContent = isCrop ? HINT_CROP : (tool === 'text' ? HINT_TEXT : HINT_DRAW);
     if(!isCrop){
       cropRect = null;
@@ -1673,7 +1699,7 @@
         sketchStrokes.push({
           tool: 'text',
           color: sketchColor,
-          width: STROKE_WIDTHS.text,
+          width: TEXT_SIZE_STEPS[textSizeIndex],
           points: [textPoint],
           text: textValue.trim()
         });
@@ -1755,6 +1781,16 @@
       b.classList.toggle('active', b === btn);
     });
   });
+
+  sketchTextSizeDownBtn.addEventListener('click', function(){
+    textSizeIndex = Math.max(0, textSizeIndex - 1);
+    updateTextSizeLabel();
+  });
+  sketchTextSizeUpBtn.addEventListener('click', function(){
+    textSizeIndex = Math.min(TEXT_SIZE_STEPS.length - 1, textSizeIndex + 1);
+    updateTextSizeLabel();
+  });
+  updateTextSizeLabel();
 
   sketchUndoBtn.addEventListener('click', function(){
     if(sketchUndoStack.length === 0){
