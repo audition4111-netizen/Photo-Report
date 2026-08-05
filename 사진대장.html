@@ -1024,7 +1024,7 @@
       if(stroke.tool === 'text'){
         // 선을 긋는 도구들과 달리 경로(path)가 아니라 글자를 찍는다 — 어떤 사진
         // 배경 위에서도 읽히도록 흰 테두리를 두른 뒤 그 위에 글자색을 채운다.
-        var fontPx = Math.max(10, stroke.width * w);
+        var fontPx = Math.max(18, stroke.width * w);
         ctx.globalAlpha = 1;
         ctx.font = 'bold ' + fontPx + 'px sans-serif';
         ctx.textBaseline = 'top';
@@ -1401,7 +1401,7 @@
   var SKETCH_MAX_EDGE = 1400;
   // text 는 선 굵기가 아니라 글자 크기 비율로 쓴다 — 자르기/회전 시 다른 굵기와 같은
   // 방식(캔버스 폭 대비 비율)으로 다시 계산되므로 필드를 그대로 재사용한다.
-  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005, arrow: 0.006, text: 0.045 };
+  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005, arrow: 0.006, text: 0.09 };
   var HINT_DRAW = '손가락이나 마우스로 사진 위에 그려 주세요.';
   var HINT_TEXT = '텍스트를 표시할 위치를 눌러 주세요.';
   var HINT_CROP = '남길 영역을 드래그한 뒤 [자르기 적용]을 누르세요.';
@@ -1605,8 +1605,10 @@
       sketchBaseDataURL = item.baseDataURL;
       sketchBaseW = item.naturalW;
       sketchBaseH = item.naturalH;
+      // text 는 tool/color/width/points 외에 표시 문자열(text)도 들고 있다 — 여기서
+      // 새 객체를 만들 때 빠뜨리면 편집기를 다시 열 때마다 표기한 글자가 사라진다.
       sketchStrokes = (item.strokes || []).map(function(s){
-        return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
+        return Object.assign({}, s, { points: s.points.slice() });
       });
       activeStroke = null;
       sketchUndoStack = [];
@@ -1785,8 +1787,10 @@
     item.baseDataURL = sketchBaseDataURL;
     item.naturalW = sketchBaseW;
     item.naturalH = sketchBaseH;
+    // text 는 tool/color/width/points 외에 표시 문자열(text)도 들고 있다 — 여기서
+    // 새 객체를 만들 때 빠뜨리면 저장 직후 표기한 글자가 조용히 사라진다.
     item.strokes = sketchStrokes.map(function(s){
-      return { tool: s.tool, color: s.color, width: s.width, points: s.points.slice() };
+      return Object.assign({}, s, { points: s.points.slice() });
     });
     sketchSaveBtn.disabled = true;
     refreshPhotoRender(item).then(function(){
