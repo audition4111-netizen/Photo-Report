@@ -198,37 +198,37 @@
   /* 텍스트 항목은 사진 칸/설명 칸으로 나누지 않고 칸 하나를 통째로 쓴다.
      위쪽 여백은 좌상단 순번 배지(2mm+6mm)를 피하려고 넉넉히 잡았다. */
   .text-box{ flex:1 1 auto; min-height:0; display:flex; align-items:flex-start; padding:9mm 5mm 5mm; box-sizing:border-box; overflow:hidden; }
-  .text-body{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:12px; line-height:1.6; color:#000; }
+  .text-body{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:14px; font-weight:700; line-height:1.6; color:#000; }
 
   .manual-header{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 6mm; }
   .manual-header td{ border:1px solid #000; text-align:center; vertical-align:middle; padding:1mm 1.5mm; box-sizing:border-box; color:#000; }
   .mh-logo{ width:18.5%; }
   .mh-logo img{ height:10mm; width:auto; display:block; margin:0 auto 0.5mm; }
-  .mh-org{ font-size:11px; font-weight:700; white-space:nowrap; }
+  .mh-org{ font-size:12px; font-weight:700; white-space:nowrap; }
   /* 한국지역난방공사 바로 아래 같은 칸에 지사명 */
-  .mh-branch{ font-size:10px; font-weight:500; white-space:nowrap; margin-top:0.3mm; }
-  .mh-doctype{ width:60.5%; font-size:21px; font-weight:700; letter-spacing:0.28em; text-indent:0.28em; white-space:nowrap; }
-  .mh-title{ font-size:13.5px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
-  .mh-label{ width:12.5%; font-size:12px; white-space:nowrap; }
+  .mh-branch{ font-size:12px; font-weight:700; white-space:nowrap; margin-top:0.3mm; }
+  .mh-doctype{ width:60.5%; font-size:22px; font-weight:700; letter-spacing:0.28em; text-indent:0.28em; white-space:nowrap; }
+  .mh-title{ font-size:14px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
+  .mh-label{ width:12.5%; font-size:12px; font-weight:700; white-space:nowrap; }
   .mh-value{ width:8.5%; font-size:12px; }
-  .mh-field{ font-size:12px; font-weight:500; white-space:nowrap; }
+  .mh-field{ font-size:12px; font-weight:700; white-space:nowrap; }
 
   .man-sec{ margin:0 0 5mm; }
-  .man-sec-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
-  .man-sec-body{ font-size:11.5px; color:#000; line-height:1.6; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; padding-left:1em; }
+  .man-sec-heading{ font-size:15px; font-weight:700; color:#000; margin:0 0 2mm; }
+  .man-sec-body{ font-size:14px; color:#000; line-height:1.6; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; padding-left:1em; }
   .man-prep-table{ width:calc(100% - 1em); border-collapse:collapse; table-layout:fixed; margin:2mm 0 0 1em; }
-  .man-prep-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; text-align:center; color:#000; word-break:keep-all; overflow-wrap:break-word; }
+  .man-prep-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:13px; text-align:center; color:#000; word-break:keep-all; overflow-wrap:break-word; }
   .man-prep-table tr:first-child td{ font-weight:700; background:#f2f2f2; }
 
   .fr-head-row{ display:flex; align-items:center; justify-content:space-between; gap:6mm; margin:0 0 3mm; }
   .fr-head-logo{ height:12mm; width:auto; display:block; }
   .fr-title-rule{ height:2px; background:#4a6fa5; }
-  .fr-title{ text-align:center; font-size:22px; font-weight:700; color:#000; margin:0; padding:2.5mm 0; word-break:keep-all; }
+  .fr-title{ text-align:center; font-size:24px; font-weight:700; color:#000; margin:0; padding:2.5mm 0; word-break:keep-all; }
   .fr-title-block{ margin:0 0 5mm; }
-  .fr-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
+  .fr-heading{ font-size:14px; font-weight:700; color:#000; margin:0 0 2mm; }
   .fr-heading + .fr-heading{ margin-top:5mm; }
   .fr-table{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 5mm; }
-  .fr-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; line-height:1.45; color:#000; vertical-align:middle; word-break:keep-all; overflow-wrap:break-word; }
+  .fr-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:13px; line-height:1.45; color:#000; vertical-align:middle; word-break:keep-all; overflow-wrap:break-word; }
   .fr-label{ width:34mm; text-align:center; font-weight:700; background:#f2f2f2; white-space:pre-line; }
   .fr-sublabel{ width:24mm; text-align:center; font-weight:600; }
   .fr-body{ white-space:pre-wrap; }
@@ -238,7 +238,7 @@
   .fr-photo-box{ height:62mm; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:2mm; box-sizing:border-box; }
   .fr-photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
   /* 줄이 여러 개인 설명도 세로 가운데를 지키도록 세로 방향으로 쌓는다 */
-  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:10px; font-weight:600; line-height:1.4; text-align:center; display:flex; flex-direction:column; align-items:stretch; justify-content:center; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; box-sizing:border-box; }
+  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:14px; font-weight:700; line-height:1.4; text-align:center; display:flex; flex-direction:column; align-items:stretch; justify-content:center; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; box-sizing:border-box; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
@@ -322,7 +322,7 @@
   .resume-actions button{ flex:1; padding:13px 0; font-family:inherit; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
   .resume-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
 
-  .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
+  .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
 
   .sketch-modal{ position:fixed; inset:0; background:#1a1a1a; z-index:250; display:none; flex-direction:column; }
   .sketch-modal.open{ display:flex; }
@@ -603,7 +603,7 @@
           <li>매뉴얼에서는 [텍스트 추가]로 사진 없이 글만 들어가는 순번을 만들 수 있습니다. 사진과 텍스트는 누른 순서대로 번호가 이어집니다. (텍스트 최대 30개)</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 편집 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
-          <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
+          <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선·화살표를 그려 표시할 수 있습니다. [텍스트]를 고르고 사진 위를 누르면 그 자리에 글자를 바로 표기할 수 있어, 화살표로 가리킨 곳에 설명을 붙이는 식으로 쓸 수 있습니다. (되돌리기·전체 지우기 지원)</li>
           <li>[편집] 안의 [자르기]를 누르고 남길 영역을 드래그한 뒤 [자르기 적용]을 누르면 사진을 잘라낼 수 있습니다. [되돌리기]를 누르면 그린 내용은 물론 자르기도 한 단계씩 취소됩니다.</li>
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
           <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 PDF 다운로드와 Gmail 작성 화면 열기를 한 번에 실행합니다.</li>
@@ -695,6 +695,8 @@
       <button type="button" class="sk-tool" data-tool="rect">네모</button>
       <button type="button" class="sk-tool" data-tool="ellipse">동그라미</button>
       <button type="button" class="sk-tool" data-tool="line">선</button>
+      <button type="button" class="sk-tool" data-tool="arrow">화살표</button>
+      <button type="button" class="sk-tool" data-tool="text">텍스트</button>
       <button type="button" class="sk-tool" data-tool="crop">자르기</button>
     </div>
     <div class="sk-row" id="sketchCropRow" hidden>
@@ -1019,6 +1021,20 @@
     strokes.forEach(function(stroke){
       var pts = stroke.points || [];
       if(pts.length === 0) return;
+      if(stroke.tool === 'text'){
+        // 선을 긋는 도구들과 달리 경로(path)가 아니라 글자를 찍는다 — 어떤 사진
+        // 배경 위에서도 읽히도록 흰 테두리를 두른 뒤 그 위에 글자색을 채운다.
+        var fontPx = Math.max(10, stroke.width * w);
+        ctx.globalAlpha = 1;
+        ctx.font = 'bold ' + fontPx + 'px sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.lineWidth = Math.max(2, fontPx * 0.18);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(stroke.text || '', pts[0].x * w, pts[0].y * h);
+        ctx.fillStyle = stroke.color;
+        ctx.fillText(stroke.text || '', pts[0].x * w, pts[0].y * h);
+        return;
+      }
       ctx.globalAlpha = stroke.tool === 'highlighter' ? 0.35 : 1;
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = Math.max(1, stroke.width * w);
@@ -1036,6 +1052,16 @@
         var x1 = a.x * w, y1 = a.y * h, x2 = b.x * w, y2 = b.y * h;
         if(stroke.tool === 'line'){
           ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }else if(stroke.tool === 'arrow'){
+          ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+          var angle = Math.atan2(y2 - y1, x2 - x1);
+          var headLen = Math.max(10, w * 0.035);
+          var headAngle = Math.PI / 7;
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x2 - headLen * Math.cos(angle - headAngle), y2 - headLen * Math.sin(angle - headAngle));
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x2 - headLen * Math.cos(angle + headAngle), y2 - headLen * Math.sin(angle + headAngle));
+          ctx.stroke();
         }else if(stroke.tool === 'rect'){
           ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
           ctx.stroke();
@@ -1373,8 +1399,11 @@
   var sketchHintEl = document.getElementById('sketchHint');
 
   var SKETCH_MAX_EDGE = 1400;
-  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005 };
+  // text 는 선 굵기가 아니라 글자 크기 비율로 쓴다 — 자르기/회전 시 다른 굵기와 같은
+  // 방식(캔버스 폭 대비 비율)으로 다시 계산되므로 필드를 그대로 재사용한다.
+  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005, arrow: 0.006, text: 0.045 };
   var HINT_DRAW = '손가락이나 마우스로 사진 위에 그려 주세요.';
+  var HINT_TEXT = '텍스트를 표시할 위치를 눌러 주세요.';
   var HINT_CROP = '남길 영역을 드래그한 뒤 [자르기 적용]을 누르세요.';
 
   var sketchTargetId = null;
@@ -1454,12 +1483,12 @@
       item.naturalW = cw;
       item.naturalH = ch;
       item.strokes = (item.strokes || []).map(function(s){
-        return {
-          tool: s.tool,
-          color: s.color,
+        // text 는 tool/color/width/points 외에 표시할 문자열(text)도 들고 있다 —
+        // 여기서 새 객체를 만들 때 빠뜨리면 회전할 때마다 표기한 글자가 사라진다.
+        return Object.assign({}, s, {
           width: s.width * widthScale,
           points: s.points.map(function(p){ return rotateNormPoint(p, deg); })
-        };
+        });
       });
       item.rotation = 0;
     });
@@ -1505,7 +1534,7 @@
     var isCrop = tool === 'crop';
     sketchColorRowEl.hidden = isCrop;
     sketchCropRowEl.hidden = !isCrop;
-    sketchHintEl.textContent = isCrop ? HINT_CROP : HINT_DRAW;
+    sketchHintEl.textContent = isCrop ? HINT_CROP : (tool === 'text' ? HINT_TEXT : HINT_DRAW);
     if(!isCrop){
       cropRect = null;
       cropStart = null;
@@ -1533,15 +1562,15 @@
     var croppedURL = canvas.toDataURL('image/jpeg', 0.92);
 
     // Strokes are normalized to the image box, so re-base them onto the crop.
+    // text 는 tool/color/width/points 외에 표시 문자열(text)도 들고 있어, 새 객체를
+    // 만들 때 빠뜨리면 자르기 후 표기한 글자가 사라진다.
     var remapped = sketchStrokes.map(function(s){
-      return {
-        tool: s.tool,
-        color: s.color,
+      return Object.assign({}, s, {
         width: s.width / cw,
         points: s.points.map(function(p){
           return { x: (p.x - cx) / cw, y: (p.y - cy) / ch };
         })
-      };
+      });
     });
 
     sketchCropApplyBtn.disabled = true;
@@ -1627,6 +1656,24 @@
     if(sketchTool === 'crop'){
       cropStart = pointFromEvent(e);
       setCropRectFrom(cropStart, cropStart);
+      redrawSketchCanvas();
+      return;
+    }
+    if(sketchTool === 'text'){
+      // 다른 도구처럼 드래그가 아니라 누른 자리에 바로 찍는다 — 화살표로 가리킨 곳에
+      // 설명을 붙이는 용도라, 위치를 옮겨가며 그릴 필요가 없다.
+      var textPoint = pointFromEvent(e);
+      var textValue = window.prompt('사진에 표시할 텍스트를 입력하세요.', '');
+      if(textValue && textValue.trim()){
+        snapshotSketchState();
+        sketchStrokes.push({
+          tool: 'text',
+          color: sketchColor,
+          width: STROKE_WIDTHS.text,
+          points: [textPoint],
+          text: textValue.trim()
+        });
+      }
       redrawSketchCanvas();
       return;
     }
@@ -3272,6 +3319,9 @@
       var pdfFileName = filename + '.pdf';
 
       downloadBlob(blob, pdfFileName);
+      // 다운로드가 우선. 보관 저장은 실패해도 메일 전송 흐름에 영향이 없도록 뒤에서 처리
+      // (PDF 출력 버튼과 동일하게 매뉴얼·고장보고서만 저장되고, 사진대장은 여기서도 건너뛴다).
+      archiveGeneratedPdf(pdf, filename);
       var gmailUrl = gmailComposeUrl(
         filename,
         'PDF 파일(' + pdfFileName + ')이 이 기기에 다운로드되었습니다.\n' +
