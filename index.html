@@ -2326,7 +2326,9 @@
       descBox.className = 'desc-box';
       var descText = document.createElement('div');
       descText.className = 'desc-text';
-      fillWrappedText(descText, item.description || '');
+      // 사진 설명은 가운데로 맞춘 짧은 칸이라, 문장이 "(1)"·"※"·"- " 같은 단락기호로
+      // 시작해도 목록처럼 왼쪽으로 떼지 않고 통째로 가운데 정렬한다.
+      fillWrappedText(descText, item.description || '', false);
       descBox.appendChild(descText);
 
       box.appendChild(photoBox);
@@ -2857,7 +2859,9 @@
 
         var cap = document.createElement('div');
         cap.className = 'fr-photo-cap';
-        fillWrappedText(cap, item.description || '');
+        // 사진 설명은 가운데로 맞춘 짧은 칸이라, 단락기호로 시작해도 목록처럼
+        // 왼쪽으로 떼지 않고 통째로 가운데 정렬한다.
+        fillWrappedText(cap, item.description || '', false);
 
         cell.appendChild(box);
         cell.appendChild(cap);
