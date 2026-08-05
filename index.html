@@ -3274,6 +3274,9 @@
       var pdfFileName = filename + '.pdf';
 
       downloadBlob(blob, pdfFileName);
+      // 다운로드가 우선. 보관 저장은 실패해도 메일 전송 흐름에 영향이 없도록 뒤에서 처리
+      // (PDF 출력 버튼과 동일하게 매뉴얼·고장보고서만 저장되고, 사진대장은 여기서도 건너뛴다).
+      archiveGeneratedPdf(pdf, filename);
       var gmailUrl = gmailComposeUrl(
         filename,
         'PDF 파일(' + pdfFileName + ')이 이 기기에 다운로드되었습니다.\n' +
