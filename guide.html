@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>뚝DOC 사용법 — 6단계</title>
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --primary:#FF385C;
+    --primary-soft:#FFE4E9;
+    --ink:#222222;
+    --body:#3F3F3F;
+    --muted:#6A6A6A;
+    --canvas:#FFFFFF;
+    --surface:#F7F7F7;
+    --hairline:#EBEBEB;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --primary:#FF5473;
+      --primary-soft:rgba(255,84,115,.16);
+      --ink:#F2F0EE;
+      --body:#C7C5C2;
+      --muted:#9A9794;
+      --canvas:#111214;
+      --surface:#1B1D20;
+      --hairline:#2A2C2F;
+    }
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:520px; margin:0 auto; padding:20px 22px 72px; }
+
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:13px; color:var(--muted); text-decoration:none;
+    margin-bottom:28px;
+  }
+  .back-link:hover{ color:var(--primary); }
+
+  .head{ text-align:center; margin-bottom:40px; }
+  .badge{
+    width:56px;height:56px;border-radius:16px;
+    background:var(--primary-soft);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 16px;
+  }
+  .badge svg{ width:28px;height:28px; }
+  .head h1{ margin:0 0 8px; font-size:22px; font-weight:800; letter-spacing:-.01em; }
+  .head p{ margin:0; color:var(--muted); font-size:14px; max-width:32ch; margin:0 auto; }
+
+  ol.stepper{ list-style:none; margin:0; padding:0; }
+  .step{
+    display:grid;
+    grid-template-columns:32px 1fr;
+    column-gap:16px;
+    position:relative;
+    padding-bottom:28px;
+  }
+  .step:not(.last)::after{
+    content:"";
+    position:absolute;
+    left:15px; top:34px; bottom:-4px;
+    width:2px;
+    background:var(--hairline);
+  }
+  .node{
+    width:32px;height:32px;border-radius:50%;
+    background:var(--primary); color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800; font-size:14px;
+    position:relative; z-index:1;
+    font-variant-numeric:tabular-nums;
+  }
+  .card{
+    background:var(--surface);
+    border-radius:14px;
+    padding:14px 16px;
+    display:flex; gap:12px; align-items:flex-start;
+  }
+  .icon{
+    flex:none; width:38px;height:38px;border-radius:10px;
+    background:var(--primary-soft);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .icon svg{ width:20px;height:20px; }
+  .icon svg *{ stroke:var(--primary); }
+  .txt h3{ margin:0 0 4px; font-size:15.5px; font-weight:700; }
+  .txt p{ margin:0; font-size:13.5px; color:var(--body); }
+  .txt .sub{ margin-top:4px; font-size:12.5px; color:var(--muted); }
+
+  .fork{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .fork-branch{
+    border:1.5px solid var(--hairline);
+    border-radius:10px;
+    padding:9px 10px;
+    display:flex; align-items:center; gap:7px;
+    font-size:12.5px; font-weight:600;
+  }
+  .fork-branch svg{ width:15px;height:15px; flex:none; }
+  .fork-branch svg *{ stroke:var(--primary); }
+
+  .mini-wire{
+    margin-top:12px;
+    border:1.5px dashed var(--hairline);
+    border-radius:10px;
+    padding:10px;
+    background:var(--canvas);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-family:'Consolas','Cascadia Mono',monospace;
+    font-size:8.5px;
+    color:var(--muted);
+  }
+  .mw-bar{ height:8px; border:1px dashed var(--hairline); border-radius:3px; }
+  .mw-bar.w60{ width:60%; }
+  .mw-btn{ height:20px; border:1px solid var(--hairline); border-radius:5px; display:flex; align-items:center; justify-content:center; padding:0 4px; text-align:center; }
+  .mw-btn.on{ border-color:var(--primary); color:var(--primary); font-weight:700; }
+  .mw-row{ display:flex; gap:6px; }
+  .mw-row > *{ flex:1; }
+  .mw-box{ border:1px dashed var(--hairline); border-radius:5px; height:26px; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .mw-grid2x2{ display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:4px; aspect-ratio:210/297; width:56px; margin:0 auto; }
+  .mw-grid2x2 span{ border:1px dashed var(--hairline); border-radius:3px; }
+  .mw-label{ text-align:center; }
+  .mw-cap{ text-align:center; color:var(--muted); font-size:10px; margin-top:6px; letter-spacing:.02em; }
+
+  .tips{ margin-top:8px; display:flex; flex-direction:column; gap:10px; }
+  .tip{
+    display:flex; gap:10px; align-items:flex-start;
+    border:1.5px dashed var(--hairline);
+    border-radius:12px;
+    padding:11px 13px;
+    font-size:13px; color:var(--body);
+  }
+  .tip-tag{
+    flex:none;
+    font-family:'Consolas','Cascadia Mono',monospace;
+    font-size:10px; font-weight:700; letter-spacing:.06em;
+    color:var(--primary);
+    background:var(--primary-soft);
+    border-radius:5px;
+    padding:2px 6px;
+    line-height:1.6;
+  }
+
+  footer{
+    margin-top:36px; padding-top:16px; border-top:1px solid var(--hairline);
+    text-align:center; font-size:11.5px; color:var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="./index.html">&larr; 뚝DOC 앱으로 돌아가기</a>
+
+  <div class="head">
+    <div class="badge">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h4l1.5-2h5L16 7h4a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" stroke="var(--primary)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="var(--primary)" stroke-width="1.6"/></svg>
+    </div>
+    <h1>뚝DOC 사용법</h1>
+    <p>사진 한 장부터 문서 완성까지, 6단계면 충분해요</p>
+    <p style="margin-top:8px;font-size:11.5px;color:var(--muted);">점선 상자는 그 단계 화면의 배치를 간단히 표현한 와이어프레임이에요</p>
+  </div>
+
+  <ol class="stepper">
+
+    <li class="step">
+      <div class="node">1</div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke-width="1.6"/></svg></div>
+        <div class="txt">
+          <h3>만들 문서 고르기</h3>
+          <p>사진대장 · 매뉴얼 · 고장 보고서 중 하나를 선택해요.</p>
+          <div class="mini-wire">
+            <div class="mw-btn on">사진대장 만들기</div>
+            <div class="mw-btn">매뉴얼 만들기</div>
+            <div class="mw-btn">고장 보고서 만들기</div>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="node">2</div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l6.5-6.5a1.5 1.5 0 0 1 1.06-.44H18a1 1 0 0 1 1 1v5.44a1.5 1.5 0 0 1-.44 1.06L12 19" stroke-width="1.6" stroke-linejoin="round"/><circle cx="14.5" cy="9.5" r="1.2" stroke-width="1.6"/></svg></div>
+        <div class="txt">
+          <h3>파일명 입력</h3>
+          <p>문서 제목을 적어요. 나중에 검색할 때 이 이름으로 찾게 돼요.</p>
+          <div class="mini-wire">
+            <div class="mw-bar w60"></div>
+            <div class="mw-box">파일명 입력란</div>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="node">3</div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h4l1.5-2h5L16 7h4a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3" stroke-width="1.6"/></svg></div>
+        <div class="txt">
+          <h3>사진 추가</h3>
+          <p>앨범에서 고르거나 바로 촬영해요. 여러 장을 한 번에 선택할 수 있어요.</p>
+          <p class="sub">최대 30장까지</p>
+          <div class="mini-wire">
+            <div class="mw-row">
+              <div class="mw-box">사진</div><div class="mw-box">사진</div><div class="mw-box">+</div>
+            </div>
+            <div class="mw-btn">이미지에서 선택</div>
+            <div class="mw-btn">카메라로 촬영</div>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="node">4</div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5.5l4 4L8 20H4v-4L14.5 5.5z" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+        <div class="txt">
+          <h3>설명 쓰고 정리하기</h3>
+          <p>사진마다 설명을 적어요. 필요하면 바꾸기 · 회전 · 삭제 · 순서 변경도 할 수 있어요.</p>
+          <div class="mini-wire">
+            <div class="mw-box" style="height:34px;">사진 + 설명 입력란</div>
+            <div class="mw-row">
+              <div class="mw-btn" style="font-size:7.5px;">변경</div>
+              <div class="mw-btn" style="font-size:7.5px;">회전</div>
+              <div class="mw-btn" style="font-size:7.5px;">삭제</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="node">5</div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12z" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke-width="1.6"/></svg></div>
+        <div class="txt">
+          <h3>미리보기로 확인</h3>
+          <p>A4 문서로 어떻게 인쇄될지 그대로 확인해요.</p>
+          <div class="mini-wire">
+            <div class="mw-grid2x2"><span></span><span></span><span></span><span></span></div>
+            <div class="mw-label">A4 미리보기</div>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <li class="step last">
+      <div class="node">6</div>
+      <div class="card" style="flex-direction:column;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v11m0 0l-3.5-3.5M12 15l3.5-3.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <div class="txt">
+            <h3>완성한 문서 내보내기</h3>
+            <p>둘 중 하나로 마무리해요.</p>
+          </div>
+        </div>
+        <div class="mini-wire" style="flex-direction:row;">
+          <div class="mw-btn" style="font-size:7.5px;">임시저장</div>
+          <div class="mw-btn" style="font-size:7.5px;">미리보기</div>
+          <div class="mw-btn on" style="font-size:7.5px;">PDF 출력</div>
+        </div>
+        <div class="mw-cap">↳ 화면 하단에 항상 고정된 버튼</div>
+        <div class="fork">
+          <div class="fork-branch">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke-width="1.6"/><path d="M9 8h6M9 12h6M9 16h3" stroke-width="1.6" stroke-linecap="round"/></svg>
+            PDF 출력
+          </div>
+          <div class="fork-branch">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke-width="1.6"/><path d="M3.5 6.5L12 13l8.5-6.5" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            메일로 전송
+          </div>
+        </div>
+      </div>
+    </li>
+
+  </ol>
+
+  <div class="tips">
+    <div class="tip"><span class="tip-tag">TIP</span> 작성 중 나가도 [임시저장]을 누르면 다음에 이어서 쓸 수 있어요.</div>
+    <div class="tip"><span class="tip-tag">TIP</span> 로그인하면 완성한 문서가 보관함에 자동 저장돼서 나중에 다시 찾아볼 수 있어요.</div>
+  </div>
+
+  <footer>화면 아래 [임시저장 · 미리보기 · PDF 출력] 버튼은 항상 같은 자리에 있어요</footer>
+
+</div>
+</body>
+</html>
