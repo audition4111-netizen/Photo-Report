@@ -198,37 +198,37 @@
   /* 텍스트 항목은 사진 칸/설명 칸으로 나누지 않고 칸 하나를 통째로 쓴다.
      위쪽 여백은 좌상단 순번 배지(2mm+6mm)를 피하려고 넉넉히 잡았다. */
   .text-box{ flex:1 1 auto; min-height:0; display:flex; align-items:flex-start; padding:9mm 5mm 5mm; box-sizing:border-box; overflow:hidden; }
-  .text-body{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:12px; line-height:1.6; color:#000; }
+  .text-body{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:14px; font-weight:700; line-height:1.6; color:#000; }
 
   .manual-header{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 6mm; }
   .manual-header td{ border:1px solid #000; text-align:center; vertical-align:middle; padding:1mm 1.5mm; box-sizing:border-box; color:#000; }
   .mh-logo{ width:18.5%; }
   .mh-logo img{ height:10mm; width:auto; display:block; margin:0 auto 0.5mm; }
-  .mh-org{ font-size:11px; font-weight:700; white-space:nowrap; }
+  .mh-org{ font-size:12px; font-weight:700; white-space:nowrap; }
   /* 한국지역난방공사 바로 아래 같은 칸에 지사명 */
-  .mh-branch{ font-size:10px; font-weight:500; white-space:nowrap; margin-top:0.3mm; }
-  .mh-doctype{ width:60.5%; font-size:21px; font-weight:700; letter-spacing:0.28em; text-indent:0.28em; white-space:nowrap; }
-  .mh-title{ font-size:13.5px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
-  .mh-label{ width:12.5%; font-size:12px; white-space:nowrap; }
+  .mh-branch{ font-size:12px; font-weight:700; white-space:nowrap; margin-top:0.3mm; }
+  .mh-doctype{ width:60.5%; font-size:22px; font-weight:700; letter-spacing:0.28em; text-indent:0.28em; white-space:nowrap; }
+  .mh-title{ font-size:14px; font-weight:500; word-break:keep-all; overflow-wrap:break-word; }
+  .mh-label{ width:12.5%; font-size:12px; font-weight:700; white-space:nowrap; }
   .mh-value{ width:8.5%; font-size:12px; }
-  .mh-field{ font-size:12px; font-weight:500; white-space:nowrap; }
+  .mh-field{ font-size:12px; font-weight:700; white-space:nowrap; }
 
   .man-sec{ margin:0 0 5mm; }
-  .man-sec-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
-  .man-sec-body{ font-size:11.5px; color:#000; line-height:1.6; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; padding-left:1em; }
+  .man-sec-heading{ font-size:15px; font-weight:700; color:#000; margin:0 0 2mm; }
+  .man-sec-body{ font-size:14px; color:#000; line-height:1.6; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; padding-left:1em; }
   .man-prep-table{ width:calc(100% - 1em); border-collapse:collapse; table-layout:fixed; margin:2mm 0 0 1em; }
-  .man-prep-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; text-align:center; color:#000; word-break:keep-all; overflow-wrap:break-word; }
+  .man-prep-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:13px; text-align:center; color:#000; word-break:keep-all; overflow-wrap:break-word; }
   .man-prep-table tr:first-child td{ font-weight:700; background:#f2f2f2; }
 
   .fr-head-row{ display:flex; align-items:center; justify-content:space-between; gap:6mm; margin:0 0 3mm; }
   .fr-head-logo{ height:12mm; width:auto; display:block; }
   .fr-title-rule{ height:2px; background:#4a6fa5; }
-  .fr-title{ text-align:center; font-size:22px; font-weight:700; color:#000; margin:0; padding:2.5mm 0; word-break:keep-all; }
+  .fr-title{ text-align:center; font-size:24px; font-weight:700; color:#000; margin:0; padding:2.5mm 0; word-break:keep-all; }
   .fr-title-block{ margin:0 0 5mm; }
-  .fr-heading{ font-size:13px; font-weight:700; color:#000; margin:0 0 2mm; }
+  .fr-heading{ font-size:14px; font-weight:700; color:#000; margin:0 0 2mm; }
   .fr-heading + .fr-heading{ margin-top:5mm; }
   .fr-table{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0 0 5mm; }
-  .fr-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:10.5px; line-height:1.45; color:#000; vertical-align:middle; word-break:keep-all; overflow-wrap:break-word; }
+  .fr-table td{ border:1px solid #000; padding:1.6mm 2mm; font-size:13px; line-height:1.45; color:#000; vertical-align:middle; word-break:keep-all; overflow-wrap:break-word; }
   .fr-label{ width:34mm; text-align:center; font-weight:700; background:#f2f2f2; white-space:pre-line; }
   .fr-sublabel{ width:24mm; text-align:center; font-weight:600; }
   .fr-body{ white-space:pre-wrap; }
@@ -238,7 +238,7 @@
   .fr-photo-box{ height:62mm; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:2mm; box-sizing:border-box; }
   .fr-photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
   /* 줄이 여러 개인 설명도 세로 가운데를 지키도록 세로 방향으로 쌓는다 */
-  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:10px; font-weight:600; line-height:1.4; text-align:center; display:flex; flex-direction:column; align-items:stretch; justify-content:center; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; box-sizing:border-box; }
+  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:14px; font-weight:700; line-height:1.4; text-align:center; display:flex; flex-direction:column; align-items:stretch; justify-content:center; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; box-sizing:border-box; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
@@ -322,7 +322,7 @@
   .resume-actions button{ flex:1; padding:13px 0; font-family:inherit; font-size:14px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
   .resume-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
 
-  .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
+  .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
 
   .sketch-modal{ position:fixed; inset:0; background:#1a1a1a; z-index:250; display:none; flex-direction:column; }
   .sketch-modal.open{ display:flex; }
