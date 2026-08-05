@@ -603,7 +603,7 @@
           <li>매뉴얼에서는 [텍스트 추가]로 사진 없이 글만 들어가는 순번을 만들 수 있습니다. 사진과 텍스트는 누른 순서대로 번호가 이어집니다. (텍스트 최대 30개)</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
           <li>사진 편집 / 변경 / 회전 / 삭제가 가능하며, [순서 이동]을 눌러 옮길 순번을 선택하면 순서가 바뀝니다.</li>
-          <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선을 그려 표시할 수 있습니다. (되돌리기·전체 지우기 지원)</li>
+          <li>[편집]을 누르면 사진 위에 펜·형광펜으로 그리거나 네모·동그라미·선·화살표를 그려 표시할 수 있습니다. [텍스트]를 고르고 사진 위를 누르면 그 자리에 글자를 바로 표기할 수 있어, 화살표로 가리킨 곳에 설명을 붙이는 식으로 쓸 수 있습니다. (되돌리기·전체 지우기 지원)</li>
           <li>[편집] 안의 [자르기]를 누르고 남길 영역을 드래그한 뒤 [자르기 적용]을 누르면 사진을 잘라낼 수 있습니다. [되돌리기]를 누르면 그린 내용은 물론 자르기도 한 단계씩 취소됩니다.</li>
           <li>[미리보기]로 A4 페이지 구성을 확인합니다.</li>
           <li>[PDF 출력]으로 문서를 내려받거나, [메일로 전송]으로 PDF 다운로드와 Gmail 작성 화면 열기를 한 번에 실행합니다.</li>
@@ -695,6 +695,8 @@
       <button type="button" class="sk-tool" data-tool="rect">네모</button>
       <button type="button" class="sk-tool" data-tool="ellipse">동그라미</button>
       <button type="button" class="sk-tool" data-tool="line">선</button>
+      <button type="button" class="sk-tool" data-tool="arrow">화살표</button>
+      <button type="button" class="sk-tool" data-tool="text">텍스트</button>
       <button type="button" class="sk-tool" data-tool="crop">자르기</button>
     </div>
     <div class="sk-row" id="sketchCropRow" hidden>
@@ -1019,6 +1021,20 @@
     strokes.forEach(function(stroke){
       var pts = stroke.points || [];
       if(pts.length === 0) return;
+      if(stroke.tool === 'text'){
+        // 선을 긋는 도구들과 달리 경로(path)가 아니라 글자를 찍는다 — 어떤 사진
+        // 배경 위에서도 읽히도록 흰 테두리를 두른 뒤 그 위에 글자색을 채운다.
+        var fontPx = Math.max(10, stroke.width * w);
+        ctx.globalAlpha = 1;
+        ctx.font = 'bold ' + fontPx + 'px sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.lineWidth = Math.max(2, fontPx * 0.18);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(stroke.text || '', pts[0].x * w, pts[0].y * h);
+        ctx.fillStyle = stroke.color;
+        ctx.fillText(stroke.text || '', pts[0].x * w, pts[0].y * h);
+        return;
+      }
       ctx.globalAlpha = stroke.tool === 'highlighter' ? 0.35 : 1;
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = Math.max(1, stroke.width * w);
@@ -1036,6 +1052,16 @@
         var x1 = a.x * w, y1 = a.y * h, x2 = b.x * w, y2 = b.y * h;
         if(stroke.tool === 'line'){
           ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }else if(stroke.tool === 'arrow'){
+          ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+          var angle = Math.atan2(y2 - y1, x2 - x1);
+          var headLen = Math.max(10, w * 0.035);
+          var headAngle = Math.PI / 7;
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x2 - headLen * Math.cos(angle - headAngle), y2 - headLen * Math.sin(angle - headAngle));
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x2 - headLen * Math.cos(angle + headAngle), y2 - headLen * Math.sin(angle + headAngle));
+          ctx.stroke();
         }else if(stroke.tool === 'rect'){
           ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
           ctx.stroke();
@@ -1373,8 +1399,11 @@
   var sketchHintEl = document.getElementById('sketchHint');
 
   var SKETCH_MAX_EDGE = 1400;
-  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005 };
+  // text 는 선 굵기가 아니라 글자 크기 비율로 쓴다 — 자르기/회전 시 다른 굵기와 같은
+  // 방식(캔버스 폭 대비 비율)으로 다시 계산되므로 필드를 그대로 재사용한다.
+  var STROKE_WIDTHS = { pen: 0.005, highlighter: 0.03, rect: 0.005, ellipse: 0.005, line: 0.005, arrow: 0.006, text: 0.045 };
   var HINT_DRAW = '손가락이나 마우스로 사진 위에 그려 주세요.';
+  var HINT_TEXT = '텍스트를 표시할 위치를 눌러 주세요.';
   var HINT_CROP = '남길 영역을 드래그한 뒤 [자르기 적용]을 누르세요.';
 
   var sketchTargetId = null;
@@ -1454,12 +1483,12 @@
       item.naturalW = cw;
       item.naturalH = ch;
       item.strokes = (item.strokes || []).map(function(s){
-        return {
-          tool: s.tool,
-          color: s.color,
+        // text 는 tool/color/width/points 외에 표시할 문자열(text)도 들고 있다 —
+        // 여기서 새 객체를 만들 때 빠뜨리면 회전할 때마다 표기한 글자가 사라진다.
+        return Object.assign({}, s, {
           width: s.width * widthScale,
           points: s.points.map(function(p){ return rotateNormPoint(p, deg); })
-        };
+        });
       });
       item.rotation = 0;
     });
@@ -1505,7 +1534,7 @@
     var isCrop = tool === 'crop';
     sketchColorRowEl.hidden = isCrop;
     sketchCropRowEl.hidden = !isCrop;
-    sketchHintEl.textContent = isCrop ? HINT_CROP : HINT_DRAW;
+    sketchHintEl.textContent = isCrop ? HINT_CROP : (tool === 'text' ? HINT_TEXT : HINT_DRAW);
     if(!isCrop){
       cropRect = null;
       cropStart = null;
@@ -1533,15 +1562,15 @@
     var croppedURL = canvas.toDataURL('image/jpeg', 0.92);
 
     // Strokes are normalized to the image box, so re-base them onto the crop.
+    // text 는 tool/color/width/points 외에 표시 문자열(text)도 들고 있어, 새 객체를
+    // 만들 때 빠뜨리면 자르기 후 표기한 글자가 사라진다.
     var remapped = sketchStrokes.map(function(s){
-      return {
-        tool: s.tool,
-        color: s.color,
+      return Object.assign({}, s, {
         width: s.width / cw,
         points: s.points.map(function(p){
           return { x: (p.x - cx) / cw, y: (p.y - cy) / ch };
         })
-      };
+      });
     });
 
     sketchCropApplyBtn.disabled = true;
@@ -1627,6 +1656,24 @@
     if(sketchTool === 'crop'){
       cropStart = pointFromEvent(e);
       setCropRectFrom(cropStart, cropStart);
+      redrawSketchCanvas();
+      return;
+    }
+    if(sketchTool === 'text'){
+      // 다른 도구처럼 드래그가 아니라 누른 자리에 바로 찍는다 — 화살표로 가리킨 곳에
+      // 설명을 붙이는 용도라, 위치를 옮겨가며 그릴 필요가 없다.
+      var textPoint = pointFromEvent(e);
+      var textValue = window.prompt('사진에 표시할 텍스트를 입력하세요.', '');
+      if(textValue && textValue.trim()){
+        snapshotSketchState();
+        sketchStrokes.push({
+          tool: 'text',
+          color: sketchColor,
+          width: STROKE_WIDTHS.text,
+          points: [textPoint],
+          text: textValue.trim()
+        });
+      }
       redrawSketchCanvas();
       return;
     }
