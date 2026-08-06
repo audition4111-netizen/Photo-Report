@@ -41,10 +41,12 @@
   #gBranch{ order:1; }
   #gField{ order:2; }
   .fgrid.type-manual #gManualType{ order:3; }
-  .fgrid.type-manual #gFileName{ order:4; }
+  .fgrid.type-manual #gAuthor{ order:4; }
+  .fgrid.type-manual #gFileName{ order:5; grid-column:1 / -1; }
   .fgrid.type-fault #gFacility{ order:3; }
   .fgrid.type-fault #gContent{ order:4; }
-  .fgrid.type-fault #gFileName{ order:5; grid-column:1 / -1; }
+  .fgrid.type-fault #gAuthor{ order:5; }
+  .fgrid.type-fault #gFileName{ order:6; }
   label{ display:block; font-size:13px; font-weight:500; color:var(--muted); margin:0 0 6px; }
   input, select{ width:100%; height:48px; padding:12px; font-family:inherit; font-size:15px; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--ink); }
   input:focus, select:focus{ outline:none; border-width:2px; border-color:var(--ink); padding:11px; }
@@ -153,6 +155,11 @@
         <div class="fgroup" id="gContent">
           <label for="fContent">고장내용</label>
           <input type="text" id="fContent" placeholder="예: 방압변">
+        </div>
+        <!-- 매뉴얼·고장 보고서 공통 -->
+        <div class="fgroup" id="gAuthor">
+          <label for="fAuthor">작성자</label>
+          <input type="text" id="fAuthor" placeholder="작성자 이름 일부 입력">
         </div>
         <div class="fgroup" id="gFileName">
           <label for="fFileName">파일명</label>
@@ -395,6 +402,7 @@
     var filters = {
       docType: currentType,
       fileName: el('fFileName').value.trim(),
+      authorName: el('fAuthor').value.trim(),
       field: el('fField').value,
       branch: el('fBranch').value
     };
@@ -433,7 +441,7 @@
 
   el('searchBtn').addEventListener('click', runSearch);
   el('resetBtn').addEventListener('click', function(){
-    ['fFileName','fFacility','fContent','fBranch','fManualType','fField'].forEach(function(id){
+    ['fFileName','fAuthor','fFacility','fContent','fBranch','fManualType','fField'].forEach(function(id){
       el(id).value = '';
     });
     runSearch();
