@@ -210,7 +210,7 @@
        fileName  파일명 부분검색
        manualType, field
        occurredFrom, occurredTo   (YYYY-MM-DD)
-       branch, facility, faultContent  부분검색
+       branch, facility, faultContent, authorName  부분검색
        limit */
   function queryDocuments(filters) {
     var c = getClient();
@@ -226,6 +226,7 @@
     if (filters.facility) q = q.ilike('facility', '%' + filters.facility + '%');
     if (filters.faultContent) q = q.ilike('fault_content', '%' + filters.faultContent + '%');
     if (filters.fileName) q = q.ilike('file_name', '%' + filters.fileName + '%');
+    if (filters.authorName) q = q.ilike('author_name', '%' + filters.authorName + '%');
     // 현지 날짜의 00:00~23:59:59를 UTC 순간으로 바꿔 비교 (경계가 9시간 밀리지 않게)
     if (filters.occurredFrom) {
       var from = new Date(filters.occurredFrom + 'T00:00:00');
