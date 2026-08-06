@@ -158,3 +158,73 @@ create policy "docs_storage_delete_own"
   to authenticated
   using (bucket_id = 'documents'
     and (owner = auth.uid() or auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr'));
+
+-- ---------------------------------------------------------------------------
+-- 개선요청 게시판
+--   로그인한 사용자라면 누구나 목록을 보고 새 요청을 올릴 수 있다(모든 로그인
+--   사용자에게 공개). 답변·완료 표시(update)는 관리자(김영섭)만 가능하다.
+-- ---------------------------------------------------------------------------
+create table if not exists public.feedback (
+  id           uuid primary key default gen_random_uuid(),
+  author_id    uuid        not null references auth.users(id) on delete restrict,
+  author_name  text        not null,
+  title        text        not null,
+  content      text        not null,
+  photo_path   text,                 -- 'feedback-photos' 버킷 내 경로(선택 사항)
+  status       text        not null default 'open' check (status in ('open', 'resolved')),
+  reply        text,                 -- 관리자 답변
+  replied_at   timestamptz,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists feedback_created_idx
+  on public.feedback (created_at desc);
+
+create index if not exists feedback_status_idx
+  on public.feedback (status, created_at desc);
+
+grant usage on schema public to authenticated;
+grant select, insert, update on public.feedback to authenticated;
+revoke all on public.feedback from anon;
+
+alter table public.feedback enable row level security;
+
+drop policy if exists "feedback_select_authenticated" on public.feedback;
+create policy "feedback_select_authenticated"
+  on public.feedback for select
+  to authenticated
+  using (true);
+
+drop policy if exists "feedback_insert_own" on public.feedback;
+create policy "feedback_insert_own"
+  on public.feedback for insert
+  to authenticated
+  with check (author_id = auth.uid());
+
+-- 답변·완료 표시는 관리자만. 작성자 본인도 자기 글을 고칠 수 없다 —
+-- 답변이 달린 뒤에 내용이 바뀌면 답변과 어긋날 수 있어서다.
+drop policy if exists "feedback_update_admin" on public.feedback;
+create policy "feedback_update_admin"
+  on public.feedback for update
+  to authenticated
+  using (auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr')
+  with check (auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr');
+
+-- Storage — 비공개 버킷 'feedback-photos'
+insert into storage.buckets (id, name, public)
+values ('feedback-photos', 'feedback-photos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "feedback_storage_read" on storage.objects;
+create policy "feedback_storage_read"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'feedback-photos');
+
+drop policy if exists "feedback_storage_insert" on storage.objects;
+create policy "feedback_storage_insert"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'feedback-photos');
+
+-- 삭제 정책은 만들지 않는다 — 개선요청·첨부 사진은 지우지 않고 완료 표시로 남긴다.
