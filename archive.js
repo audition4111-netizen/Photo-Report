@@ -250,34 +250,27 @@
     });
   }
 
-  /* 저장 전 중복 확인 — 종류(doc_type)·매뉴얼 종류(매뉴얼만)·분야·지사·작성자·파일명
-     (제목)이 전부 같은 문서가 이미 보관함에 있는지 본다. 하나라도 다르면 별개
-     문서로 보고 중복으로 취급하지 않는다.
-     PDF 출력·메일 전송을 여러 번 눌러도 작성자 모르게 완전히 같은 문서가 계속
-     쌓이는 것을 막기 위한 용도라, 결과 내용은 필요 없고 있는지 여부만 확인한다.
+  /* 저장 전 중복 확인 — 종류(doc_type) 안에서 작성자와 파일명(제목)이 둘 다 같은
+     문서가 이미 보관함에 있는지 본다. 지사·분야 등은 보지 않는다 — 지사나 분야가
+     달라도 같은 작성자가 같은 제목으로 또 저장하려는 경우를 잡아내려는 용도.
+     PDF 출력·메일 전송을 여러 번 눌러도 작성자 모르게 같은 문서가 계속 쌓이는
+     것을 막기 위한 용도라, 결과 내용은 필요 없고 있는지 여부만 확인한다.
 
-     criteria: { docType, title, field, branch, manualType(매뉴얼만), authorId } */
-  function eqOrNull(q, col, val) {
-    return (val === null || val === undefined || val === '') ? q.is(col, null) : q.eq(col, val);
-  }
-
+     criteria: { docType, title, authorId } */
   function existsByTitle(criteria) {
     var c = getClient();
     criteria = criteria || {};
     if (!c || !criteria.title) return Promise.resolve(false);
 
-    var q = c.from('documents').select('id')
+    return c.from('documents').select('id')
       .eq('doc_type', criteria.docType)
       .eq('title', criteria.title)
-      .eq('author_id', criteria.authorId);
-    q = eqOrNull(q, 'field', criteria.field);
-    q = eqOrNull(q, 'branch', criteria.branch);
-    if (criteria.docType === 'manual') q = eqOrNull(q, 'manual_type', criteria.manualType);
-
-    return q.limit(1).then(function (res) {
-      if (res.error) throw res.error;
-      return (res.data || []).length > 0;
-    });
+      .eq('author_id', criteria.authorId)
+      .limit(1)
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return (res.data || []).length > 0;
+      });
   }
 
   // 작성자 본인 또는 관리자(김영섭)만 삭제할 수 있다. 실제 제한은 서버 RLS가 담당하고,
