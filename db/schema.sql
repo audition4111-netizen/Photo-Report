@@ -85,6 +85,9 @@ create index if not exists documents_content_trgm_idx
 create index if not exists documents_facility_trgm_idx
   on public.documents using gin (facility gin_trgm_ops);
 
+create index if not exists documents_author_trgm_idx
+  on public.documents using gin (author_name gin_trgm_ops);
+
 -- ---------------------------------------------------------------------------
 -- 테이블 접근 권한
 --   프로젝트에 따라 public 스키마 기본 권한이 자동으로 주어지지 않는 경우가 있어
