@@ -250,6 +250,19 @@
     });
   }
 
+  /* 저장 전 중복 확인 — 같은 종류(doc_type) 안에서 같은 제목의 문서가 이미 있는지만 본다.
+     PDF 출력·메일 전송을 여러 번 눌러도 작성자 모르게 같은 제목이 계속 쌓이는 것을
+     막기 위한 용도라, 결과 내용은 필요 없고 있는지 여부만 확인한다. */
+  function existsByTitle(docType, title) {
+    var c = getClient();
+    if (!c || !title) return Promise.resolve(false);
+    return c.from('documents').select('id').eq('doc_type', docType).eq('title', title).limit(1)
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return (res.data || []).length > 0;
+      });
+  }
+
   // 작성자 본인 또는 관리자(김영섭)만 삭제할 수 있다. 실제 제한은 서버 RLS가 담당하고,
   // 이건 화면에 삭제 버튼을 보여줄지 판단하는 용도다.
   function canDelete(user, row) {
@@ -300,6 +313,7 @@
     onAuthChange: onAuthChange,
     saveDocument: saveDocument,
     queryDocuments: queryDocuments,
+    existsByTitle: existsByTitle,
     canDelete: canDelete,
     deleteDocument: deleteDocument,
     signedUrl: signedUrl,
