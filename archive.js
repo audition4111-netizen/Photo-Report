@@ -5,6 +5,7 @@
   'use strict';
 
   var BUCKET = 'documents';
+  var FEEDBACK_BUCKET = 'feedback-photos';
   var ADMIN_EMAIL = 'audition411@kdhc.co.kr';
   var client = null;
 
@@ -282,6 +283,13 @@
     return email === ADMIN_EMAIL.toLowerCase();
   }
 
+  // 개선요청 답변·완료 표시 버튼을 보여줄지 판단하는 용도. 실제 차단은
+  // db/schema.sql의 feedback_update_admin 정책(RLS)이 담당한다.
+  function isAdmin(user) {
+    if (!user) return false;
+    return (user.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  }
+
   // 문서 행과 저장된 PDF를 함께 지운다. 행 삭제가 RLS에 막히면 파일은 건드리지 않는다.
   function deleteDocument(row) {
     var c = getClient();
@@ -313,6 +321,94 @@
     return m === 0 ? h + '시간' : h + '시간 ' + m + '분';
   }
 
+  // ---- 개선요청 게시판 -------------------------------------------------------
+  // 로그인한 사용자라면 누구나 목록을 보고 새 요청을 올릴 수 있다(모든 로그인
+  // 사용자에게 공개). 답변·완료 표시는 관리자만 — 실제 제한은
+  // db/schema.sql의 feedback_update_admin RLS 정책이 담당한다.
+
+  function insertFeedbackRow(c, row) {
+    return c.from('feedback').insert(row).select().single().then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+
+  // photoFile은 <input type="file">에서 온 File 객체 또는 null(선택 사항이므로).
+  function submitFeedback(title, content, photoFile) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return currentUser().then(function (user) {
+      if (!user) throw new Error('로그인이 필요합니다.');
+
+      var row = {
+        author_id: user.id,
+        author_name: displayName(user),
+        title: title,
+        content: content,
+        status: 'open'
+      };
+
+      if (!photoFile) return insertFeedbackRow(c, row);
+
+      var path = user.id + '/' + Date.now() + '_' + sanitizeForStoragePath(photoFile.name || 'photo');
+      return c.storage.from(FEEDBACK_BUCKET)
+        .upload(path, photoFile, { contentType: photoFile.type || 'application/octet-stream', upsert: false })
+        .then(function (up) {
+          if (up.error) throw up.error;
+          row.photo_path = path;
+          return insertFeedbackRow(c, row).catch(function (err) {
+            // 행 저장이 실패하면 업로드한 사진이 고아로 남지 않게 정리
+            c.storage.from(FEEDBACK_BUCKET).remove([path]);
+            throw err;
+          });
+        });
+    });
+  }
+
+  function listFeedback() {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.from('feedback').select('*').order('created_at', { ascending: false })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return res.data || [];
+      });
+  }
+
+  // 비공개 버킷이므로 열람은 만료되는 서명 URL로만 (signedUrl()은 documents 전용이라 분리)
+  function feedbackPhotoUrl(path, seconds) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.storage.from(FEEDBACK_BUCKET).createSignedUrl(path, seconds || 3600).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data.signedUrl;
+    });
+  }
+
+  function replyFeedback(id, replyText) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.from('feedback')
+      .update({ reply: replyText, replied_at: new Date().toISOString() })
+      .eq('id', id).select().single()
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return res.data;
+      });
+  }
+
+  function setFeedbackStatus(id, status) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.from('feedback')
+      .update({ status: status })
+      .eq('id', id).select().single()
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return res.data;
+      });
+  }
+
   global.Archive = {
     isEnabled: isEnabled,
     currentUser: currentUser,
@@ -325,8 +421,14 @@
     queryDocuments: queryDocuments,
     existsByTitle: existsByTitle,
     canDelete: canDelete,
+    isAdmin: isAdmin,
     deleteDocument: deleteDocument,
     signedUrl: signedUrl,
-    minutesToText: minutesToText
+    minutesToText: minutesToText,
+    submitFeedback: submitFeedback,
+    listFeedback: listFeedback,
+    feedbackPhotoUrl: feedbackPhotoUrl,
+    replyFeedback: replyFeedback,
+    setFeedbackStatus: setFeedbackStatus
   };
 })(window);
