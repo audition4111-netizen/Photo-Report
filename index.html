@@ -411,7 +411,7 @@
       <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot">
       <h1 class="mode-select-title">뚝 <span class="t-doc">DOC</span>!</h1>
     </div>
-    <p class="mode-select-sub">일잘알 자동 문서 생성기</p>
+    <p class="mode-select-sub">일잘러 모바일 문서 생성기</p>
 
     <div class="mode-auth-row" id="modeAuthRow" hidden>
       <span class="auth-chip" id="modeAuthChip"></span>
@@ -3466,11 +3466,13 @@
   function renderFeedbackItem(row){
     var isAdminUser = Archive.isAdmin(authUser);
     var isAuthor = !!(authUser && row.author_id === authUser.id);
-    // 답변이 이미 달린 글은 수정 버튼 자체를 안 보여준다 — 답변이 원래 내용을
-    // 근거로 달렸으므로, 그 뒤에 내용이 바뀌면 답변과 어긋나 보인다.
-    // (서버도 db/schema.sql의 feedback_update_own 정책으로 같은 조건을 강제한다.)
+    // 관리자는 모든 글을 답변 유무와 상관없이 수정·삭제할 수 있다(db/schema.sql의
+    // feedback_update_admin·feedback_delete_own_or_admin 정책이 이미 행 제한 없이
+    // 허용해 두었으므로 화면에서 조건만 열어 주면 된다).
+    // 작성자 본인은 답변이 아직 안 달린 자기 글만 수정할 수 있다 — 답변이 원래
+    // 내용을 근거로 달렸으므로, 그 뒤에 내용이 바뀌면 답변과 어긋나 보인다.
     // 삭제는 그 제약이 없다 — 작성자 본인 글이면 답변 유무와 상관없이 지울 수 있다.
-    var canEditRow = isAuthor && !row.reply;
+    var canEditRow = isAdminUser || (isAuthor && !row.reply);
     var canDeleteRow = isAuthor || isAdminUser;
     var item = document.createElement('div');
     item.className = 'feedback-item';
