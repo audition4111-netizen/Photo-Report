@@ -424,6 +424,21 @@
       });
   }
 
+  // 작성자 본인 또는 관리자만 삭제할 수 있다(db/schema.sql의
+  // feedback_delete_own_or_admin 정책). 행과 첨부 사진을 함께 지운다 —
+  // 사진 삭제가 실패해도(권한 등) 행 삭제 자체는 이미 끝난 뒤라 에러를 삼킨다.
+  function deleteFeedback(row) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.from('feedback').delete().eq('id', row.id).then(function (res) {
+      if (res.error) throw res.error;
+      if (!row.photo_path) return;
+      return c.storage.from(FEEDBACK_BUCKET).remove([row.photo_path]).catch(function (err) {
+        console.error('개선요청 사진 삭제 실패(행은 삭제됨):', err);
+      });
+    });
+  }
+
   global.Archive = {
     isEnabled: isEnabled,
     currentUser: currentUser,
@@ -445,6 +460,7 @@
     feedbackPhotoUrl: feedbackPhotoUrl,
     replyFeedback: replyFeedback,
     setFeedbackStatus: setFeedbackStatus,
-    updateFeedback: updateFeedback
+    updateFeedback: updateFeedback,
+    deleteFeedback: deleteFeedback
   };
 })(window);
