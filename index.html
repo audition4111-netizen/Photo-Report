@@ -323,14 +323,19 @@
   .resume-actions button.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
 
   /* 개선요청 게시판 — 첫 화면(모드 선택 화면) 왼쪽 아래에만 뜬다.
-     모드 선택 화면의 자식으로 두면 화면이 닫힐 때(.closed) 같이 사라진다. */
+     모드 선택 화면의 자식으로 두면 화면이 닫힐 때(.closed) 같이 사라진다.
+     아이콘만 있으면 뭘 누르는 버튼인지 안 와닿아서, 글자를 붙인
+     "확장형" 버튼으로 — 한눈에 "개선요청 하는 곳"임이 보이도록 한다. */
   .feedback-fab{
     position:fixed; left:16px; bottom:calc(16px + env(safe-area-inset-bottom));
-    width:52px; height:52px; border-radius:50%; border:none;
-    background:var(--ink); color:#fff; font-size:22px; line-height:1; cursor:pointer;
-    box-shadow:var(--elevation); z-index:410; display:flex; align-items:center; justify-content:center;
+    display:flex; align-items:center; gap:7px;
+    padding:13px 18px 13px 14px; border-radius:var(--radius-full); border:none;
+    background:var(--ink); color:#fff; cursor:pointer;
+    box-shadow:var(--elevation); z-index:410;
+    font-family:inherit; font-size:13.5px; font-weight:700; white-space:nowrap;
   }
   .feedback-fab:active{ background:var(--primary); }
+  .feedback-fab-icon{ font-size:19px; line-height:1; flex:none; }
 
   /* 로그인 모달(420)·이어쓰기 모달(430)보다도 위에 떠야 어떤 화면에서 로그인을
      하고 오더라도(pendingFeedbackOpen) 바로 이어서 열 수 있다. */
@@ -432,7 +437,10 @@
     </button>
   </div>
   <span class="pm-credit">Project Manager : Steven Kim</span>
-  <button type="button" class="feedback-fab" id="feedbackFabBtn" title="개선요청">💬</button>
+  <button type="button" class="feedback-fab" id="feedbackFabBtn" title="개선요청">
+    <span class="feedback-fab-icon">💡</span>
+    <span>개선요청</span>
+  </button>
 </div>
 
 <div class="app-shell" id="appShell">
