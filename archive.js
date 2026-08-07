@@ -409,6 +409,21 @@
       });
   }
 
+  // 작성자 본인의 제목·내용 수정. 관리자 답변이 이미 달린 글은 db/schema.sql의
+  // feedback_update_own 정책(reply is null 조건)에 막혀 서버에서 거부된다 —
+  // 화면도 답변이 있으면 수정 버튼을 아예 보여주지 않는다.
+  function updateFeedback(id, title, content) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.from('feedback')
+      .update({ title: title, content: content })
+      .eq('id', id).select().single()
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return res.data;
+      });
+  }
+
   global.Archive = {
     isEnabled: isEnabled,
     currentUser: currentUser,
@@ -429,6 +444,7 @@
     listFeedback: listFeedback,
     feedbackPhotoUrl: feedbackPhotoUrl,
     replyFeedback: replyFeedback,
-    setFeedbackStatus: setFeedbackStatus
+    setFeedbackStatus: setFeedbackStatus,
+    updateFeedback: updateFeedback
   };
 })(window);
