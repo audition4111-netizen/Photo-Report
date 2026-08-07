@@ -3517,13 +3517,20 @@
           '</div>' : '') +
       '</div>';
 
+    // 작성자 표기 — 관리자만 실명을 보고, 본인 글은 "나", 그 외는 "익명"으로
+    // 가린다. 다른 사용자가 누가 썼는지 몰라야 눈치 안 보고 편하게 쓸 수 있다.
+    // (행 자체에는 author_name이 그대로 저장·조회되므로 화면 표시만 가리는
+    // 것이다 — DB 응답 원본까지 감추는 건 아니다.)
+    var displayAuthorName = isAdminUser ? row.author_name : (isAuthor ? '나' : '익명');
+
     item.querySelector('.feedback-item-title').textContent = row.title;
-    item.querySelector('.feedback-item-meta').textContent = row.author_name + ' · ' + fmtFeedbackDate(row.created_at);
+    item.querySelector('.feedback-item-meta').textContent = displayAuthorName + ' · ' + fmtFeedbackDate(row.created_at);
     item.querySelector('.feedback-item-content').textContent = row.content;
 
     if(row.reply){
       var replyBox = item.querySelector('.feedback-reply-box');
-      replyBox.querySelector('b').textContent = '답변' + (row.replied_at ? ' · ' + fmtFeedbackDate(row.replied_at) : '');
+      // 답변은 누가 답했든 항상 "관리자"로 표기한다(실명 노출 안 함).
+      replyBox.querySelector('b').textContent = '관리자 답변' + (row.replied_at ? ' · ' + fmtFeedbackDate(row.replied_at) : '');
       replyBox.querySelector('span').textContent = row.reply;
     }
 
