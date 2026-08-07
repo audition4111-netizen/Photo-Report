@@ -363,9 +363,17 @@
   .feedback-msg.show{ display:block; }
   .feedback-msg.err{ color:var(--error); }
   .feedback-photo-preview{ max-width:100%; border-radius:var(--radius-sm); margin-top:8px; display:block; }
-  .fb-edit-btn{ display:block; margin-top:8px; padding:0; border:none; background:none; font-family:inherit; font-size:12px; color:var(--muted); text-decoration:underline; cursor:pointer; }
+  .feedback-view-actions{ display:flex; gap:14px; margin-top:8px; }
+  .fb-edit-btn, .fb-delete-btn{ display:inline-block; padding:0; border:none; background:none; font-family:inherit; font-size:12px; text-decoration:underline; cursor:pointer; }
+  .fb-edit-btn{ color:var(--muted); }
+  .fb-delete-btn{ color:var(--error); }
   .feedback-edit-box{ margin-top:10px; display:flex; flex-direction:column; gap:8px; }
   .feedback-edit-box[hidden]{ display:none; }
+  .feedback-pager{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:12px; flex:none; }
+  .feedback-pager[hidden]{ display:none; }
+  .feedback-pager button{ padding:8px 14px; font-family:inherit; font-size:13px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  .feedback-pager button:disabled{ opacity:.4; cursor:default; }
+  .feedback-pager span{ font-size:12.5px; color:var(--muted); }
   .feedback-edit-box input, .feedback-edit-box textarea{ width:100%; box-sizing:border-box; padding:10px; font-family:inherit; font-size:13px; border:1px solid var(--hairline); border-radius:var(--radius-sm); }
   .feedback-edit-box textarea{ resize:vertical; }
 
@@ -838,6 +846,11 @@
         <button type="button" class="feedback-new-btn" id="feedbackNewBtn">+ 새 요청 작성</button>
         <p class="feedback-empty" id="feedbackEmpty" hidden></p>
         <div id="feedbackList"></div>
+        <div class="feedback-pager" id="feedbackPager" hidden>
+          <button type="button" id="feedbackPrevBtn">‹ 이전</button>
+          <span id="feedbackPageInfo"></span>
+          <button type="button" id="feedbackNextBtn">다음 ›</button>
+        </div>
       </div>
 
       <div id="feedbackNewView" hidden>
@@ -3396,7 +3409,18 @@
   var feedbackMsgEl = document.getElementById('feedbackMsg');
   var feedbackListEl = document.getElementById('feedbackList');
   var feedbackEmptyEl = document.getElementById('feedbackEmpty');
+  var feedbackPagerEl = document.getElementById('feedbackPager');
+  var feedbackPrevBtn = document.getElementById('feedbackPrevBtn');
+  var feedbackNextBtn = document.getElementById('feedbackNextBtn');
+  var feedbackPageInfoEl = document.getElementById('feedbackPageInfo');
   var feedbackPhotoFile = null;
+
+  // 목록은 한 번에 전부 받아 온 뒤(최신순 정렬은 서버가 이미 해 둔다)
+  // 화면에서만 페이지로 나눠 보여준다 — 개선요청 게시판 규모에 굳이
+  // 서버 페이징(limit/offset)까지 둘 필요는 없다.
+  var FEEDBACK_PAGE_SIZE = 10;
+  var feedbackAllRows = [];
+  var feedbackPage = 0;
 
   function setFeedbackMsg(text, kind){
     feedbackMsgEl.textContent = text || '';
@@ -3441,10 +3465,13 @@
   // 다시 불러오면 스크롤 위치와 펼침 상태가 날아간다).
   function renderFeedbackItem(row){
     var isAdminUser = Archive.isAdmin(authUser);
+    var isAuthor = !!(authUser && row.author_id === authUser.id);
     // 답변이 이미 달린 글은 수정 버튼 자체를 안 보여준다 — 답변이 원래 내용을
     // 근거로 달렸으므로, 그 뒤에 내용이 바뀌면 답변과 어긋나 보인다.
     // (서버도 db/schema.sql의 feedback_update_own 정책으로 같은 조건을 강제한다.)
-    var isOwner = !!(authUser && row.author_id === authUser.id && !row.reply);
+    // 삭제는 그 제약이 없다 — 작성자 본인 글이면 답변 유무와 상관없이 지울 수 있다.
+    var canEditRow = isAuthor && !row.reply;
+    var canDeleteRow = isAuthor || isAdminUser;
     var item = document.createElement('div');
     item.className = 'feedback-item';
 
@@ -3459,9 +3486,13 @@
           '<div class="feedback-item-content"></div>' +
           (row.photo_path ? '<img class="feedback-item-photo" hidden>' : '') +
           (row.reply ? '<div class="feedback-reply-box"><b></b><span></span></div>' : '') +
-          (isOwner ? '<button type="button" class="fb-edit-btn">수정</button>' : '') +
+          (canEditRow || canDeleteRow ?
+            '<div class="feedback-view-actions">' +
+              (canEditRow ? '<button type="button" class="fb-edit-btn">수정</button>' : '') +
+              (canDeleteRow ? '<button type="button" class="fb-delete-btn">삭제</button>' : '') +
+            '</div>' : '') +
         '</div>' +
-        (isOwner ?
+        (canEditRow ?
           '<div class="feedback-edit-box" hidden>' +
             '<input type="text" class="field-input fb-edit-title">' +
             '<textarea class="field-textarea fb-edit-content" rows="4"></textarea>' +
@@ -3507,7 +3538,7 @@
       }
     });
 
-    if(isOwner){
+    if(canEditRow){
       var viewBox = item.querySelector('.feedback-view-box');
       var editBox = item.querySelector('.feedback-edit-box');
       var editTitleInput = item.querySelector('.fb-edit-title');
@@ -3547,6 +3578,24 @@
           editSaveBtn.disabled = false;
           console.error(err);
           showToast('수정에 실패했습니다.');
+        });
+      });
+    }
+
+    if(canDeleteRow){
+      var deleteBtn = item.querySelector('.fb-delete-btn');
+      deleteBtn.addEventListener('click', function(){
+        if(!window.confirm('"' + row.title + '" 개선요청을 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
+        deleteBtn.disabled = true;
+        Archive.deleteFeedback(row).then(function(){
+          var idx = feedbackAllRows.indexOf(row);
+          if(idx !== -1) feedbackAllRows.splice(idx, 1);
+          showToast('삭제했습니다.');
+          renderFeedbackPage();
+        }).catch(function(err){
+          deleteBtn.disabled = false;
+          console.error(err);
+          showToast('삭제에 실패했습니다.');
         });
       });
     }
@@ -3595,31 +3644,68 @@
     return item;
   }
 
-  function renderFeedbackList(rows){
+  // pageRows: 현재 페이지에 보여줄 목록(이미 잘라 온 조각). 전체가 비어 있는지는
+  // feedbackAllRows로 판단한다 — 페이지 조각만 보면 마지막 페이지가 아닌 이상
+  // 절대 비지 않으므로 "결과 없음" 문구를 잘못 띄울 일이 없다.
+  function renderFeedbackList(pageRows){
     feedbackListEl.innerHTML = '';
-    feedbackEmptyEl.hidden = rows.length > 0;
-    if(rows.length === 0){
+    feedbackEmptyEl.hidden = feedbackAllRows.length > 0;
+    if(feedbackAllRows.length === 0){
       feedbackEmptyEl.textContent = '아직 등록된 개선요청이 없습니다.';
       return;
     }
     var frag = document.createDocumentFragment();
-    rows.forEach(function(row){ frag.appendChild(renderFeedbackItem(row)); });
+    pageRows.forEach(function(row){ frag.appendChild(renderFeedbackItem(row)); });
     feedbackListEl.appendChild(frag);
+  }
+
+  // feedbackAllRows·feedbackPage를 기준으로 현재 페이지만 그리고, 페이지 이동
+  // 버튼 상태(끝 페이지에서 비활성화 등)를 갱신한다. 삭제 등으로 페이지가
+  // 통째로 비면(마지막 페이지에서 그 페이지의 마지막 항목을 지운 경우 등)
+  // 한 페이지 앞으로 당겨 보여준다.
+  function renderFeedbackPage(){
+    var totalPages = Math.max(1, Math.ceil(feedbackAllRows.length / FEEDBACK_PAGE_SIZE));
+    if(feedbackPage > totalPages - 1) feedbackPage = totalPages - 1;
+    if(feedbackPage < 0) feedbackPage = 0;
+
+    var start = feedbackPage * FEEDBACK_PAGE_SIZE;
+    renderFeedbackList(feedbackAllRows.slice(start, start + FEEDBACK_PAGE_SIZE));
+
+    var showPager = feedbackAllRows.length > FEEDBACK_PAGE_SIZE;
+    feedbackPagerEl.hidden = !showPager;
+    if(showPager){
+      feedbackPageInfoEl.textContent = (feedbackPage + 1) + ' / ' + totalPages;
+      feedbackPrevBtn.disabled = feedbackPage === 0;
+      feedbackNextBtn.disabled = feedbackPage >= totalPages - 1;
+    }
   }
 
   function loadFeedbackList(){
     feedbackEmptyEl.hidden = false;
     feedbackEmptyEl.textContent = '불러오는 중...';
     feedbackListEl.innerHTML = '';
+    feedbackPagerEl.hidden = true;
     Archive.listFeedback().then(function(rows){
-      renderFeedbackList(rows);
+      feedbackAllRows = rows;
+      feedbackPage = 0;
+      renderFeedbackPage();
     }).catch(function(err){
       console.error(err);
+      feedbackAllRows = [];
       feedbackListEl.innerHTML = '';
       feedbackEmptyEl.hidden = false;
       feedbackEmptyEl.textContent = '목록을 불러오지 못했습니다: ' + (err.message || '');
     });
   }
+
+  feedbackPrevBtn.addEventListener('click', function(){
+    feedbackPage--;
+    renderFeedbackPage();
+  });
+  feedbackNextBtn.addEventListener('click', function(){
+    feedbackPage++;
+    renderFeedbackPage();
+  });
 
   feedbackFabBtn.addEventListener('click', function(){
     if(loginRequired()){

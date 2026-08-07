@@ -262,4 +262,18 @@ create policy "feedback_storage_insert"
   to authenticated
   with check (bucket_id = 'feedback-photos');
 
--- 삭제 정책은 만들지 않는다 — 개선요청·첨부 사진은 지우지 않고 완료 표시로 남긴다.
+-- 삭제 — 작성자 본인 또는 관리자(김영섭)만.
+grant delete on public.feedback to authenticated;
+
+drop policy if exists "feedback_delete_own_or_admin" on public.feedback;
+create policy "feedback_delete_own_or_admin"
+  on public.feedback for delete
+  to authenticated
+  using (author_id = auth.uid() or auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr');
+
+drop policy if exists "feedback_storage_delete" on storage.objects;
+create policy "feedback_storage_delete"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'feedback-photos'
+    and (owner = auth.uid() or auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr'));
