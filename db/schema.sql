@@ -201,14 +201,49 @@ create policy "feedback_insert_own"
   to authenticated
   with check (author_id = auth.uid());
 
--- 답변·완료 표시는 관리자만. 작성자 본인도 자기 글을 고칠 수 없다 —
--- 답변이 달린 뒤에 내용이 바뀌면 답변과 어긋날 수 있어서다.
+-- 답변·완료 표시는 관리자만.
 drop policy if exists "feedback_update_admin" on public.feedback;
 create policy "feedback_update_admin"
   on public.feedback for update
   to authenticated
   using (auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr')
   with check (auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr');
+
+-- 작성자 본인은 제목·내용을 고칠 수 있다. 단, 관리자 답변이 이미 달린 뒤에는
+-- 막는다 — 답변이 원래 내용을 근거로 달렸는데 그 뒤에 내용이 바뀌면 답변과
+-- 어긋나 보이기 때문. (앱 화면도 답변이 있으면 수정 버튼을 보여주지 않는다.)
+drop policy if exists "feedback_update_own" on public.feedback;
+create policy "feedback_update_own"
+  on public.feedback for update
+  to authenticated
+  using (author_id = auth.uid() and reply is null)
+  with check (author_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- 위 두 update 정책은 "행 단위"로만 걸린다 — 작성자 본인 정책이 허용하는 행이면
+-- 원래는 status·reply 같은 관리자 전용 칸도 API로 직접 바꿔 보낼 수 있다.
+-- 그래서 이 트리거가 "누가 보냈는지"를 다시 보고, 관리자가 아니면 그 칸들을
+-- 무조건 원래 값으로 되돌린다 — 화면에 버튼이 없어도 API를 직접 호출하는
+-- 경우까지 막는 마지막 안전장치.
+-- ---------------------------------------------------------------------------
+create or replace function public.feedback_guard_admin_fields()
+returns trigger
+language plpgsql
+as $$
+begin
+  if coalesce(auth.jwt() ->> 'email', '') <> 'audition411@kdhc.co.kr' then
+    new.status := old.status;
+    new.reply := old.reply;
+    new.replied_at := old.replied_at;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists feedback_guard_admin_fields_trigger on public.feedback;
+create trigger feedback_guard_admin_fields_trigger
+  before update on public.feedback
+  for each row execute function public.feedback_guard_admin_fields();
 
 -- Storage — 비공개 버킷 'feedback-photos'
 insert into storage.buckets (id, name, public)

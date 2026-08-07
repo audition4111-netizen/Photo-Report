@@ -363,6 +363,11 @@
   .feedback-msg.show{ display:block; }
   .feedback-msg.err{ color:var(--error); }
   .feedback-photo-preview{ max-width:100%; border-radius:var(--radius-sm); margin-top:8px; display:block; }
+  .fb-edit-btn{ display:block; margin-top:8px; padding:0; border:none; background:none; font-family:inherit; font-size:12px; color:var(--muted); text-decoration:underline; cursor:pointer; }
+  .feedback-edit-box{ margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+  .feedback-edit-box[hidden]{ display:none; }
+  .feedback-edit-box input, .feedback-edit-box textarea{ width:100%; box-sizing:border-box; padding:10px; font-family:inherit; font-size:13px; border:1px solid var(--hairline); border-radius:var(--radius-sm); }
+  .feedback-edit-box textarea{ resize:vertical; }
 
   .set-number-badge{ position:absolute; top:2mm; left:2mm; height:6mm; min-width:6mm; padding:0 1.5mm; border-radius:3mm; background:#000; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; box-sizing:border-box; }
 
@@ -3436,6 +3441,10 @@
   // 다시 불러오면 스크롤 위치와 펼침 상태가 날아간다).
   function renderFeedbackItem(row){
     var isAdminUser = Archive.isAdmin(authUser);
+    // 답변이 이미 달린 글은 수정 버튼 자체를 안 보여준다 — 답변이 원래 내용을
+    // 근거로 달렸으므로, 그 뒤에 내용이 바뀌면 답변과 어긋나 보인다.
+    // (서버도 db/schema.sql의 feedback_update_own 정책으로 같은 조건을 강제한다.)
+    var isOwner = !!(authUser && row.author_id === authUser.id && !row.reply);
     var item = document.createElement('div');
     item.className = 'feedback-item';
 
@@ -3446,9 +3455,21 @@
       '</div>' +
       '<div class="feedback-item-meta"></div>' +
       '<div class="feedback-item-body">' +
-        '<div class="feedback-item-content"></div>' +
-        (row.photo_path ? '<img class="feedback-item-photo" hidden>' : '') +
-        (row.reply ? '<div class="feedback-reply-box"><b></b><span></span></div>' : '') +
+        '<div class="feedback-view-box">' +
+          '<div class="feedback-item-content"></div>' +
+          (row.photo_path ? '<img class="feedback-item-photo" hidden>' : '') +
+          (row.reply ? '<div class="feedback-reply-box"><b></b><span></span></div>' : '') +
+          (isOwner ? '<button type="button" class="fb-edit-btn">수정</button>' : '') +
+        '</div>' +
+        (isOwner ?
+          '<div class="feedback-edit-box" hidden>' +
+            '<input type="text" class="field-input fb-edit-title">' +
+            '<textarea class="field-textarea fb-edit-content" rows="4"></textarea>' +
+            '<div class="feedback-admin-actions">' +
+              '<button type="button" class="fb-edit-cancel-btn">취소</button>' +
+              '<button type="button" class="fb-edit-save-btn primary">저장</button>' +
+            '</div>' +
+          '</div>' : '') +
         (isAdminUser ?
           '<div class="feedback-admin-box">' +
             '<textarea placeholder="답변을 입력하세요."></textarea>' +
@@ -3485,6 +3506,50 @@
         }).catch(function(err){ console.error(err); });
       }
     });
+
+    if(isOwner){
+      var viewBox = item.querySelector('.feedback-view-box');
+      var editBox = item.querySelector('.feedback-edit-box');
+      var editTitleInput = item.querySelector('.fb-edit-title');
+      var editContentInput = item.querySelector('.fb-edit-content');
+      var editBtn = item.querySelector('.fb-edit-btn');
+      var editCancelBtn = item.querySelector('.fb-edit-cancel-btn');
+      var editSaveBtn = item.querySelector('.fb-edit-save-btn');
+
+      editBtn.addEventListener('click', function(){
+        editTitleInput.value = row.title;
+        editContentInput.value = row.content;
+        viewBox.hidden = true;
+        editBox.hidden = false;
+      });
+
+      editCancelBtn.addEventListener('click', function(){
+        editBox.hidden = true;
+        viewBox.hidden = false;
+      });
+
+      editSaveBtn.addEventListener('click', function(){
+        var title = editTitleInput.value.trim();
+        var content = editContentInput.value.trim();
+        if(!title || !content){
+          showToast('제목과 내용을 모두 입력해 주세요.');
+          return;
+        }
+        editSaveBtn.disabled = true;
+        Archive.updateFeedback(row.id, title, content).then(function(updated){
+          row.title = updated.title;
+          row.content = updated.content;
+          showToast('수정했습니다.');
+          var fresh = renderFeedbackItem(row);
+          fresh.classList.add('expanded');
+          item.replaceWith(fresh);
+        }).catch(function(err){
+          editSaveBtn.disabled = false;
+          console.error(err);
+          showToast('수정에 실패했습니다.');
+        });
+      });
+    }
 
     if(isAdminUser){
       var textarea = item.querySelector('.feedback-admin-box textarea');
