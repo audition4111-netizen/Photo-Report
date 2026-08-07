@@ -258,6 +258,18 @@
 
   .mode-select-screen{ position:fixed; inset:0; background:var(--canvas); z-index:400; display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto; }
   .mode-select-screen.closed{ display:none; }
+  /* 좁은(모바일) 화면 전용 — 웹(넓은 화면)은 가운데 정렬이 그대로 보기 좋아서
+     그대로 두고, 모바일에서만 위로 붙여 만들기 버튼과 왼쪽 아래 개선요청
+     버튼 사이 간격을 확보한다. */
+  @media (max-width:480px){
+    .mode-select-screen{
+      align-items:flex-start;
+      padding:16px 20px calc(92px + env(safe-area-inset-bottom));
+    }
+    .mode-select-head{ margin-bottom:28px; }
+    .mode-title-row{ margin-bottom:8px; }
+    .mode-select-sub{ margin-bottom:24px; }
+  }
   .pm-credit{ position:fixed; right:14px; bottom:calc(10px + env(safe-area-inset-bottom)); font-size:11px; color:var(--muted-soft); }
   .mode-select-inner{ width:100%; max-width:360px; text-align:center; }
   .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 44px; }
@@ -336,6 +348,17 @@
   }
   .feedback-fab:active{ background:var(--primary); }
   .feedback-fab-icon{ font-size:19px; line-height:1; flex:none; }
+  /* 새 개선요청이 올라오면 뜨는 작은 느낌표 배지 */
+  .feedback-fab-badge{
+    position:absolute; top:-4px; right:-4px;
+    min-width:18px; height:18px; padding:0 4px; box-sizing:border-box;
+    border-radius:var(--radius-full);
+    background:var(--primary); color:#fff;
+    font-size:11px; font-weight:800; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 2px var(--canvas);
+  }
+  .feedback-fab-badge[hidden]{ display:none; }
 
   /* 로그인 모달(420)·이어쓰기 모달(430)보다도 위에 떠야 어떤 화면에서 로그인을
      하고 오더라도(pendingFeedbackOpen) 바로 이어서 열 수 있다. */
@@ -440,6 +463,7 @@
   <button type="button" class="feedback-fab" id="feedbackFabBtn" title="개선요청">
     <span class="feedback-fab-icon">💡</span>
     <span>개선요청</span>
+    <span class="feedback-fab-badge" id="feedbackFabBadge" hidden>!</span>
   </button>
 </div>
 
@@ -3253,6 +3277,9 @@
   function setAuthUser(user){
     authUser = user || null;
     renderAuthState();
+    // checkFeedbackBadge()는 이 파일 아래쪽(개선요청 게시판) 섹션에서 정의되지만
+    // function 선언은 끌어올려지므로(hoisting) 여기서 먼저 호출해도 문제없다.
+    checkFeedbackBadge();
   }
 
   function setAuthMode(signUp){
@@ -3405,6 +3432,7 @@
      차단은 db/schema.sql의 RLS(auth.jwt() 이메일 비교)가 담당한다. */
 
   var feedbackFabBtn = document.getElementById('feedbackFabBtn');
+  var feedbackFabBadgeEl = document.getElementById('feedbackFabBadge');
   var feedbackModalEl = document.getElementById('feedbackModal');
   var feedbackCloseBtn = document.getElementById('feedbackCloseBtn');
   var feedbackListViewEl = document.getElementById('feedbackListView');
@@ -3699,6 +3727,47 @@
     }
   }
 
+  // 새 개선요청 배지 — 마지막으로 게시판을 연 시각을 localStorage에 남겨 두고,
+  // 그보다 최신 글이 있으면 첫 화면 버튼에 작은 느낌표를 띄운다. 기기(브라우저)
+  // 단위 기록이라 다른 기기에서 로그인하면 다시 뜰 수 있다 — 서버에 저장하는
+  // 것보다 단순하고, 이 정도 용도로는 충분하다.
+  var FEEDBACK_SEEN_KEY = 'ddoc_feedback_last_seen_at';
+
+  function getFeedbackLastSeenAt(){
+    try { return localStorage.getItem(FEEDBACK_SEEN_KEY) || ''; } catch(e){ return ''; }
+  }
+  function setFeedbackLastSeenAt(iso){
+    try { localStorage.setItem(FEEDBACK_SEEN_KEY, iso); } catch(e){ /* 프라이빗 모드 등은 조용히 무시 */ }
+  }
+
+  // 로그인 상태가 바뀔 때마다(로그인/로그아웃/최초 세션 확인) setAuthUser()가
+  // 호출한다. 배지 표시는 부가 기능이라 목록 조회가 실패해도 조용히 무시한다.
+  function checkFeedbackBadge(){
+    if(!archiveAvailable() || !authUser){
+      feedbackFabBadgeEl.hidden = true;
+      return;
+    }
+    Archive.listFeedback().then(function(rows){
+      var lastSeen = getFeedbackLastSeenAt();
+      var hasNew = false;
+      rows.forEach(function(row){
+        if(!lastSeen || new Date(row.created_at) > new Date(lastSeen)) hasNew = true;
+      });
+      feedbackFabBadgeEl.hidden = !hasNew;
+    }).catch(function(){ /* 배지 갱신 실패는 핵심 기능이 아니므로 무시 */ });
+  }
+
+  // 게시판을 열어 목록을 실제로 봤으므로, 가장 최신 글의 시각(글이 하나도
+  // 없으면 지금 시각)을 "마지막으로 확인함"으로 남기고 배지를 끈다.
+  function markFeedbackSeen(rows){
+    var latest = '';
+    (rows || []).forEach(function(row){
+      if(!latest || new Date(row.created_at) > new Date(latest)) latest = row.created_at;
+    });
+    setFeedbackLastSeenAt(latest || new Date().toISOString());
+    feedbackFabBadgeEl.hidden = true;
+  }
+
   function loadFeedbackList(){
     feedbackEmptyEl.hidden = false;
     feedbackEmptyEl.textContent = '불러오는 중...';
@@ -3708,6 +3777,7 @@
       feedbackAllRows = rows;
       feedbackPage = 0;
       renderFeedbackPage();
+      markFeedbackSeen(rows);
     }).catch(function(err){
       console.error(err);
       feedbackAllRows = [];
