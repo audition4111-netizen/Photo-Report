@@ -152,9 +152,12 @@
   .btn-outline{ border-color:var(--primary); color:var(--primary); }
   .btn-danger{ border-color:var(--error); color:var(--error); }
 
-  .footer-bar{ position:fixed; left:0; right:0; bottom:0; margin:0 auto; max-width:480px; background:var(--canvas); box-shadow:var(--elevation); padding:12px 12px calc(12px + env(safe-area-inset-bottom)); display:flex; gap:8px; z-index:40; }
+  .footer-bar{ position:fixed; left:0; right:0; bottom:0; margin:0 auto; max-width:480px; background:var(--canvas); box-shadow:var(--elevation); padding:12px 12px calc(12px + env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; gap:8px; z-index:40; }
   @media (min-width:700px){ .footer-bar{ max-width:640px; } }
-  .footer-btn{ flex:1; padding:13px 0; font-size:14px; font-weight:500; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  /* 버튼이 5개(임시저장·미리보기·PDF·Word·메일)로 늘어난 뒤로는 한 줄에 다
+     넣으면 너무 좁아져서, flex-basis를 30%로 줘서 줄바꿈되며 2줄에 걸쳐도
+     각 버튼이 읽을 만한 너비를 갖도록 한다. */
+  .footer-btn{ flex:1 1 30%; min-width:64px; padding:13px 0; font-size:14px; font-weight:500; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
   .footer-btn:active{ background:var(--surface-soft); }
   .footer-btn.primary{ background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
   .footer-btn.primary:active{ background:var(--primary-active); }
@@ -734,6 +737,7 @@
     <button type="button" class="footer-btn" id="saveDraftBtn">임시저장</button>
     <button type="button" class="footer-btn" id="previewBtn">미리보기</button>
     <button type="button" class="footer-btn" id="pdfBtn">PDF 출력</button>
+    <button type="button" class="footer-btn" id="wordBtn">Word 출력</button>
     <button type="button" class="footer-btn primary" id="mailBtn">메일로 전송</button>
   </div>
 
@@ -915,6 +919,7 @@
 
 <script src="libs/html2canvas.min.js"></script>
 <script src="libs/jspdf.umd.min.js"></script>
+<script type="module" src="libs/docx-global.mjs"></script>
 <script src="libs/supabase.min.js"></script>
 <script src="supabase-config.js"></script>
 <script src="archive.js"></script>
@@ -990,6 +995,7 @@
   var photoListEl = document.getElementById('photoList');
   var previewBtn = document.getElementById('previewBtn');
   var pdfBtn = document.getElementById('pdfBtn');
+  var wordBtn = document.getElementById('wordBtn');
   var mailBtn = document.getElementById('mailBtn');
   var previewModalEl = document.getElementById('previewModal');
   var previewPagesEl = document.getElementById('previewPages');
@@ -3214,6 +3220,462 @@
     });
   }
 
+  // ============================================================================
+  // Word(.docx) 출력
+  // ----------------------------------------------------------------------------
+  // PDF는 화면을 스크린샷 찍어 이미지로 이어붙인 것(html2canvas)이라 워드로
+  // 그대로 옮길 수 없다. 여기서는 같은 데이터(사진·글자·표)를 워드의 진짜
+  // 문단·표·이미지 객체로 다시 구성한다(docx.js, libs/docx-global.mjs로 불러온
+  // window.docx). 글자 크기·굵기·정렬·표 칸 너비(mm)는 정확히 맞출 수 있지만,
+  // 줄바꿈이 정확히 어디서 넘어가는지·표 한 줄 높이·페이지가 정확히 어디서
+  // 나뉘는지는 워드 자체의 레이아웃 엔진이 계산하므로 PDF와 100% 같다고
+  // 보장할 수 없다. "외톨이 글자 묶기"(자간을 좁혀 마지막 줄을 끌어올리는
+  // 처리)도 브라우저 전용 트릭이라 여기서는 적용하지 않는다.
+  // ============================================================================
+
+  var MM_TO_TWIP = 56.6929;    // 1mm = 1/25.4 in = 56.6929 twip(1/20pt)
+  var MM_TO_PX96 = 3.7795275591; // 96dpi 기준 1mm ≈ 3.78px — ImageRun 크기 계산용
+
+  function mmToTwip(mm){ return Math.round(mm * MM_TO_TWIP); }
+  function mmToPx96(mm){ return mm * MM_TO_PX96; }
+  // 96dpi 기준 1px ≈ 0.75pt = 1.5 half-point(워드 글자 크기 단위)
+  function pxToHalfPt(px){ return Math.max(2, Math.round(px * 1.5)); }
+
+  // data:image/...;base64,XXXX -> Uint8Array (ImageRun에 넘길 원본 바이트)
+  function dataUrlToBytes(dataUrl){
+    var base64 = String(dataUrl || '').split(',')[1] || '';
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for(var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  // 이미지의 실제 가로세로 비율을 알아야 칸 안에 꽉 차게(object-fit:contain처럼)
+  // 넣을 수 있다 — new Image()로 한 번 읽어야 자연 크기를 안다.
+  function loadImageNaturalSize(dataUrl){
+    return new Promise(function(resolve){
+      var img = new Image();
+      img.onload = function(){ resolve({ width: img.naturalWidth || 1, height: img.naturalHeight || 1 }); };
+      img.onerror = function(){ resolve({ width: 1, height: 1 }); };
+      img.src = dataUrl;
+    });
+  }
+
+  // naturalW×H 비율을 유지하며 boxWmm×boxHmm 안에 최대로 들어가는 크기(mm)
+  function containSizeMm(naturalW, naturalH, boxWmm, boxHmm){
+    var ratio = Math.min(boxWmm / naturalW, boxHmm / naturalH);
+    return { widthMm: naturalW * ratio, heightMm: naturalH * ratio };
+  }
+
+  // 배열을 하나씩 순서대로(동시에 아님) 비동기 처리 — buildPdfDocument()의
+  // processPage 재귀와 같은 목적. 이미지 자연 크기를 읽는 작업이 섞여 있어
+  // Promise.all로 한꺼번에 돌리면 순서 보장이 애매해지므로 순차 처리한다.
+  function promiseMapSeries(items, fn){
+    var results = [];
+    var i = 0;
+    return new Promise(function(resolve, reject){
+      (function next(){
+        if(i >= items.length){ resolve(results); return; }
+        var idx = i++;
+        Promise.resolve(fn(items[idx], idx)).then(function(r){
+          results.push(r);
+          next();
+        }, reject);
+      })();
+    });
+  }
+
+  function wordRun(text, opts){
+    opts = opts || {};
+    return new window.docx.TextRun({
+      text: String(text == null ? '' : text),
+      bold: !!opts.bold,
+      size: pxToHalfPt(opts.px || 14),
+      color: opts.color || '000000'
+    });
+  }
+
+  function wordPara(text, opts){
+    opts = opts || {};
+    return new window.docx.Paragraph({
+      children: [wordRun(text, opts)],
+      alignment: opts.align || window.docx.AlignmentType.LEFT,
+      spacing: opts.spacing,
+      pageBreakBefore: !!opts.pageBreakBefore
+    });
+  }
+
+  // 단락기호(marker) 하나의 폭을 대략치로 추정한다 — 브라우저와 워드는 글자폭
+  // 계산 방식이 달라 정확히 일치시킬 수 없다(안내한 한계). 없는 것보다는 낫다.
+  function estimateHangingTwip(markerLen, px){
+    var pt = (px || 14) * 0.75;
+    var widthPt = Math.max(1, markerLen) * pt * 0.62;
+    return Math.max(220, Math.round(widthPt * 20));
+  }
+
+  // fillWrappedText()의 워드 버전 — 여러 줄 문단을 docx.Paragraph 배열로 만든다.
+  // hanging이 false면(사진 설명 등 가운데 정렬 캡션) 단락기호를 떼지 않고
+  // 그대로 정렬만 한다. splitLineMarker()는 순수 문자열 함수라 그대로 재사용한다.
+  function wordWrappedParagraphs(text, opts){
+    opts = opts || {};
+    var lines = String(text == null ? '' : text).split('\n');
+    var out = [];
+    lines.forEach(function(line){
+      var parsed = opts.hanging === false ? { marker: '', body: line } : splitLineMarker(line);
+      if(parsed.marker){
+        var hang = estimateHangingTwip(parsed.marker.length, opts.px);
+        out.push(new window.docx.Paragraph({
+          children: [wordRun(parsed.marker, opts), wordRun(parsed.body, opts)],
+          alignment: opts.align || window.docx.AlignmentType.LEFT,
+          indent: { left: hang, hanging: hang },
+          spacing: opts.spacing
+        }));
+      }else{
+        out.push(new window.docx.Paragraph({
+          children: [wordRun(parsed.body, opts)],
+          alignment: opts.align || window.docx.AlignmentType.LEFT,
+          spacing: opts.spacing
+        }));
+      }
+    });
+    if(out.length === 0) out.push(wordPara('', opts));
+    return out;
+  }
+
+  function wordCellBorders(){
+    var b = { style: window.docx.BorderStyle.SINGLE, size: 4, color: '000000' };
+    return { top: b, bottom: b, left: b, right: b };
+  }
+
+  function wordCell(children, opts){
+    opts = opts || {};
+    return new window.docx.TableCell({
+      children: children,
+      width: opts.widthMm ? { size: mmToTwip(opts.widthMm), type: window.docx.WidthType.DXA } : undefined,
+      columnSpan: opts.colSpan || undefined,
+      rowSpan: opts.rowSpan || undefined,
+      verticalAlign: opts.vAlign || window.docx.VerticalAlign.CENTER,
+      shading: opts.fill ? { fill: opts.fill } : undefined,
+      borders: opts.noBorder ? undefined : wordCellBorders(),
+      margins: { top: 60, bottom: 60, left: 80, right: 80 }
+    });
+  }
+
+  function wordImageRun(bytes, widthMm, heightMm){
+    return new window.docx.ImageRun({
+      data: bytes,
+      transformation: { width: Math.max(1, Math.round(mmToPx96(widthMm))), height: Math.max(1, Math.round(mmToPx96(heightMm))) }
+    });
+  }
+
+  // 사진 한 칸(이미지+설명)을 표 칸 children으로 — 사진대장·매뉴얼·고장보고서 공용.
+  function wordPhotoCellChildren(item, boxWmm, boxHmm, captionPx){
+    var rc = item.rotatedCache || { dataURL: item.baseDataURL };
+    return loadImageNaturalSize(rc.dataURL).then(function(size){
+      var fit = containSizeMm(size.width, size.height, boxWmm, boxHmm);
+      var children = [
+        new window.docx.Paragraph({
+          children: [wordImageRun(dataUrlToBytes(rc.dataURL), fit.widthMm, fit.heightMm)],
+          alignment: window.docx.AlignmentType.CENTER,
+          spacing: { after: 80 }
+        })
+      ];
+      return children.concat(wordWrappedParagraphs(item.description || '', {
+        px: captionPx, bold: true, align: window.docx.AlignmentType.CENTER, hanging: false
+      }));
+    });
+  }
+
+  // ---- 사진대장·매뉴얼 공용 2열 격자 -----------------------------------------
+  function wordPhotoTextGridRows(pageItems, startIndex){
+    var colWmm = 95, photoBoxHmm = 78;   // 78mm: 칸 안에서 설명 두어 줄 자리를 남긴 근사치
+    var rowsPromise = promiseMapSeries(pageItems, function(item, idx){
+      if(isTextItem(item)){
+        var children = [];
+        if(appMode === 'manual'){
+          children.push(wordPara(String((startIndex || 0) + idx + 1) + '.', { px: 10, bold: true }));
+        }
+        return Promise.resolve(children.concat(wordWrappedParagraphs(item.description || '', { px: 14, bold: true })));
+      }
+      var prefix = [];
+      if(appMode === 'manual'){
+        prefix.push(wordPara(String((startIndex || 0) + idx + 1) + '.', { px: 10, bold: true }));
+      }
+      return wordPhotoCellChildren(item, colWmm - 8, photoBoxHmm, 14).then(function(photoChildren){
+        return prefix.concat(photoChildren);
+      });
+    });
+
+    return rowsPromise.then(function(cellsChildren){
+      var rows = [];
+      for(var r = 0; r < cellsChildren.length; r += 2){
+        var pair = cellsChildren.slice(r, r + 2);
+        var cells = pair.map(function(children){
+          return wordCell(children, { widthMm: colWmm, vAlign: window.docx.VerticalAlign.TOP });
+        });
+        while(cells.length < 2){
+          cells.push(wordCell([wordPara('')], { widthMm: colWmm, noBorder: true }));
+        }
+        rows.push(new window.docx.TableRow({ children: cells }));
+      }
+      return rows;
+    });
+  }
+
+  // ---- 사진대장 ---------------------------------------------------------------
+  function buildReportWordChildren(){
+    var titleText = getReportTitle();
+    var pages = computePages();
+
+    return promiseMapSeries(pages, function(pageItems, pageIdx){
+      return wordPhotoTextGridRows(pageItems, pageIdx * 4).then(function(rows){
+        return [
+          new window.docx.Paragraph({
+            children: [wordRun(titleText || '사진대장', { px: 24, bold: true })],
+            alignment: window.docx.AlignmentType.CENTER,
+            spacing: { after: 240 },
+            pageBreakBefore: pageIdx > 0
+          }),
+          new window.docx.Table({ width: { size: mmToTwip(190), type: window.docx.WidthType.DXA }, rows: rows })
+        ];
+      });
+    }).then(function(pagesBlocks){
+      var flat = [];
+      pagesBlocks.forEach(function(b){ flat = flat.concat(b); });
+      return flat;
+    });
+  }
+
+  // ---- 매뉴얼 -----------------------------------------------------------------
+  function buildManualHeaderWordTable(titleText){
+    var d = window.docx;
+    var branchName = manualBranchSelectEl ? manualBranchSelectEl.value : '';
+    var orgChildren = [wordPara('한국지역난방공사', { px: 12, bold: true, align: d.AlignmentType.CENTER })];
+    if(branchName) orgChildren.push(wordPara(branchName, { px: 12, bold: true, align: d.AlignmentType.CENTER }));
+
+    var row1 = new d.TableRow({ children: [
+      wordCell(orgChildren, { widthMm: 35, rowSpan: 3 }),
+      wordCell([wordPara(spaceOutChars(docTypeSelectEl.value), { px: 22, bold: true, align: d.AlignmentType.CENTER })], { widthMm: 115, rowSpan: 2 }),
+      wordCell([wordPara(fieldSelectEl.value ? fieldSelectEl.value + '분야' : '', { px: 12, bold: true, align: d.AlignmentType.CENTER })], { widthMm: 40, colSpan: 2 })
+    ]});
+    var row2 = new d.TableRow({ children: [
+      wordCell([wordPara('개정번호', { px: 12, bold: true, align: d.AlignmentType.CENTER })], { widthMm: 24, fill: 'F2F2F2' }),
+      wordCell([wordPara(revisionInputEl.value.trim(), { px: 12, align: d.AlignmentType.CENTER })], { widthMm: 16 })
+    ]});
+    var row3 = new d.TableRow({ children: [
+      wordCell([wordPara(titleText || '매뉴얼', { px: 14, align: d.AlignmentType.CENTER })], { widthMm: 115 }),
+      wordCell([wordPara('페이지', { px: 12, bold: true, align: d.AlignmentType.CENTER })], { widthMm: 24, fill: 'F2F2F2' }),
+      wordCell([wordPara('1', { px: 12, align: d.AlignmentType.CENTER })], { widthMm: 16 })
+    ]});
+
+    return new d.Table({ width: { size: mmToTwip(190), type: d.WidthType.DXA }, rows: [row1, row2, row3] });
+  }
+
+  function buildManualSectionsWordChildren(){
+    var d = window.docx;
+    var blocks = [];
+    var n = 0;
+    MANUAL_SECTION_DEFS.forEach(function(def){
+      if(manualSkip[def.key]) return;
+      n++;
+      blocks.push(wordPara(n + '. ' + def.label, { px: 15, bold: true, spacing: { before: 160, after: 80 } }));
+      if(def.textareaId){
+        blocks = blocks.concat(wordWrappedParagraphs(manualSectionText(def.textareaId), { px: 14 }));
+        if(def.hasTable && manualPrepTable){
+          var rows = manualPrepTable.rows.map(function(row, ri){
+            var cells = row.map(function(val){
+              return wordCell([wordPara(val, { px: 13, bold: ri === 0, align: d.AlignmentType.CENTER })],
+                { fill: ri === 0 ? 'F2F2F2' : undefined });
+            });
+            return new d.TableRow({ children: cells });
+          });
+          blocks.push(new d.Table({ width: { size: mmToTwip(170), type: d.WidthType.DXA }, rows: rows }));
+        }
+      }
+    });
+    return blocks;
+  }
+
+  function buildManualWordChildren(){
+    var titleText = getReportTitle();
+    var pages = computePages();
+
+    return promiseMapSeries(pages, function(pageItems, pageIdx){
+      return wordPhotoTextGridRows(pageItems, pageIdx * 4).then(function(rows){
+        var blocks = [];
+        if(pageIdx > 0) blocks.push(new window.docx.Paragraph({ children: [], pageBreakBefore: true }));
+        blocks.push(buildManualHeaderWordTable(titleText));
+        blocks.push(wordPara('', {}));
+        if(pageIdx === 0) blocks = blocks.concat(buildManualSectionsWordChildren());
+        blocks.push(new window.docx.Table({ width: { size: mmToTwip(190), type: window.docx.WidthType.DXA }, rows: rows }));
+        return blocks;
+      });
+    }).then(function(pagesBlocks){
+      var flat = [];
+      pagesBlocks.forEach(function(b){ flat = flat.concat(b); });
+      return flat;
+    });
+  }
+
+  // ---- 고장 보고서 -------------------------------------------------------------
+  function buildFaultSummaryWordTable(){
+    var d = window.docx;
+    function cell(text, opts){
+      opts = opts || {};
+      return wordCell([wordPara(text, { px: 13, bold: !!opts.bold, align: opts.center ? d.AlignmentType.CENTER : d.AlignmentType.LEFT })],
+        { widthMm: opts.widthMm, colSpan: opts.colSpan, rowSpan: opts.rowSpan, fill: opts.fill });
+    }
+    function bodyCell(text, opts){
+      opts = opts || {};
+      return wordCell(wordWrappedParagraphs(text, { px: 13 }), { widthMm: opts.widthMm, colSpan: opts.colSpan });
+    }
+    function labelCell(text, rowSpan){
+      return cell(text, { widthMm: 34, bold: true, center: true, fill: 'F2F2F2', rowSpan: rowSpan });
+    }
+    function subLabelCell(text){
+      return cell(text, { widthMm: 24, bold: true, center: true });
+    }
+
+    var rows = [];
+    rows.push(new d.TableRow({ children: [
+      labelCell('발생일시/고장분야'),
+      cell(formatFaultDateTime('faultOccurredDate', 'faultOccurredTime'), { widthMm: 78, colSpan: 2, center: true }),
+      cell(faultFieldLabel(), { widthMm: 78, colSpan: 2, center: true })
+    ]}));
+    rows.push(new d.TableRow({ children: [
+      labelCell('지사/설비명'),
+      cell(faultText('faultBranch'), { widthMm: 78, colSpan: 2, center: true }),
+      cell(faultText('faultFacility'), { widthMm: 78, colSpan: 2, center: true })
+    ]}));
+    rows.push(new d.TableRow({ children: [
+      labelCell('기기명(고장위치)'),
+      cell(faultText('faultDevice'), { widthMm: 156, colSpan: 4, center: true })
+    ]}));
+
+    if(isNoOutage()){
+      rows.push(new d.TableRow({ children: [
+        labelCell('열공급 중단'),
+        cell('해당없음', { widthMm: 156, colSpan: 4, center: true })
+      ]}));
+    }else{
+      rows.push(new d.TableRow({ children: [
+        labelCell('열공급 중단', 3),
+        subLabelCell('APT'),
+        cell(faultUnitText('faultApt', '세대'), { widthMm: 54, center: true }),
+        subLabelCell('건물'),
+        cell(faultUnitText('faultBuilding', '개소'), { widthMm: 54, center: true })
+      ]}));
+      rows.push(new d.TableRow({ children: [
+        subLabelCell('중단시간'),
+        cell(formatFaultDateTime('faultStopDate', 'faultStopTime'), { widthMm: 132, colSpan: 3, center: true })
+      ]}));
+      rows.push(new d.TableRow({ children: [
+        subLabelCell('기간'),
+        cell(computeFaultDuration() || '-', { widthMm: 132, colSpan: 3, center: true })
+      ]}));
+    }
+
+    rows.push(new d.TableRow({ children: [ labelCell('고장내용(추정 원인)'), bodyCell(faultText('faultContent'), { widthMm: 156, colSpan: 4 }) ] }));
+    if(!isNoSituation()){
+      rows.push(new d.TableRow({ children: [ labelCell('상황(운전자/목격자\n진술 포함)'), bodyCell(faultText('faultSituation'), { widthMm: 156, colSpan: 4 }) ] }));
+    }
+    rows.push(new d.TableRow({ children: [
+      labelCell('복구일시/설비정지기간'),
+      cell(formatFaultRecovery(), { widthMm: 78, colSpan: 2, center: true }),
+      cell(computeFaultDownTime() || '-', { widthMm: 78, colSpan: 2, center: true })
+    ]}));
+    if(!isNoAction()){
+      rows.push(new d.TableRow({ children: [ labelCell('조치사항'), bodyCell(faultText('faultAction'), { widthMm: 156, colSpan: 4 }) ] }));
+    }
+
+    return new d.Table({ width: { size: mmToTwip(190), type: d.WidthType.DXA }, rows: rows });
+  }
+
+  function buildFaultPhotoGridWordRows(pageItems){
+    var colWmm = 63.3, boxHmm = 50;
+    return promiseMapSeries(pageItems, function(item){
+      return wordPhotoCellChildren(item, colWmm - 6, boxHmm, 14);
+    }).then(function(cellsChildren){
+      var rows = [];
+      for(var r = 0; r < cellsChildren.length; r += 3){
+        var triple = cellsChildren.slice(r, r + 3);
+        var cells = triple.map(function(children){
+          return wordCell(children, { widthMm: colWmm, vAlign: window.docx.VerticalAlign.TOP });
+        });
+        while(cells.length < 3){
+          cells.push(wordCell([wordPara('')], { widthMm: colWmm, noBorder: true }));
+        }
+        rows.push(new window.docx.TableRow({ children: cells }));
+      }
+      return rows;
+    });
+  }
+
+  function buildFaultWordChildren(){
+    var d = window.docx;
+    var titleText = getReportTitle();
+    var pages = computeFaultPages();
+
+    return promiseMapSeries(pages, function(pageItems, pageIdx){
+      var head = [];
+      head.push(new d.Paragraph({
+        children: [wordRun(titleText || '고장 보고서', { px: 24, bold: true })],
+        alignment: d.AlignmentType.CENTER,
+        spacing: { before: 120, after: 240 },
+        pageBreakBefore: pageIdx > 0,
+        border: {
+          top: { style: d.BorderStyle.SINGLE, size: 12, color: '4A6FA5' },
+          bottom: { style: d.BorderStyle.SINGLE, size: 12, color: '4A6FA5' }
+        }
+      }));
+
+      var bodyPromise = Promise.resolve([]);
+      if(pageIdx === 0){
+        head.push(wordPara('1. 고장 요약', { px: 14, bold: true, spacing: { after: 80 } }));
+        head.push(buildFaultSummaryWordTable());
+      }
+      if(pageItems.length > 0){
+        head.push(wordPara(pageIdx === 0 ? '2. 관련 사진' : '2. 관련 사진 (계속)', { px: 14, bold: true, spacing: { before: 160, after: 80 } }));
+        bodyPromise = buildFaultPhotoGridWordRows(pageItems).then(function(rows){
+          return [new d.Table({ width: { size: mmToTwip(190), type: d.WidthType.DXA }, rows: rows })];
+        });
+      }
+
+      return bodyPromise.then(function(gridBlocks){ return head.concat(gridBlocks); });
+    }).then(function(pagesBlocks){
+      var flat = [];
+      pagesBlocks.forEach(function(b){ flat = flat.concat(b); });
+      return flat;
+    });
+  }
+
+  // ---- 공통 진입점 -------------------------------------------------------------
+  function buildWordDocument(){
+    if(!window.docx){
+      return Promise.reject(new Error('워드 생성 라이브러리를 아직 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'));
+    }
+    var d = window.docx;
+    var childrenPromise =
+      appMode === 'manual' ? buildManualWordChildren() :
+      appMode === 'fault' ? buildFaultWordChildren() :
+      buildReportWordChildren();
+
+    return childrenPromise.then(function(children){
+      var doc = new d.Document({
+        sections: [{
+          properties: {
+            page: {
+              size: { width: mmToTwip(210), height: mmToTwip(297) },
+              margin: { top: mmToTwip(14), bottom: mmToTwip(14), left: mmToTwip(10), right: mmToTwip(10) }
+            }
+          },
+          children: children
+        }]
+      });
+      return d.Packer.toBlob(doc);
+    });
+  }
+
   // ---- 로그인 ---------------------------------------------------------------
 
   var authRowEl = document.getElementById('authRow');
@@ -3918,22 +4380,26 @@
     return meta;
   }
 
-  function archiveGeneratedPdf(pdf, filename){
-    if(!window.Archive || !Archive.isEnabled()) return;
+  /* format: 'pdf'(기본) | 'docx'. PDF 출력·Word 출력 버튼에서 공용으로 쓴다.
+     같은 제목의 문서가 이미 있으면(형식과 무관하게 — PDF든 Word든) 물어보고
+     확인해야만 저장한다. 메일 전송은 저장 규칙이 달라(항상 PDF만 저장) 별도
+     함수(archiveMailPdfOnly)를 쓴다. */
+  function archiveGeneratedFile(fileBlob, filename, format){
+    if(!window.Archive || !Archive.isEnabled()) return Promise.resolve(false);
     // 사진대장은 보관하지 않는다 — 조회 대상이 아니므로 안내도 띄우지 않는다.
-    if(appMode !== 'manual' && appMode !== 'fault') return;
-    Archive.currentUser().then(function(user){
+    if(appMode !== 'manual' && appMode !== 'fault') return Promise.resolve(false);
+    return Archive.currentUser().then(function(user){
       if(!user){
         showToast('로그인하면 출력한 문서가 보관함에 자동 저장됩니다.');
-        return;
+        return false;
       }
       var pageCount = computeDocPages().length;
       var meta = buildArchiveMeta(filename, pageCount);
 
-      // PDF 출력·메일 전송을 여러 번 누르면 작성자도 모르는 사이 같은 문서가
-      // 보관함에 계속 쌓인다. 저장 전에 같은 작성자가 같은 제목으로 이미 저장한
-      // 문서가 있는지 먼저 확인하고, 있으면 사용자에게 물어본 뒤에만 저장을
-      // 진행한다. 작성자나 제목 중 하나라도 다르면 별개 문서이므로 묻지 않는다.
+      // PDF·Word 출력·메일 전송을 여러 번 누르면 작성자도 모르는 사이 같은
+      // 문서가 보관함에 계속 쌓인다. 저장 전에 같은 작성자가 같은 제목으로
+      // 이미 저장한 문서(형식 무관)가 있는지 먼저 확인하고, 있으면 사용자에게
+      // 물어본 뒤에만 저장을 진행한다.
       return Archive.existsByTitle({
         docType: meta.doc_type,
         title: meta.title,
@@ -3946,18 +4412,58 @@
           );
           if(!keep){
             showToast('보관함에는 저장하지 않았습니다. (같은 문서가 이미 있음)');
-            return;
+            return false;
           }
         }
-        var blob;
-        try{ blob = pdf.output('blob'); }catch(e){ return; }
-        return Archive.saveDocument(meta, blob).then(function(){
+        return Archive.saveDocument(meta, fileBlob, format).then(function(){
           showToast('보관함에 저장했습니다.');
+          return true;
         });
       });
     }).catch(function(err){
       console.error(err);
-      showToast('보관함 저장에 실패했습니다. PDF 다운로드는 정상 완료되었습니다.');
+      showToast('보관함 저장에 실패했습니다. 다운로드는 정상 완료되었습니다.');
+      return false;
+    });
+  }
+
+  // 메일 전송 전용 — PDF·Word 둘 다 이 기기로는 내려받게 하되, 보관함에는
+  // 항상 PDF만 저장한다. 이미 저장된 게(형식 무관) 있으면 확인창을 띄우고,
+  // 취소하면 이번엔 보관함에 아예 저장하지 않는다(기기에는 이미 둘 다 있음).
+  function archiveMailPdfOnly(pdfBlob, filename){
+    if(!window.Archive || !Archive.isEnabled()) return;
+    if(appMode !== 'manual' && appMode !== 'fault') return;
+    Archive.currentUser().then(function(user){
+      if(!user){
+        showToast('로그인하면 출력한 문서가 보관함에 자동 저장됩니다.');
+        return;
+      }
+      var pageCount = computeDocPages().length;
+      var meta = buildArchiveMeta(filename, pageCount);
+
+      return Archive.existsByTitle({
+        docType: meta.doc_type,
+        title: meta.title,
+        authorId: user.id
+      }).then(function(exists){
+        if(exists){
+          var keep = window.confirm(
+            '보관함에 "' + meta.title + '" 문서(작성자 동일)가 이미 있습니다.\n' +
+            '그래도 보관함에 PDF를 저장하시겠습니까?\n' +
+            '(취소하면 이 기기에 다운로드된 파일만 남고, 보관함에는 저장되지 않습니다.)'
+          );
+          if(!keep){
+            showToast('보관함에는 저장하지 않았습니다. 이 기기에는 다운로드된 파일이 남아 있습니다.');
+            return;
+          }
+        }
+        return Archive.saveDocument(meta, pdfBlob, 'pdf').then(function(){
+          showToast('보관함에 PDF를 저장했습니다.');
+        });
+      });
+    }).catch(function(err){
+      console.error(err);
+      showToast('보관함 저장에 실패했습니다. 다운로드는 정상 완료되었습니다.');
     });
   }
 
@@ -3974,14 +4480,16 @@
     setGenerating(true, '생성 중...', null);
 
     buildPdfDocument().then(function(pdf){
+      var blob;
       try{
         pdf.save(filename + '.pdf');
+        blob = pdf.output('blob');
       }catch(err){
         showToast('다운로드가 차단되었습니다. 브라우저 설정을 확인해 주세요.');
       }
       setGenerating(false);
       // 다운로드가 우선. 보관 저장은 실패해도 출력물에 영향이 없도록 뒤에서 처리.
-      archiveGeneratedPdf(pdf, filename);
+      if(blob) archiveGeneratedFile(blob, filename, 'pdf');
     }).catch(function(err){
       console.error(err);
       showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
@@ -3990,6 +4498,35 @@
   }
 
   pdfBtn.addEventListener('click', generatePDF);
+
+  function generateWord(){
+    if(isGenerating) return;
+    if(typeof window.docx === 'undefined'){
+      showToast('워드 생성 라이브러리를 아직 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+    var filename = getValidatedFileName();
+    if(!filename) return;
+    if(!ensureSelectionsForOutput()) return;
+    if(!ensurePhotosForOutput()) return;
+    setGenerating(true, 'Word 생성 중...', null);
+
+    buildWordDocument().then(function(blob){
+      try{
+        downloadBlob(blob, filename + '.docx');
+      }catch(err){
+        showToast('다운로드가 차단되었습니다. 브라우저 설정을 확인해 주세요.');
+      }
+      setGenerating(false);
+      archiveGeneratedFile(blob, filename, 'docx');
+    }).catch(function(err){
+      console.error(err);
+      showToast('워드 문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      setGenerating(false);
+    });
+  }
+
+  wordBtn.addEventListener('click', generateWord);
 
   function downloadBlob(blob, filename){
     var url = URL.createObjectURL(blob);
@@ -4019,32 +4556,49 @@
 
     var preOpenedWindow = window.open('', '_blank');
     if(preOpenedWindow){
-      preOpenedWindow.document.write('<p style="font-family:sans-serif;padding:24px;color:#374151;">PDF를 준비하고 있습니다. 잠시만 기다려 주세요...</p>');
+      preOpenedWindow.document.write('<p style="font-family:sans-serif;padding:24px;color:#374151;">문서를 준비하고 있습니다. 잠시만 기다려 주세요...</p>');
     }
 
     setGenerating(true, null, '준비 중...');
 
-    buildPdfDocument().then(function(pdf){
-      var blob = pdf.output('blob');
-      var pdfFileName = filename + '.pdf';
+    var pdfFileName = filename + '.pdf';
+    var wordFileName = filename + '.docx';
 
-      downloadBlob(blob, pdfFileName);
-      // 다운로드가 우선. 보관 저장은 실패해도 메일 전송 흐름에 영향이 없도록 뒤에서 처리
-      // (PDF 출력 버튼과 동일하게 매뉴얼·고장보고서만 저장되고, 사진대장은 여기서도 건너뛴다).
-      archiveGeneratedPdf(pdf, filename);
-      var gmailUrl = gmailComposeUrl(
-        filename,
-        'PDF 파일(' + pdfFileName + ')이 이 기기에 다운로드되었습니다.\n' +
-        'Gmail 작성 화면 하단의 첨부파일 아이콘을 눌러 방금 다운로드된 파일을 직접 첨부해 주세요.\n' +
-        '(브라우저 보안 정책상 외부 웹사이트가 Gmail에 파일을 자동으로 첨부할 수는 없습니다.)'
-      );
-      if(preOpenedWindow){
-        preOpenedWindow.location.href = gmailUrl;
-      }else{
-        window.open(gmailUrl, '_blank');
-      }
-      showToast('PDF를 다운로드했습니다. 열린 Gmail 화면에서 첨부파일로 추가해 주세요.');
-      setGenerating(false);
+    buildPdfDocument().then(function(pdf){
+      var pdfBlob = pdf.output('blob');
+      // 워드 생성이 실패해도(라이브러리 미로딩 등) 메일 흐름 자체는 PDF만으로 계속 진행한다.
+      var wordPromise = (typeof window.docx !== 'undefined')
+        ? buildWordDocument().catch(function(err){ console.error('워드 생성 실패(메일 흐름은 계속 진행):', err); return null; })
+        : Promise.resolve(null);
+
+      return wordPromise.then(function(wordBlob){
+        downloadBlob(pdfBlob, pdfFileName);
+        if(wordBlob) downloadBlob(wordBlob, wordFileName);
+
+        var bodyText = wordBlob
+          ? 'PDF 파일(' + pdfFileName + ')과 Word 파일(' + wordFileName + ')이 이 기기에 다운로드되었습니다.\n'
+          : 'PDF 파일(' + pdfFileName + ')이 이 기기에 다운로드되었습니다.\n';
+        var gmailUrl = gmailComposeUrl(
+          filename,
+          bodyText +
+          'Gmail 작성 화면 하단의 첨부파일 아이콘을 눌러 방금 다운로드된 파일을 직접 첨부해 주세요.\n' +
+          '(브라우저 보안 정책상 외부 웹사이트가 Gmail에 파일을 자동으로 첨부할 수는 없습니다.)'
+        );
+        if(preOpenedWindow){
+          preOpenedWindow.location.href = gmailUrl;
+        }else{
+          window.open(gmailUrl, '_blank');
+        }
+        showToast(wordBlob
+          ? 'PDF·Word 파일을 다운로드했습니다. 열린 Gmail 화면에서 첨부파일로 추가해 주세요.'
+          : 'PDF를 다운로드했습니다. 열린 Gmail 화면에서 첨부파일로 추가해 주세요.');
+        setGenerating(false);
+
+        // 다운로드가 우선. 보관함에는 항상 PDF만 저장한다(요청사항).
+        // 이미 저장된 게(형식 무관) 있으면 물어보고, 취소하면 이번엔 저장소에
+        // 남기지 않는다 — 기기에는 이미 PDF·Word 둘 다 내려받아 둔 뒤다.
+        archiveMailPdfOnly(pdfBlob, filename);
+      });
     }).catch(function(err){
       console.error(err);
       if(preOpenedWindow){
