@@ -342,8 +342,6 @@
 
     var canDel = Archive.canDelete(currentUser, row);
 
-    // PDF 출력·Word 출력을 각각 눌러 저장한 문서는 형식이 하나씩만 채워지므로
-    // (같은 문서라도 pdf_path·docx_path가 각각 다른 행), 있는 것만 버튼으로 보여준다.
     card.innerHTML =
       '<div class="card-top">' +
         '<span class="card-head">' +
@@ -353,8 +351,7 @@
       '</div>' +
       '<div class="meta">' + meta + '</div>' +
       '<div class="card-actions">' +
-        (row.pdf_path ? '<button type="button" class="pdf-btn">PDF 열기</button>' : '') +
-        (row.docx_path ? '<button type="button" class="word-btn">Word 열기</button>' : '') +
+        '<button type="button" class="pdf-btn">PDF 열기</button>' +
         (canDel ? '<button type="button" class="del-btn">삭제</button>' : '') +
       '</div>';
 
@@ -362,23 +359,18 @@
     card.querySelector('.badge').textContent = row.branch || '';
     if(revChip) card.querySelector('.rev-chip').textContent = '개정 ' + row.revision;
 
-    function wireOpenButton(selector, path){
-      var openBtn = card.querySelector(selector);
-      if(!openBtn) return;
-      openBtn.addEventListener('click', function(){
-        openBtn.disabled = true;
-        Archive.signedUrl(path).then(function(url){
-          openBtn.disabled = false;
-          window.open(url, '_blank');
-        }).catch(function(err){
-          openBtn.disabled = false;
-          console.error(err);
-          setStatus('파일을 열지 못했습니다: ' + (err.message || ''), true);
-        });
+    var btn = card.querySelector('.pdf-btn');
+    btn.addEventListener('click', function(){
+      btn.disabled = true;
+      Archive.signedUrl(row.pdf_path).then(function(url){
+        btn.disabled = false;
+        window.open(url, '_blank');
+      }).catch(function(err){
+        btn.disabled = false;
+        console.error(err);
+        setStatus('PDF를 열지 못했습니다: ' + (err.message || ''), true);
       });
-    }
-    wireOpenButton('.pdf-btn', row.pdf_path);
-    wireOpenButton('.word-btn', row.docx_path);
+    });
 
     var delBtn = card.querySelector('.del-btn');
     if(delBtn){

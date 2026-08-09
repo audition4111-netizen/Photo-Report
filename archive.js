@@ -123,17 +123,10 @@
     return out.trim();
   }
 
-  // 파일 형식(pdf/docx)별 확장자·MIME 타입. saveDocument()의 세 번째 인자로 쓴다.
-  var FORMAT_EXT = { pdf: '.pdf', docx: '.docx' };
-  var FORMAT_CONTENT_TYPE = {
-    pdf: 'application/pdf',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  };
-
-  /* documents/{지사}/{연도}/{분야}/{manual|fault}/({매뉴얼종류}/){제목}.pdf(또는 .docx)
+  /* documents/{지사}/{연도}/{분야}/{manual|fault}/({매뉴얼종류}/){제목}.pdf
      지사·분야·매뉴얼종류·제목은 로마자로 변환됨. 매뉴얼만 종류별 폴더가 한 단계
      더 있고, 고장 보고서는 분야 아래 바로 fault 폴더로 들어간다. */
-  function storagePath(docType, branch, field, manualType, title, year, ext) {
+  function storagePath(docType, branch, field, manualType, title, year) {
     var safeBranch = sanitizeForStoragePath(branch) || 'unknown';
     var safeField = sanitizeForStoragePath(field) || 'unknown';
     var safeTitle = sanitizeForStoragePath(title) || 'document';
@@ -141,7 +134,7 @@
 
     var parts = [safeBranch, y, safeField, docType];
     if (docType === 'manual') parts.push(sanitizeForStoragePath(manualType) || 'unknown');
-    parts.push(safeTitle + (ext || '.pdf'));
+    parts.push(safeTitle + '.pdf');
     return parts.join('/');
   }
 
@@ -162,11 +155,11 @@
 
   // 동명 파일이 있으면 (2), (3)... 순으로 자동 증가시켜 재시도한다.
   // 조용히 처리해야 하므로(사용자에게 팝업 노출 금지) 여기서는 어떤 UI도 건드리지 않는다.
-  function uploadWithRetry(c, basePath, fileBlob, contentType) {
+  function uploadWithRetry(c, basePath, pdfBlob) {
     function attempt(n) {
       var path = n === 1 ? basePath : withSuffix(basePath, n);
       return c.storage.from(BUCKET)
-        .upload(path, fileBlob, { contentType: contentType || 'application/pdf', upsert: false })
+        .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: false })
         .then(function (up) {
           if (up.error) {
             if (isDuplicatePathError(up.error) && n < MAX_UPLOAD_ATTEMPTS) return attempt(n + 1);
@@ -179,37 +172,25 @@
   }
 
   /* meta: doc_type, file_name, title, branch, field, year, manual_type(매뉴얼만),
-     photo_count, page_count 및 종류별 필드. author_id / author_name / pdf_path 또는
-     docx_path·pdf_bytes 또는 docx_bytes 는 여기서 채웁니다. branch·field·
-     manual_type·title·year로 저장 경로
-     (documents/{지사}/{연도}/{분야}/{종류}/{매뉴얼종류}/{제목}.pdf 또는 .docx)를 만든다.
-
-     format: 'pdf'(기본) | 'docx' — 같은 문서라도 PDF 출력·Word 출력을 각각
-     누르면 그때마다 별도 행으로 저장된다(한 행에 두 파일을 같이 담지 않음). */
-  function saveDocument(meta, fileBlob, format) {
-    format = (format === 'docx') ? 'docx' : 'pdf';
+     photo_count, page_count 및 종류별 필드. author_id / author_name / pdf_path /
+     pdf_bytes 는 여기서 채웁니다. branch·field·manual_type·title·year로 저장 경로
+     (documents/{지사}/{연도}/{분야}/{종류}/{매뉴얼종류}/{제목}.pdf)를 만든다. */
+  function saveDocument(meta, pdfBlob) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
 
     return currentUser().then(function (user) {
       if (!user) throw new Error('로그인이 필요합니다.');
 
-      var basePath = storagePath(
-        meta.doc_type, meta.branch, meta.field, meta.manual_type, meta.title, meta.year, FORMAT_EXT[format]
-      );
+      var basePath = storagePath(meta.doc_type, meta.branch, meta.field, meta.manual_type, meta.title, meta.year);
 
-      return uploadWithRetry(c, basePath, fileBlob, FORMAT_CONTENT_TYPE[format]).then(function (path) {
+      return uploadWithRetry(c, basePath, pdfBlob).then(function (path) {
         var row = Object.assign({}, meta, {
           author_id: user.id,
-          author_name: displayName(user)
+          author_name: displayName(user),
+          pdf_path: path,
+          pdf_bytes: pdfBlob.size
         });
-        if (format === 'docx') {
-          row.docx_path = path;
-          row.docx_bytes = fileBlob.size;
-        } else {
-          row.pdf_path = path;
-          row.pdf_bytes = fileBlob.size;
-        }
 
         return c.from('documents').insert(row).select().single().then(function (ins) {
           if (ins.error) {
@@ -315,11 +296,8 @@
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
     return c.from('documents').delete().eq('id', row.id).then(function (res) {
       if (res.error) throw res.error;
-      // 행 하나에 pdf_path·docx_path 중 있는 것만 지운다(둘 다 채워지는 행은 없지만, 방어적으로 둘 다 확인).
-      var paths = [row.pdf_path, row.docx_path].filter(function (p) { return !!p; });
-      if (paths.length === 0) return;
-      return c.storage.from(BUCKET).remove(paths).catch(function (err) {
-        console.error('파일 삭제 실패(행은 삭제됨):', err);
+      return c.storage.from(BUCKET).remove([row.pdf_path]).catch(function (err) {
+        console.error('PDF 파일 삭제 실패(행은 삭제됨):', err);
       });
     });
   }

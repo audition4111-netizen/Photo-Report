@@ -19,13 +19,9 @@ create table if not exists public.documents (
   author_name   text        not null,
   created_at    timestamptz not null default now(),
 
-  -- 저장된 파일 — PDF 출력·Word 출력을 각각 누르면 그때마다 별도 행이 생기므로
-  -- 한 행에는 보통 둘 중 하나만 채워진다(문서 하나에 pdf_path와 docx_path가
-  -- 동시에 차는 경우는 없음). 그래서 원래 not null 이던 pdf_path를 완화했다.
-  pdf_path      text,
+  -- 저장된 PDF
+  pdf_path      text        not null,
   pdf_bytes     integer,
-  docx_path     text,
-  docx_bytes    integer,
   page_count    integer,
   photo_count   integer     not null default 0,
 
@@ -60,17 +56,6 @@ comment on column public.documents.outage_mins is '기간을 분 단위 정수�
 -- 이미 만들어진 테이블에는 create table if not exists가 컬럼을 추가해 주지 않으므로 별도로 추가한다.
 alter table public.documents add column if not exists year integer;
 comment on column public.documents.year is 'PDF 생성 연도 — 저장 경로(documents/{지사}/{연도}/{종류}/{제목}.pdf)의 연도와 맞춘다';
-
--- Word(.docx) 출력 지원 — 기존에 만들어진 테이블은 pdf_path가 not null이라
--- 그 제약부터 풀어야 docx 전용 행(pdf_path가 비고 docx_path만 있는 행)을 넣을 수 있다.
-alter table public.documents alter column pdf_path drop not null;
-alter table public.documents add column if not exists docx_path text;
-alter table public.documents add column if not exists docx_bytes integer;
-
--- 둘 다 비어 있는(=아무 파일도 없는) 행은 만들어지지 않게 막는다.
-alter table public.documents drop constraint if exists documents_has_file;
-alter table public.documents add constraint documents_has_file
-  check (pdf_path is not null or docx_path is not null);
 
 -- ---------------------------------------------------------------------------
 -- 조회 성능용 인덱스
