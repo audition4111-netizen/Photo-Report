@@ -287,26 +287,30 @@
     return String(a || '').localeCompare(String(b || ''), 'ko');
   }
 
-  /* 매뉴얼·고장보고서 공통 — 작성일자(최신순)가 가장 중요한 기준이고,
-     같은 제목(동일 문서의 다른 개정판)일 때만 개정번호가 높은 쪽을 위로 올린다.
-     예전엔 지사·분야로 먼저 묶었지만, 그러면 최신 문서가 지사별로 흩어져
-     한눈에 안 보였다 — 이제는 날짜가 지사·분야보다 우선한다. */
-  function sortByCreatedThenRevision(rows){
+  // 매뉴얼: 작성일자(최신순)가 가장 먼저고, 그 다음에 원래대로 지사-분야-종류-제목
+  // 순으로 묶는다. 같은 제목이면 개정번호가 높은 쪽을 위로.
+  function sortManualRows(rows){
     return rows.slice().sort(function(a, b){
       return (new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        || compareKorean(a.branch, b.branch)
+        || compareKorean(a.field, b.field)
+        || compareKorean(a.manual_type, b.manual_type)
         || compareKorean(a.file_name, b.file_name)
         || (revNumber(b.revision) - revNumber(a.revision));
     });
   }
 
-  // 매뉴얼: 작성일자순(같은 제목이면 개정번호 높은 순).
-  function sortManualRows(rows){
-    return sortByCreatedThenRevision(rows);
-  }
-
-  // 고장 보고서: 작성일자순(같은 제목이면 개정번호 높은 순) — 매뉴얼과 같은 규칙.
+  // 고장 보고서: 작성일자(최신순)가 가장 먼저고, 그 다음에 원래대로 지사-분야-
+  // 설비명-제목 순으로 묶는다. 같은 제목이면 개정번호가 높은 쪽을 위로.
   function sortFaultRows(rows){
-    return sortByCreatedThenRevision(rows);
+    return rows.slice().sort(function(a, b){
+      return (new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        || compareKorean(a.branch, b.branch)
+        || compareKorean(a.field, b.field)
+        || compareKorean(a.facility, b.facility)
+        || compareKorean(a.file_name, b.file_name)
+        || (revNumber(b.revision) - revNumber(a.revision));
+    });
   }
 
   function renderRow(row){
