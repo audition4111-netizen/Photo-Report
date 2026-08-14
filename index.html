@@ -269,7 +269,7 @@
     }
     .mode-select-head{ margin-bottom:28px; }
     .mode-title-row{ margin-bottom:8px; }
-    .mode-select-sub{ margin-bottom:24px; }
+    .mode-select-sub{ margin-bottom:30px; }
   }
   .pm-credit{ position:fixed; right:14px; bottom:calc(10px + env(safe-area-inset-bottom)); font-size:11px; color:var(--muted-soft); }
   .mode-select-inner{ width:100%; max-width:360px; text-align:center; }
@@ -296,7 +296,9 @@
     -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
     -webkit-tap-highlight-color:transparent;
   }
-  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 36px; }
+  /* "보관함 조회" 줄이 빠지면서(일반 사용자에겐 mode-auth-row가 안 보임) 생긴
+     빈자리만큼 여기서 여백을 더 줘 제목과 버튼 사이 균형을 맞춘다. */
+  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 44px; }
 
   /* 좁은 화면에서 로고가 넘치지 않게 */
   @media (max-width:359px){
@@ -460,8 +462,9 @@
     </div>
     <p class="mode-select-sub">일잘러 모바일 문서 생성기</p>
 
+    <!-- "보관함 조회" 링크는 뺐다 — 아래 버튼 중 "문서 보관함"이 같은 역할을 한다.
+         이 줄은 이제 관리자로 로그인했을 때 상태 표시·로그아웃 용도로만 남는다. -->
     <div class="mode-auth-row" id="modeAuthRow" hidden>
-      <a class="auth-chip" href="search.html">보관함 조회</a>
       <span class="auth-chip" id="modeAdminChip" hidden></span>
     </div>
 
@@ -3264,14 +3267,15 @@
     authMsgEl.className = 'auth-msg' + (text ? ' show ' + (kind || '') : '');
   }
 
-  // 보관함 조회 링크는 로그인과 무관하게 항상 보인다. 관리자 칩은 관리자로
-  // 로그인했을 때만 나타난다(일반 사용자는 볼 일이 없다).
+  // 작성 화면 헤더의 "보관함 조회" 링크는 로그인과 무관하게 항상 보인다(첫
+  // 화면에는 같은 역할을 하는 "문서 보관함" 버튼이 따로 있어 여기엔 안 둔다).
+  // 첫 화면의 mode-auth-row는 이제 관리자 상태 표시·로그아웃 전용이라
+  // 관리자로 로그인했을 때만 나타난다.
   function renderAuthState(){
-    var show = archiveAvailable();
-    authRowEl.hidden = !show;
-    modeAuthRowEl.hidden = !show;
+    authRowEl.hidden = !archiveAvailable();
 
     var isAdmin = !!(window.Archive && Archive.isAdmin(adminUser));
+    modeAuthRowEl.hidden = !isAdmin;
     adminChipEl.hidden = !isAdmin;
     modeAdminChipEl.hidden = !isAdmin;
     if(isAdmin){
