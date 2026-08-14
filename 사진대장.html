@@ -281,7 +281,13 @@
   /* 기준 글자 크기를 묶음(row)에 두어야 마스코트의 em 이 제목과 함께 움직인다.
      제목에 font-size 를 두면 형제인 img 는 그 값을 상속받지 못한다. */
   .mode-title-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 10px; font-size:40px; }
-  .mode-select-mascot{ height:2.1em; width:auto; display:block; flex:none; }
+  /* 관리자 진입용 길게 누르기 대상 — 모바일에서 이미지 길게 누르면 브라우저
+     자체의 "이미지 저장/공유" 메뉴가 뜨는 걸 막아야 우리 타이머가 동작한다. */
+  .mode-select-mascot{
+    height:2.1em; width:auto; display:block; flex:none;
+    -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
   .mode-select-title{ font-size:1em; font-weight:800; letter-spacing:-1.6px; color:var(--ink); margin:0; word-break:keep-all; line-height:1.05; }
   /* DOC 만 브랜드 색으로 빼서 워드마크처럼 보이게 */
   .mode-select-title .t-doc{ color:var(--primary); }
@@ -443,7 +449,7 @@
     <div class="mode-title-row">
       <!-- mascot 길게 누르면(약 2.5초) 관리자 로그인 창이 뜬다 — 일반 사용자에게는
            보이지 않는 숨은 입구. 회원가입은 없고, 이미 있는 관리자 계정으로만 로그인. -->
-      <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot" id="adminEntryTrigger">
+      <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot" id="adminEntryTrigger" draggable="false">
       <h1 class="mode-select-title">뚝 <span class="t-doc">DOC</span>!</h1>
     </div>
     <p class="mode-select-sub">일잘러 모바일 문서 생성기</p>
@@ -3311,6 +3317,10 @@
     adminEntryTriggerEl.addEventListener('mousedown', start);
     adminEntryTriggerEl.addEventListener('mouseup', clear);
     adminEntryTriggerEl.addEventListener('mouseleave', clear);
+    /* 안드로이드 크롬은 이미지 길게 누르면 CSS(-webkit-touch-callout, iOS 전용)와
+       무관하게 contextmenu 이벤트로 "이미지 저장/공유" 메뉴를 띄운다 — 막아야
+       우리 타이머(관리자 로그인)가 방해받지 않는다. */
+    adminEntryTriggerEl.addEventListener('contextmenu', function(e){ e.preventDefault(); });
   })();
 
   authCancelBtn.addEventListener('click', closeAuthModal);
