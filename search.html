@@ -27,9 +27,12 @@
   .head-logo{ height:30px; width:auto; display:block; }
   .head-banner{ height:22px; width:auto; display:block; }
   h1{ font-size:22px; font-weight:600; letter-spacing:-0.44px; text-align:center; margin:0 0 10px; }
-  .top-links{ display:flex; justify-content:center; gap:8px; margin:0 0 18px; }
-  .chip{ font-size:12px; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; text-decoration:none; }
+  .top-links{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 18px; }
+  /* 눈에 잘 띄도록 키우고 진하게 — 예전엔 12px 연한 회색이라 놓치기 쉬웠다. */
+  .chip{ font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; text-decoration:none; }
   .chip[hidden]{ display:none; }
+  /* 관리자 모드일 때는 색을 채워 바로 눈에 띄게 한다. */
+  #adminChip{ background:var(--primary); border-color:var(--primary); color:#fff; }
 
   .tabs{ display:flex; gap:8px; margin:0 0 16px; }
   .tab{ flex:1; padding:12px 0; font-family:inherit; font-size:14px; font-weight:600; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--muted); cursor:pointer; }
