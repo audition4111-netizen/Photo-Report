@@ -296,16 +296,21 @@
   .mode-choice-btn:active{ background:var(--surface-soft); }
   /* 로그인 상태 줄은 로그인한 뒤에만 나타난다. 로그아웃 상태의 첫 화면에는
      로그인 관련 요소가 전혀 보이지 않고, 만들기를 누르는 순간 팝업으로 뜬다. */
-  .mode-auth-row{ display:flex; justify-content:center; gap:8px; margin:0 0 22px; }
+  .mode-auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 22px; }
   .mode-auth-row[hidden]{ display:none; }
   .mode-choice-title{ display:block; font-size:16px; font-weight:600; color:var(--ink); margin:0 0 4px; }
   .mode-choice-desc{ display:block; font-size:13px; color:var(--muted); line-height:1.5; }
-  .mode-indicator{ display:inline-block; font-size:12px; color:var(--muted); background:var(--surface-soft); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; margin:0 0 14px; }
+  /* 눈에 잘 띄도록 키우고 진하게 — 예전엔 12px 연한 회색이라 놓치기 쉬웠다. */
+  .mode-indicator{ display:inline-block; font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; margin:0 0 14px; }
 
-  .auth-row{ display:flex; justify-content:center; gap:8px; margin:0 0 14px; }
+  .auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 14px; }
   .auth-row[hidden]{ display:none; }
-  .auth-chip{ font-size:12px; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; text-decoration:none; }
+  .auth-chip{ font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; text-decoration:none; }
   .auth-chip:active{ background:var(--hairline); }
+  /* 관리자 모드일 때는 눈에 확 띄도록 색을 채운다 — 지금 관리자 권한으로
+     보고 있다는 걸 놓치면 안 되고, 로그아웃 버튼 위치도 바로 보여야 한다. */
+  #adminChip, #modeAdminChip{ background:var(--primary); border-color:var(--primary); color:#fff; }
+  #adminChip:active, #modeAdminChip:active{ background:var(--primary-active); border-color:var(--primary-active); }
 
   .auth-modal{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:420; display:none; align-items:center; justify-content:center; padding:24px; }
   .auth-modal.open{ display:flex; }
