@@ -360,8 +360,7 @@
   }
   .feedback-fab-badge[hidden]{ display:none; }
 
-  /* 로그인 모달(420)·이어쓰기 모달(430)보다도 위에 떠야 어떤 화면에서 로그인을
-     하고 오더라도(pendingFeedbackOpen) 바로 이어서 열 수 있다. */
+  /* 관리자 로그인 모달(420)·이어쓰기 모달(430)보다도 위에 떠야 한다. */
   .feedback-modal{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:440; display:none; align-items:center; justify-content:center; padding:24px; }
   .feedback-modal.open{ display:flex; }
   .feedback-card{ width:100%; max-width:420px; max-height:82vh; background:var(--canvas); border-radius:var(--radius-md); padding:20px; display:flex; flex-direction:column; overflow:hidden; }
@@ -436,14 +435,16 @@
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
     </div>
     <div class="mode-title-row">
-      <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot">
+      <!-- mascot 길게 누르면(약 2.5초) 관리자 로그인 창이 뜬다 — 일반 사용자에게는
+           보이지 않는 숨은 입구. 회원가입은 없고, 이미 있는 관리자 계정으로만 로그인. -->
+      <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot" id="adminEntryTrigger">
       <h1 class="mode-select-title">뚝 <span class="t-doc">DOC</span>!</h1>
     </div>
     <p class="mode-select-sub">일잘러 모바일 문서 생성기</p>
 
     <div class="mode-auth-row" id="modeAuthRow" hidden>
-      <span class="auth-chip" id="modeAuthChip"></span>
       <a class="auth-chip" href="search.html">보관함 조회</a>
+      <span class="auth-chip" id="modeAdminChip" hidden></span>
     </div>
 
     <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
@@ -481,8 +482,9 @@
     </div>
 
     <div class="auth-row" id="authRow" hidden>
-      <span class="auth-chip" id="authChip">로그인</span>
       <a class="auth-chip" id="archiveLink" href="search.html">보관함 조회</a>
+      <!-- 관리자로 로그인했을 때만 나타난다. 일반 사용자에게는 보이지 않는다. -->
+      <span class="auth-chip" id="adminChip" hidden></span>
     </div>
 
     <div class="field-row" id="docTypeGroup" hidden>
@@ -512,9 +514,18 @@
       <input type="text" id="fileNameInput" class="field-input" placeholder="예: 사진대장">
     </div>
 
-    <div class="field-group" id="revisionGroup" hidden>
-      <label class="field-label" for="revisionInput">개정번호</label>
-      <input type="text" id="revisionInput" class="field-input" placeholder="예: 1">
+    <!-- 로그인이 없어 작성자는 여기서 직접 입력받는다(매뉴얼·고장 보고서 전용).
+         매뉴얼은 개정번호와 한 줄에 나란히, 고장 보고서는 작성자만 혼자 놓인다
+         (revisionGroup이 숨김이면 flex라 authorGroup이 자연히 한 줄을 다 쓴다). -->
+    <div class="field-row" id="authorRevisionRow" hidden>
+      <div class="field-group">
+        <label class="field-label" for="authorInput">작성자</label>
+        <input type="text" id="authorInput" class="field-input" placeholder="이름 입력">
+      </div>
+      <div class="field-group" id="revisionGroup" hidden>
+        <label class="field-label" for="revisionInput">개정번호</label>
+        <input type="text" id="revisionInput" class="field-input" placeholder="예: 1">
+      </div>
     </div>
 
     <div id="manualSections" hidden>
@@ -841,16 +852,14 @@
   </div>
 </div>
 
+<!-- 일반 사용자에게는 노출되지 않는 관리자 전용 로그인 창(mascot 길게 누르기로만 열림).
+     회원가입은 없다 — 관리자 계정은 이미 만들어져 있다. -->
 <div class="auth-modal" id="authModal">
   <div class="auth-card">
-    <h2 id="authTitle">로그인</h2>
-    <p class="auth-sub" id="authSub">로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.</p>
+    <h2>관리자 로그인</h2>
+    <p class="auth-sub">관리자 계정으로 로그인하면 개선요청 답변·완료 표시, 문서 삭제 같은 관리 기능을 쓸 수 있습니다.</p>
     <p class="auth-msg" id="authMsg"></p>
 
-    <div class="field-group" id="authNameGroup" hidden>
-      <label class="field-label" for="authName">이름 (작성자로 표기됩니다)</label>
-      <input type="text" id="authName" class="field-input" placeholder="예: 김철수" autocomplete="name">
-    </div>
     <div class="field-group">
       <label class="field-label" for="authEmail">이메일</label>
       <input type="email" id="authEmail" class="field-input" autocomplete="username">
@@ -864,7 +873,6 @@
       <button type="button" id="authCancelBtn">취소</button>
       <button type="button" class="primary" id="authSubmitBtn">로그인</button>
     </div>
-    <button type="button" class="auth-toggle" id="authToggleBtn">계정이 없으신가요? 회원가입</button>
   </div>
 </div>
 
@@ -1010,13 +1018,8 @@
   var appTitleEl = document.getElementById('appTitle');
 
   var modeAuthRowEl = document.getElementById('modeAuthRow');
-  var modeAuthChipEl = document.getElementById('modeAuthChip');
-
-  // 로그인 팝업 때문에 미뤄 둔 모드. 로그인에 성공하면 이어서 그 모드로 들어간다.
-  var pendingMode = null;
-
-  // 개선요청 게시판을 열려다 로그인 팝업으로 미뤄 둔 상태. 로그인에 성공하면 이어서 연다.
-  var pendingFeedbackOpen = false;
+  var authorInputEl = document.getElementById('authorInput');
+  var authorRevisionRowEl = document.getElementById('authorRevisionRow');
 
   // ---- 선택 목록 ------------------------------------------------------------
 
@@ -1078,6 +1081,8 @@
     modeIndicatorEl.textContent = label + ' 모드 · 변경';
     fileNameInputEl.placeholder = MODE_PLACEHOLDERS[appMode] || MODE_PLACEHOLDERS.report;
     revisionGroupEl.hidden = appMode !== 'manual';
+    // 작성자 입력칸은 매뉴얼·고장 보고서에서만 쓴다(로그인이 없어 여기서 직접 받음).
+    authorRevisionRowEl.hidden = (appMode !== 'manual' && appMode !== 'fault');
     docTypeGroupEl.hidden = appMode !== 'manual';
     manualSectionsEl.hidden = appMode !== 'manual';
     faultFieldsEl.hidden = appMode !== 'fault';
@@ -1086,16 +1091,8 @@
     addTextBtn.hidden = appMode !== 'manual';
     addTextHintEl.hidden = appMode !== 'manual';
   }
+  // 로그인이 없어 만들기 버튼을 누르면 바로 작성 화면으로 들어간다.
   function selectMode(mode){
-    /* 첫 화면에는 로그인 요소를 두지 않고, 만들기를 누른 이 시점에 팝업을 띄운다.
-       고른 모드를 기억해 두었다가 로그인에 성공하면 그대로 이어서 들어간다. */
-    if(loginRequired()){
-      pendingMode = mode;
-      openAuthModal('로그인하면 ' + withParticle(MODE_LABELS[mode], '을', '를')
-        + ' 만들 수 있고, 출력한 PDF가 보관함에 자동 저장됩니다.');
-      return;
-    }
-    pendingMode = null;
     appMode = mode;
     updateModeIndicator();
     updateCountDisplay();
@@ -3028,6 +3025,11 @@
       if(!faultValue('faultFieldSelect')) missing.push('고장분야');
       if(!faultValue('faultBranch')) missing.push('지사');
     }
+    // 로그인이 없어 작성자를 입력칸에서 직접 받는다 — 비어 있으면 보관함에서
+    // 누가 쓴 문서인지 전혀 알 수 없게 된다.
+    if((appMode === 'manual' || appMode === 'fault') && !authorInputEl.value.trim()){
+      missing.push('작성자');
+    }
     if(missing.length === 0) return true;
     showToast(withParticle(missing.join(', '), '을', '를') + ' 선택해 주세요.');
     return false;
@@ -3214,29 +3216,23 @@
     });
   }
 
-  // ---- 로그인 ---------------------------------------------------------------
+  // ---- 관리자 로그인(숨은 입구) ------------------------------------------------
+  /* 일반 사용자는 로그인을 아예 볼 수 없다. mascot을 길게 누르면 이 모달이 뜨고,
+     관리자 계정으로 로그인하면 개선요청 답변/완료 표시, 문서 삭제 같은 관리자
+     전용 버튼이 나타난다. 세션은 기본 설정대로 저장되므로(persistSession),
+     한 번 로그인해 두면 다음에 다시 열어도 로그인 상태가 유지된다. */
 
   var authRowEl = document.getElementById('authRow');
-  var authChipEl = document.getElementById('authChip');
+  var adminChipEl = document.getElementById('adminChip');
+  var modeAdminChipEl = document.getElementById('modeAdminChip');
   var authModalEl = document.getElementById('authModal');
-  var authTitleEl = document.getElementById('authTitle');
   var authMsgEl = document.getElementById('authMsg');
-  var authNameGroupEl = document.getElementById('authNameGroup');
-  var authNameEl = document.getElementById('authName');
   var authEmailEl = document.getElementById('authEmail');
   var authPasswordEl = document.getElementById('authPassword');
   var authSubmitBtn = document.getElementById('authSubmitBtn');
   var authCancelBtn = document.getElementById('authCancelBtn');
-  var authToggleBtn = document.getElementById('authToggleBtn');
-  var authSignUpMode = false;
-  var authUser = null;
-  var authIntroNote = '';      // 만들기 버튼에서 띄웠을 때 팝업에 보여 줄 안내
-  var SIGNUP_EMAIL_DOMAIN = 'kdhc.co.kr';
-
-  function isAllowedSignupEmail(email){
-    return String(email || '').trim().toLowerCase().slice(-(SIGNUP_EMAIL_DOMAIN.length + 1))
-      === '@' + SIGNUP_EMAIL_DOMAIN;
-  }
+  var adminUser = null;
+  var adminEntryTriggerEl = document.getElementById('adminEntryTrigger');
 
   function archiveAvailable(){
     return !!(window.Archive && Archive.isEnabled());
@@ -3247,183 +3243,119 @@
     authMsgEl.className = 'auth-msg' + (text ? ' show ' + (kind || '') : '');
   }
 
+  // 보관함 조회 링크는 로그인과 무관하게 항상 보인다. 관리자 칩은 관리자로
+  // 로그인했을 때만 나타난다(일반 사용자는 볼 일이 없다).
   function renderAuthState(){
-    if(!archiveAvailable()){
-      authRowEl.hidden = true;
-    }else{
-      authRowEl.hidden = false;
-      authChipEl.textContent = authUser
-        ? Archive.displayName(authUser) + ' · 로그아웃'
-        : '로그인';
-    }
-    renderModeAuth();
-  }
-
-  /* 보관함이 설정되지 않은 사본(사내망·오프라인)에서는 로그인 자체가 불가능하므로
-     문서 작성을 막지 않는다. 설정된 경우에만 로그인을 요구한다. */
-  function loginRequired(){
-    return archiveAvailable() && !authUser;
-  }
-
-  /* 첫 화면은 로그인 여부와 무관하게 그대로 두고, 로그인한 뒤에만 이름·로그아웃 줄을
-     덧붙인다. 로그아웃 상태에서는 아무것도 보이지 않는다. */
-  function renderModeAuth(){
-    var show = archiveAvailable() && !!authUser;
+    var show = archiveAvailable();
+    authRowEl.hidden = !show;
     modeAuthRowEl.hidden = !show;
-    if(show) modeAuthChipEl.textContent = Archive.displayName(authUser) + ' · 로그아웃';
+
+    var isAdmin = !!(window.Archive && Archive.isAdmin(adminUser));
+    adminChipEl.hidden = !isAdmin;
+    modeAdminChipEl.hidden = !isAdmin;
+    if(isAdmin){
+      adminChipEl.textContent = '관리자 모드 · 로그아웃';
+      modeAdminChipEl.textContent = '관리자 모드 · 로그아웃';
+    }
   }
 
-  // 로그인 상태가 바뀌는 유일한 통로. 새로 로그인한 순간을 여기서 기록한다.
-  function setAuthUser(user){
-    authUser = user || null;
+  function setAdminUser(user){
+    adminUser = user || null;
     renderAuthState();
-    // checkFeedbackBadge()는 이 파일 아래쪽(개선요청 게시판) 섹션에서 정의되지만
-    // function 선언은 끌어올려지므로(hoisting) 여기서 먼저 호출해도 문제없다.
     checkFeedbackBadge();
   }
 
-  function setAuthMode(signUp){
-    authSignUpMode = signUp;
-    authTitleEl.textContent = signUp ? '회원가입' : '로그인';
-    document.getElementById('authSub').textContent = signUp
-      ? '회사 이메일로만 가입할 수 있습니다.'
-      : (authIntroNote || '로그인하면 출력한 PDF가 보관함에 자동 저장되고, 조회할 수 있습니다.');
-    authSubmitBtn.textContent = signUp ? '가입' : '로그인';
-    authNameGroupEl.hidden = !signUp;
-    authToggleBtn.textContent = signUp ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입';
-    authPasswordEl.setAttribute('autocomplete', signUp ? 'new-password' : 'current-password');
+  function openAuthModal(){
     setAuthMsg('');
-  }
-
-  function openAuthModal(note){
-    authIntroNote = note || '';
-    setAuthMode(false);
+    authEmailEl.value = '';
+    authPasswordEl.value = '';
     authModalEl.classList.add('open');
   }
   function closeAuthModal(){
     authModalEl.classList.remove('open');
     authPasswordEl.value = '';
-    authIntroNote = '';
-    pendingMode = null;        // 취소했으면 미뤄 둔 모드도 버린다
-    pendingDraft = false;
-    pendingFeedbackOpen = false;
     setAuthMsg('');
   }
 
-  authChipEl.addEventListener('click', function(){
-    if(!authUser){ openAuthModal(); return; }
-    if(!window.confirm('로그아웃하시겠습니까?')) return;
+  function signOutAdmin(){
+    if(!window.confirm('관리자 로그아웃하시겠습니까?')) return;
     Archive.signOut().then(function(){
-      setAuthUser(null);
-      showToast('로그아웃했습니다.');
+      setAdminUser(null);
+      showToast('관리자 로그아웃했습니다.');
     });
-  });
+  }
+  adminChipEl.addEventListener('click', signOutAdmin);
+  modeAdminChipEl.addEventListener('click', signOutAdmin);
 
-  modeAuthChipEl.addEventListener('click', function(){
-    if(!authUser) return;
-    if(!window.confirm('로그아웃하시겠습니까?')) return;
-    Archive.signOut().then(function(){
-      setAuthUser(null);
-      showToast('로그아웃했습니다.');
-    });
-  });
+  // mascot을 약 2.5초 길게 눌러야 열린다 — 실수로 짧게 누르거나 스크롤하면 안 뜬다.
+  (function setupAdminEntry(){
+    var LONG_PRESS_MS = 2500;
+    var timer = null;
+    function start(){
+      clear();
+      timer = setTimeout(function(){ openAuthModal(); }, LONG_PRESS_MS);
+    }
+    function clear(){
+      if(timer){ clearTimeout(timer); timer = null; }
+    }
+    adminEntryTriggerEl.addEventListener('touchstart', start, { passive: true });
+    adminEntryTriggerEl.addEventListener('touchend', clear);
+    adminEntryTriggerEl.addEventListener('touchmove', clear);
+    adminEntryTriggerEl.addEventListener('touchcancel', clear);
+    adminEntryTriggerEl.addEventListener('mousedown', start);
+    adminEntryTriggerEl.addEventListener('mouseup', clear);
+    adminEntryTriggerEl.addEventListener('mouseleave', clear);
+  })();
 
   authCancelBtn.addEventListener('click', closeAuthModal);
   authModalEl.addEventListener('click', function(e){
     if(e.target === authModalEl) closeAuthModal();
   });
-  authToggleBtn.addEventListener('click', function(){ setAuthMode(!authSignUpMode); });
 
   authSubmitBtn.addEventListener('click', function(){
     var email = authEmailEl.value.trim();
     var password = authPasswordEl.value;
-    var name = authNameEl.value.trim();
 
     if(!email || !password){
       setAuthMsg('이메일과 비밀번호를 입력해 주세요.', 'err');
-      return;
-    }
-    if(authSignUpMode && !name){
-      setAuthMsg('작성자로 표기할 이름을 입력해 주세요.', 'err');
-      return;
-    }
-    // 빠른 안내용. 실제 차단은 서버(db/signup-domain-hook.sql)가 담당합니다.
-    if(authSignUpMode && !isAllowedSignupEmail(email)){
-      setAuthMsg('회사 이메일로만 가입할 수 있습니다.', 'err');
       return;
     }
 
     authSubmitBtn.disabled = true;
     setAuthMsg('처리 중입니다...', '');
 
-    var task = authSignUpMode
-      ? Archive.signUp(email, password, name)
-      : Archive.signIn(email, password);
-
-    task.then(function(user){
+    Archive.signIn(email, password).then(function(user){
       authSubmitBtn.disabled = false;
-      if(authSignUpMode && !user){
-        setAuthMsg('가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.', 'ok');
+      if(!Archive.isAdmin(user)){
+        setAuthMsg('관리자 계정이 아닙니다.', 'err');
+        Archive.signOut();
         return;
       }
-      // closeAuthModal이 비우기 전에 챙겨 둔다
-      var next = pendingMode;
-      var wantsDraft = pendingDraft;
-      var wantsFeedback = pendingFeedbackOpen;
-      setAuthUser(user);
+      setAdminUser(user);
       closeAuthModal();
-      showToast(Archive.displayName(user) + '님으로 로그인했습니다.');
-      if(wantsDraft) resumeDraft();     // 이어쓰기를 누르고 로그인한 경우
-      else if(next) selectMode(next);   // 누르려던 만들기로 그대로 이어 준다
-      else if(wantsFeedback) openFeedbackModal();   // 개선요청을 누르고 로그인한 경우
+      showToast('관리자로 로그인했습니다.');
     }).catch(function(err){
       authSubmitBtn.disabled = false;
       console.error(err);
       var msg = (err && err.message) || '';
       if(/Invalid login credentials/i.test(msg)) msg = '이메일 또는 비밀번호가 올바르지 않습니다.';
-      else if(/already registered/i.test(msg)) msg = '이미 가입된 이메일입니다. 로그인해 주세요.';
-      else if(/Password should be/i.test(msg)) msg = '비밀번호는 6자 이상이어야 합니다.';
-      else if(/Email not confirmed/i.test(msg)) msg = '메일 인증이 완료되지 않았습니다. 받은 메일의 링크를 눌러 주세요.';
-      // 그 밖의 메시지는 그대로 노출 — 가입 도메인 제한 훅의 한국어 안내가 여기로 옵니다.
-      setAuthMsg(msg || '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', 'err');
+      else if(/Email not confirmed/i.test(msg)) msg = '메일 인증이 완료되지 않았습니다.';
+      setAuthMsg(msg || '로그인에 실패했습니다.', 'err');
     });
   });
 
-  /* 세션 확인은 비동기다. 그 전에 임시저장 안내창을 띄우면, 이미 로그인해 둔
-     사용자에게도 loginRequired()가 true로 보여 로그인을 다시 요구하게 된다.
-     그래서 확인이 끝난 뒤에 실행할 일을 여기 모아 둔다. */
-  var authSettled = false;
-  var authSettledWaiters = [];
-
-  function markAuthSettled(){
-    if(authSettled) return;
-    authSettled = true;
-    authSettledWaiters.forEach(function(fn){ fn(); });
-    authSettledWaiters = [];
-  }
-
-  function whenAuthSettled(fn){
-    if(authSettled) fn();
-    else authSettledWaiters.push(fn);
-  }
-
   if(archiveAvailable()){
     Archive.currentUser().then(function(user){
-      setAuthUser(user);
-      markAuthSettled();
+      setAdminUser(user);
     }).catch(function(err){
-      // 세션 확인 자체가 실패하면(네트워크 등) 로그인 화면을 보여 준다.
       console.error(err);
-      setAuthUser(null);
-      markAuthSettled();
+      setAdminUser(null);
     });
     Archive.onAuthChange(function(user){
-      setAuthUser(user);
-      markAuthSettled();
+      setAdminUser(user);
     });
   }else{
     renderAuthState();
-    markAuthSettled();
   }
 
   // ---- 개선요청 게시판 --------------------------------------------------------
@@ -3502,16 +3434,12 @@
   // 답변·완료 처리 뒤 그 항목만 새로 그려서 펼친 채로 갱신한다(목록 전체를
   // 다시 불러오면 스크롤 위치와 펼침 상태가 날아간다).
   function renderFeedbackItem(row){
-    var isAdminUser = Archive.isAdmin(authUser);
-    var isAuthor = !!(authUser && row.author_id === authUser.id);
-    // 관리자는 모든 글을 답변 유무와 상관없이 수정·삭제할 수 있다(db/schema.sql의
-    // feedback_update_admin·feedback_delete_own_or_admin 정책이 이미 행 제한 없이
-    // 허용해 두었으므로 화면에서 조건만 열어 주면 된다).
-    // 작성자 본인은 답변이 아직 안 달린 자기 글만 수정할 수 있다 — 답변이 원래
-    // 내용을 근거로 달렸으므로, 그 뒤에 내용이 바뀌면 답변과 어긋나 보인다.
-    // 삭제는 그 제약이 없다 — 작성자 본인 글이면 답변 유무와 상관없이 지울 수 있다.
-    var canEditRow = isAdminUser || (isAuthor && !row.reply);
-    var canDeleteRow = isAuthor || isAdminUser;
+    var isAdminUser = !!(window.Archive && Archive.isAdmin(adminUser));
+    // 로그인이 없어 누가 쓴 글인지 구분할 수 없으므로, 제목·내용 수정과 삭제는
+    // 누구나 할 수 있다. 답변 등록·완료 표시만 관리자로 로그인했을 때 보인다
+    // (실제 차단은 db/schema.sql의 feedback_guard_admin_fields 트리거가 담당).
+    var canEditRow = true;
+    var canDeleteRow = true;
     var item = document.createElement('div');
     item.className = 'feedback-item';
 
@@ -3553,14 +3481,9 @@
           '</div>' : '') +
       '</div>';
 
-    // 작성자 표기 — 관리자만 실명을 보고, 본인 글은 "나", 그 외는 "익명"으로
-    // 가린다. 다른 사용자가 누가 썼는지 몰라야 눈치 안 보고 편하게 쓸 수 있다.
-    // (행 자체에는 author_name이 그대로 저장·조회되므로 화면 표시만 가리는
-    // 것이다 — DB 응답 원본까지 감추는 건 아니다.)
-    var displayAuthorName = isAdminUser ? row.author_name : (isAuthor ? '나' : '익명');
-
+    // 로그인이 없어 작성자를 구분할 수 없으므로 항상 "익명"으로 표기한다.
     item.querySelector('.feedback-item-title').textContent = row.title;
-    item.querySelector('.feedback-item-meta').textContent = displayAuthorName + ' · ' + fmtFeedbackDate(row.created_at);
+    item.querySelector('.feedback-item-meta').textContent = '익명 · ' + fmtFeedbackDate(row.created_at);
     item.querySelector('.feedback-item-content').textContent = row.content;
 
     if(row.reply){
@@ -3740,10 +3663,10 @@
     try { localStorage.setItem(FEEDBACK_SEEN_KEY, iso); } catch(e){ /* 프라이빗 모드 등은 조용히 무시 */ }
   }
 
-  // 로그인 상태가 바뀔 때마다(로그인/로그아웃/최초 세션 확인) setAuthUser()가
-  // 호출한다. 배지 표시는 부가 기능이라 목록 조회가 실패해도 조용히 무시한다.
+  // 앱을 열 때, 그리고 관리자 로그인 상태가 바뀔 때 확인한다. 배지 표시는
+  // 부가 기능이라 목록 조회가 실패해도 조용히 무시한다.
   function checkFeedbackBadge(){
-    if(!archiveAvailable() || !authUser){
+    if(!archiveAvailable()){
       feedbackFabBadgeEl.hidden = true;
       return;
     }
@@ -3796,14 +3719,8 @@
     renderFeedbackPage();
   });
 
-  feedbackFabBtn.addEventListener('click', function(){
-    if(loginRequired()){
-      pendingFeedbackOpen = true;
-      openAuthModal('로그인하면 개선요청 게시판을 볼 수 있습니다.');
-      return;
-    }
-    openFeedbackModal();
-  });
+  feedbackFabBtn.addEventListener('click', openFeedbackModal);
+  checkFeedbackBadge();
 
   feedbackCloseBtn.addEventListener('click', closeFeedbackModal);
   feedbackModalEl.addEventListener('click', function(e){
@@ -3886,6 +3803,7 @@
       doc_type: docType,
       file_name: filename,
       title: getReportTitle(),
+      author_name: authorInputEl.value.trim(),   // 로그인이 없어 입력칸에서 직접 받는다
       year: new Date().getFullYear(),   // 저장 경로(지사/연도/종류/제목.pdf)의 연도와 맞춘다
       page_count: pageCount,
       photo_count: photoItems().length
@@ -3922,38 +3840,32 @@
     if(!window.Archive || !Archive.isEnabled()) return;
     // 사진대장은 보관하지 않는다 — 조회 대상이 아니므로 안내도 띄우지 않는다.
     if(appMode !== 'manual' && appMode !== 'fault') return;
-    Archive.currentUser().then(function(user){
-      if(!user){
-        showToast('로그인하면 출력한 문서가 보관함에 자동 저장됩니다.');
-        return;
-      }
-      var pageCount = computeDocPages().length;
-      var meta = buildArchiveMeta(filename, pageCount);
 
-      // PDF 출력·메일 전송을 여러 번 누르면 작성자도 모르는 사이 같은 문서가
-      // 보관함에 계속 쌓인다. 저장 전에 같은 작성자가 같은 제목으로 이미 저장한
-      // 문서가 있는지 먼저 확인하고, 있으면 사용자에게 물어본 뒤에만 저장을
-      // 진행한다. 작성자나 제목 중 하나라도 다르면 별개 문서이므로 묻지 않는다.
-      return Archive.existsByTitle({
-        docType: meta.doc_type,
-        title: meta.title,
-        authorId: user.id
-      }).then(function(exists){
-        if(exists){
-          var keep = window.confirm(
-            '보관함에 "' + meta.title + '" 문서(작성자 동일)가 이미 있습니다.\n' +
-            '그래도 보관함에 저장하시겠습니까?'
-          );
-          if(!keep){
-            showToast('보관함에는 저장하지 않았습니다. (같은 문서가 이미 있음)');
-            return;
-          }
+    var pageCount = computeDocPages().length;
+    var meta = buildArchiveMeta(filename, pageCount);
+
+    // PDF 출력·메일 전송을 여러 번 누르면 같은 문서가 보관함에 계속 쌓인다.
+    // 저장 전에 같은 제목·같은 작성자 이름의 문서가 이미 있는지 먼저 확인하고,
+    // 있으면 사용자에게 물어본 뒤에만 저장을 진행한다.
+    Archive.existsByTitle({
+      docType: meta.doc_type,
+      title: meta.title,
+      authorName: meta.author_name
+    }).then(function(exists){
+      if(exists){
+        var keep = window.confirm(
+          '보관함에 "' + meta.title + '" 문서(작성자 동일)가 이미 있습니다.\n' +
+          '그래도 보관함에 저장하시겠습니까?'
+        );
+        if(!keep){
+          showToast('보관함에는 저장하지 않았습니다. (같은 문서가 이미 있음)');
+          return;
         }
-        var blob;
-        try{ blob = pdf.output('blob'); }catch(e){ return; }
-        return Archive.saveDocument(meta, blob).then(function(){
-          showToast('보관함에 저장했습니다.');
-        });
+      }
+      var blob;
+      try{ blob = pdf.output('blob'); }catch(e){ return; }
+      return Archive.saveDocument(meta, blob).then(function(){
+        showToast('보관함에 저장했습니다.');
       });
     }).catch(function(err){
       console.error(err);
@@ -4064,13 +3976,12 @@
   var resumeContinueBtn = document.getElementById('resumeContinueBtn');
   var resumeDiscardBtn = document.getElementById('resumeDiscardBtn');
   var saveDraftBtn = document.getElementById('saveDraftBtn');
-  var pendingDraft = false;      // 로그인 팝업 때문에 미뤄 둔 이어쓰기
 
   function draftAvailable(){
     return !!(window.Draft && Draft.isEnabled());
   }
 
-  var DRAFT_FIELD_IDS = ['fileNameInput', 'revisionInput', 'docTypeSelect', 'fieldSelect',
+  var DRAFT_FIELD_IDS = ['fileNameInput', 'authorInput', 'revisionInput', 'docTypeSelect', 'fieldSelect',
     'manualBranchSelect', 'manualPurpose', 'manualPrep', 'manualCaution'];
 
   /* 사진의 sketchedCache·rotatedCache 는 baseDataURL + strokes + rotation 으로
@@ -4214,15 +4125,6 @@
   }
 
   function resumeDraft(){
-    /* 이어쓰기도 문서 작성이므로 만들기 버튼과 같은 로그인 관문을 통과해야 한다.
-       로그인이 필요하면 팝업을 띄우고, 성공한 뒤 이 함수로 되돌아온다. */
-    if(loginRequired()){
-      pendingDraft = true;
-      closeResumeModal();
-      openAuthModal('로그인하면 임시저장해 둔 내용을 이어서 작성할 수 있습니다.');
-      return;
-    }
-    pendingDraft = false;
     closeResumeModal();
     showToast('임시저장한 내용을 불러오는 중입니다...');
     Draft.load().then(function(payload){
@@ -4259,7 +4161,7 @@
 
   updateCountDisplay();
   renderList();
-  whenAuthSettled(offerResume);
+  offerResume();
 })();
 </script>
 </body>

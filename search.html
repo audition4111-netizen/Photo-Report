@@ -29,6 +29,7 @@
   h1{ font-size:22px; font-weight:600; letter-spacing:-0.44px; text-align:center; margin:0 0 10px; }
   .top-links{ display:flex; justify-content:center; gap:8px; margin:0 0 18px; }
   .chip{ font-size:12px; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:5px 12px; cursor:pointer; text-decoration:none; }
+  .chip[hidden]{ display:none; }
 
   .tabs{ display:flex; gap:8px; margin:0 0 16px; }
   .tab{ flex:1; padding:12px 0; font-family:inherit; font-size:14px; font-weight:600; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--muted); cursor:pointer; }
@@ -73,9 +74,6 @@
   .gate{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:20px; }
   .gate h2{ font-size:16px; font-weight:600; margin:0 0 6px; }
   .gate p{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 14px; }
-  .gate .msg{ font-size:12.5px; line-height:1.5; margin:0 0 12px; display:none; }
-  .gate .msg.show{ display:block; }
-  .gate .msg.err{ color:var(--error); }
   .hidden{ display:none !important; }
 </style>
 </head>
@@ -88,7 +86,8 @@
   <h1>문서 보관함</h1>
   <div class="top-links">
     <a class="chip" href="index.html">← 문서 작성으로</a>
-    <span class="chip" id="userChip"></span>
+    <!-- 관리자로 로그인되어 있을 때만 보인다(index.html에서 로그인하면 세션이 공유된다). -->
+    <span class="chip" id="adminChip" hidden></span>
   </div>
 
   <!-- 미설정 안내 -->
@@ -100,25 +99,7 @@
     </p>
   </div>
 
-  <!-- 로그인 -->
-  <div class="gate hidden" id="loginGate">
-    <h2>로그인</h2>
-    <p>보관된 문서는 로그인한 사용자만 조회할 수 있습니다.</p>
-    <p class="msg" id="loginMsg"></p>
-    <div class="fgroup">
-      <label for="email">이메일</label>
-      <input type="email" id="email" autocomplete="username">
-    </div>
-    <div class="fgroup">
-      <label for="password">비밀번호</label>
-      <input type="password" id="password" autocomplete="current-password">
-    </div>
-    <div class="fbtns">
-      <button type="button" class="primary" id="loginBtn">로그인</button>
-    </div>
-  </div>
-
-  <!-- 조회 -->
+  <!-- 조회 (로그인 없이 바로 시작한다) -->
   <div id="browser" class="hidden">
     <div class="tabs">
       <button type="button" class="tab active" data-type="manual">매뉴얼</button>
@@ -205,10 +186,10 @@
   }
 
   var el = function(id){ return document.getElementById(id); };
-  var notConfigured = el('notConfigured'), loginGate = el('loginGate'), browser = el('browser');
-  var statusEl = el('status'), resultsEl = el('results'), userChip = el('userChip');
+  var notConfigured = el('notConfigured'), browser = el('browser');
+  var statusEl = el('status'), resultsEl = el('results'), adminChip = el('adminChip');
   var currentType = 'manual';   // 첫 탭
-  var currentUser = null;
+  var currentUser = null;       // 관리자로 로그인했을 때만 채워진다(일반 사용자는 로그인 없음)
 
   function show(node, on){ node.classList.toggle('hidden', !on); }
 
@@ -252,13 +233,6 @@
            pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
-  function fmtDate(iso){
-    if(!iso) return '';
-    var d = new Date(iso);
-    if(isNaN(d.getTime())) return '';
-    return d.getFullYear() + '.' + (d.getMonth()+1) + '.' + d.getDate() + '.';
-  }
-
   /* 두 시각의 차이. 정지기간처럼 저장하지 않고 그때그때 계산하는 값에 쓴다
      (occurred_at·outage_at·recover_at 로 구할 수 있어 컬럼을 늘릴 필요가 없다). */
   function spanText(fromIso, toIso){
@@ -275,6 +249,17 @@
     return '<div>' + label + ' <b>' + String(value).replace(/[<>&]/g, function(c){
       return { '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c];
     }) + '</b></div>';
+  }
+
+  /* 로그인이 없어 작성자 입력칸에 누구나 아무 이름이나 적을 수 있으므로, 목록에
+     실명을 그대로 보여주지 않고 앞·뒤 한 글자만 남기고 가운데를 가린다.
+     "김철수" -> "김*수", "김철수민" -> "김**민". 두 글자(외자 이름)는 예외로
+     성 뒤에 별표 하나만 붙인다: "김철" -> "김*". */
+  function maskAuthorName(name){
+    var s = String(name || '').trim();
+    if(s.length <= 1) return s;
+    if(s.length === 2) return s.charAt(0) + '*';
+    return s.charAt(0) + new Array(s.length - 1).join('*') + s.charAt(s.length - 1);
   }
 
   // 개정번호는 text 컬럼이라 그대로 정렬하면 '10' 이 '3' 보다 앞에 온다. 숫자로 본다.
@@ -318,13 +303,14 @@
     card.className = 'card';
 
     /* 파일명은 카드 제목으로 이미 보이므로 목록에서 빼고, 종류별로 정해진 순서대로
-       쌓는다. 작성자·작성일이 맨 뒤인 것도 그 순서에 맞춘 것. */
+       쌓는다. 작성자·작성일이 맨 뒤인 것도 그 순서에 맞춘 것. 작성자 이름은
+       익명성을 위해 가운데를 가려서 보여준다(maskAuthorName). */
     var meta = '';
 
     if(row.doc_type === 'manual'){
       meta += metaLine('분야', row.field ? row.field + '분야' : '');
       meta += metaLine('종류', row.manual_type);
-      meta += metaLine('작성자', row.author_name);
+      meta += metaLine('작성자', maskAuthorName(row.author_name));
       meta += metaLine('작성일', fmtDateTime(row.created_at));
     }else if(row.doc_type === 'fault'){
       meta += metaLine('고장분야', row.field ? row.field + '분야' : '');
@@ -336,7 +322,7 @@
       meta += metaLine('정지기간', spanText(row.occurred_at, row.recover_at));
       meta += metaLine('열공급 정지기간',
         row.outage_none ? '해당없음' : spanText(row.outage_at, row.recover_at));
-      meta += metaLine('작성자', row.author_name);
+      meta += metaLine('작성자', maskAuthorName(row.author_name));
       meta += metaLine('작성일', fmtDateTime(row.created_at));
     }
 
@@ -344,7 +330,7 @@
     var revChip = (row.doc_type === 'manual' && row.revision)
       ? '<span class="rev-chip"></span>' : '';
 
-    var canDel = Archive.canDelete(currentUser, row);
+    var canDel = Archive.canDelete(currentUser);
 
     card.innerHTML =
       '<div class="card-top">' +
@@ -451,57 +437,26 @@
     runSearch();
   });
 
-  function enterBrowser(user){
+  // 관리자 세션이 있으면(index.html에서 로그인한 세션이 공유됨) 삭제 버튼이
+  // 보이도록 조용히 반영한다 — 일반 사용자는 로그인 UI 자체를 볼 일이 없다.
+  function applyAdminState(user){
     currentUser = user;
-    show(loginGate, false);
-    show(browser, true);
-    userChip.textContent = Archive.displayName(user) + ' · 로그아웃';
-    userChip.onclick = function(){
-      if(!window.confirm('로그아웃하시겠습니까?')) return;
-      Archive.signOut().then(function(){ location.reload(); });
-    };
-    applyTypeVisibility();
-    runSearch();
-  }
-
-  function showLogin(){
-    show(browser, false);
-    show(loginGate, true);
-    userChip.textContent = '';
-  }
-
-  el('loginBtn').addEventListener('click', function(){
-    var msg = el('loginMsg');
-    var btn = el('loginBtn');
-    var email = el('email').value.trim(), password = el('password').value;
-    if(!email || !password){
-      msg.textContent = '이메일과 비밀번호를 입력해 주세요.';
-      msg.className = 'msg show err';
-      return;
+    var isAdmin = !!(window.Archive && Archive.isAdmin(user));
+    adminChip.hidden = !isAdmin;
+    if(isAdmin){
+      adminChip.textContent = '관리자 모드';
+      runSearch();   // 삭제 버튼을 반영해 다시 그린다
     }
-    btn.disabled = true;
-    msg.textContent = '로그인 중입니다...';
-    msg.className = 'msg show';
-    Archive.signIn(email, password).then(function(user){
-      btn.disabled = false;
-      enterBrowser(user);
-    }).catch(function(err){
-      btn.disabled = false;
-      var m = (err && err.message) || '';
-      if(/Invalid login credentials/i.test(m)) m = '이메일 또는 비밀번호가 올바르지 않습니다.';
-      else if(/Email not confirmed/i.test(m)) m = '메일 인증이 완료되지 않았습니다.';
-      msg.textContent = m || '로그인에 실패했습니다.';
-      msg.className = 'msg show err';
-    });
-  });
+  }
 
-  // 시작
+  // 시작 — 로그인이 없으므로 연결만 되어 있으면 바로 조회 화면으로 들어간다.
   if(!window.Archive || !Archive.isEnabled()){
     show(notConfigured, true);
   }else{
-    Archive.currentUser().then(function(user){
-      if(user) enterBrowser(user); else showLogin();
-    }).catch(showLogin);
+    show(browser, true);
+    applyTypeVisibility();
+    runSearch();
+    Archive.currentUser().then(applyAdminState).catch(function(){ applyAdminState(null); });
   }
 })();
 </script>
