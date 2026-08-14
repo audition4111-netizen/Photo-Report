@@ -102,3 +102,40 @@ create policy "feedback_storage_insert_anon"
 -- 사진까지 건드릴 여지가 있어 위험 대비 이득이 적다고 보았다. 게시글을
 -- 지우면 사진 파일만 고아로 남는데(용량만 차지, 화면에는 안 보임), 문제가
 -- 되면 나중에 관리자가 정리하면 된다.
+
+-- ---------------------------------------------------------------------------
+-- 관리자 이메일 비교 대소문자 무시 — db/schema.sql의 기존 정책·트리거는
+-- auth.jwt() ->> 'email' = 'audition411@kdhc.co.kr' 처럼 정확히 일치해야
+-- 하는데, 화면(archive.js의 isAdmin())은 소문자로 바꿔서 비교한다. 계정
+-- 이메일의 대소문자가 화면 쪽과 조금이라도 다르면 화면에는 "관리자"로
+-- 보이는데 실제 삭제·답변 권한 검사에서는 막혀 버린다(RLS는 권한이 없으면
+-- 에러 없이 조용히 0건 처리하므로, 삭제했다고 나오고 카드도 사라지지만
+-- 다시 조회하면 그대로 남아 있는 것처럼 보인다). 아래로 덮어써서 서버 쪽도
+-- 대소문자를 구분하지 않게 맞춘다.
+-- ---------------------------------------------------------------------------
+drop policy if exists "documents_delete_own" on public.documents;
+create policy "documents_delete_own"
+  on public.documents for delete
+  to authenticated
+  using (author_id = auth.uid() or lower(auth.jwt() ->> 'email') = 'audition411@kdhc.co.kr');
+
+drop policy if exists "feedback_update_admin" on public.feedback;
+create policy "feedback_update_admin"
+  on public.feedback for update
+  to authenticated
+  using (lower(auth.jwt() ->> 'email') = 'audition411@kdhc.co.kr')
+  with check (lower(auth.jwt() ->> 'email') = 'audition411@kdhc.co.kr');
+
+create or replace function public.feedback_guard_admin_fields()
+returns trigger
+language plpgsql
+as $$
+begin
+  if lower(coalesce(auth.jwt() ->> 'email', '')) <> 'audition411@kdhc.co.kr' then
+    new.status := old.status;
+    new.reply := old.reply;
+    new.replied_at := old.replied_at;
+  end if;
+  return new;
+end;
+$$;

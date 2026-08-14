@@ -272,12 +272,20 @@
     return isAdmin(user);
   }
 
-  // 문서 행과 저장된 PDF를 함께 지운다. 행 삭제가 RLS에 막히면 파일은 건드리지 않는다.
+  /* 문서 행과 저장된 PDF를 함께 지운다. 행 삭제가 RLS에 막히면 파일은 건드리지 않는다.
+     ⚠️ RLS는 "권한 없음"을 에러로 알려주지 않는다 — using 조건에 안 맞는 행은
+     그냥 조용히 0건 삭제로 처리되어 res.error가 비어 있다. .select()로 실제
+     삭제된 행을 돌려받아, 비어 있으면 직접 에러를 던져 화면에 실패로 알린다
+     (그러지 않으면 "삭제했습니다"라고 뜨고 카드도 사라지지만 실제로는 안
+     지워져서, 다시 조회하면 그대로 나오는 혼란스러운 상황이 된다). */
   function deleteDocument(row) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
-    return c.from('documents').delete().eq('id', row.id).then(function (res) {
+    return c.from('documents').delete().eq('id', row.id).select('id').then(function (res) {
       if (res.error) throw res.error;
+      if (!res.data || res.data.length === 0) {
+        throw new Error('삭제 권한이 없습니다. 관리자 계정으로 로그인되어 있는지 확인해 주세요.');
+      }
       return c.storage.from(BUCKET).remove([row.pdf_path]).catch(function (err) {
         console.error('PDF 파일 삭제 실패(행은 삭제됨):', err);
       });
@@ -397,14 +405,18 @@
       });
   }
 
-  // 삭제 — 로그인이 없어 누구나 할 수 있다. 행만 지우고 사진 파일은 그대로
-  // 둔다(anon에게 스토리지 삭제 권한을 주지 않았다 — 관계없는 글의 사진까지
-  // 지울 수 있게 되는 위험을 피하기 위함).
+  /* 삭제 — 로그인이 없어 누구나 할 수 있다. 행만 지우고 사진 파일은 그대로
+     둔다(anon에게 스토리지 삭제 권한을 주지 않았다 — 관계없는 글의 사진까지
+     지울 수 있게 되는 위험을 피하기 위함). .select()로 실제 삭제된 행을
+     확인하는 이유는 deleteDocument()의 주석 참고. */
   function deleteFeedback(row) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
-    return c.from('feedback').delete().eq('id', row.id).then(function (res) {
+    return c.from('feedback').delete().eq('id', row.id).select('id').then(function (res) {
       if (res.error) throw res.error;
+      if (!res.data || res.data.length === 0) {
+        throw new Error('삭제하지 못했습니다.');
+      }
     });
   }
 
