@@ -1,6 +1,6 @@
 {
-  "name": "뚝 DOC — 자동 문서 생성기",
-  "short_name": "뚝 DOC",
+  "name": "뚝 DOC(보고용) — 자동 문서 생성기",
+  "short_name": "뚝 DOC(보고용)",
   "description": "로그인 없이 사진대장·매뉴얼·고장 보고서를 현장에서 바로 만들고 보관함에서 찾아보는 앱",
   "lang": "ko",
   "dir": "ltr",
