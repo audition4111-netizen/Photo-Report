@@ -315,7 +315,7 @@
   /* 눈에 잘 띄도록 키우고 진하게 — 예전엔 12px 연한 회색이라 놓치기 쉬웠다. */
   .mode-indicator{ display:inline-block; font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; }
   /* 모드 변경(왼쪽)·보관함 조회(오른쪽)를 한 행에 둬서 줄 수를 줄인다. */
-  .mode-header-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 14px; }
+  .mode-header-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 14px; }
   .mode-header-row #archiveLink[hidden]{ display:none; }
 
   .auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 14px; }
@@ -498,7 +498,7 @@
     </div>
     <h1 class="app-title" id="appTitle">사진대장</h1>
 
-    <!-- 모드 변경(왼쪽)과 보관함 조회(오른쪽)를 한 행에 묶어 줄 수를 줄인다.
+    <!-- 모드 변경과 보관함 조회를 한 행 가운데에 나란히 묶어 줄 수를 줄인다.
          보관함 조회는 Supabase가 연결됐을 때만 개별적으로 나타난다. -->
     <div class="mode-header-row">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
