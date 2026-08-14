@@ -15,6 +15,15 @@
 --   - documents는 삭제 권한을 넓히지 않는다(관리자만 계속 삭제 가능) — 매뉴얼·
 --     고장 보고서를 아무나 지울 수 있게 할 이유는 없다고 보고 열지 않았다.
 --     필요하면 나중에 이 부분만 추가로 열 수 있다.
+--
+-- ⚠️ 아래 "익명 저장/조회" 정책은 to anon이 아니라 to public(익명이든 예전에
+-- 로그인했던 세션이 남아있든 전부 포함)으로 걸어 둔다. 브라우저에 예전 로그인
+-- 세션이 남아 있으면 요청이 anon이 아니라 authenticated로 나가는데, to anon
+-- 정책만 있으면 그 경우 documents_insert_own(본인 명의만 허용) 정책에 걸려
+-- "new row violates row-level security policy" 로 저장이 막힌다. 로그인 UI가
+-- 이제 없어서 사용자가 로그아웃할 방법도 없으므로, 역할과 무관하게 항상
+-- 저장·조회가 되도록 public으로 넓혀 둔다(수정·삭제는 여전히 authenticated +
+-- 본인/관리자 조건이 있는 별도 정책만 허용 — 아래에서 건드리지 않는다).
 
 -- ---------------------------------------------------------------------------
 -- documents — 로그인 없이 저장·조회 허용 (삭제·수정은 계속 관리자/본인만)
@@ -22,32 +31,33 @@
 alter table public.documents alter column author_id drop not null;
 alter table public.documents alter column author_name drop not null;
 
-grant select, insert on public.documents to anon;
+grant select, insert on public.documents to anon, authenticated;
 
 drop policy if exists "documents_select_anon" on public.documents;
 create policy "documents_select_anon"
   on public.documents for select
-  to anon
+  to public
   using (true);
 
 -- author_id는 로그인 없이 채울 수 없으니 반드시 비어 있어야만 저장을 허용한다
--- (다른 사람 계정 명의로 위장 저장하는 것을 막기 위함).
+-- (다른 사람 계정 명의로 위장 저장하는 것을 막기 위함). to public이라 브라우저에
+-- 예전 로그인 세션이 남아 있어도(=authenticated로 요청) 똑같이 저장된다.
 drop policy if exists "documents_insert_anon" on public.documents;
 create policy "documents_insert_anon"
   on public.documents for insert
-  to anon
+  to public
   with check (author_id is null);
 
 drop policy if exists "docs_storage_read_anon" on storage.objects;
 create policy "docs_storage_read_anon"
   on storage.objects for select
-  to anon
+  to public
   using (bucket_id = 'documents');
 
 drop policy if exists "docs_storage_insert_anon" on storage.objects;
 create policy "docs_storage_insert_anon"
   on storage.objects for insert
-  to anon
+  to public
   with check (bucket_id = 'documents');
 
 -- ---------------------------------------------------------------------------
@@ -58,43 +68,43 @@ create policy "docs_storage_insert_anon"
 alter table public.feedback alter column author_id drop not null;
 alter table public.feedback alter column author_name drop not null;
 
-grant select, insert, update, delete on public.feedback to anon;
+grant select, insert, update, delete on public.feedback to anon, authenticated;
 
 drop policy if exists "feedback_select_anon" on public.feedback;
 create policy "feedback_select_anon"
   on public.feedback for select
-  to anon
+  to public
   using (true);
 
 drop policy if exists "feedback_insert_anon" on public.feedback;
 create policy "feedback_insert_anon"
   on public.feedback for insert
-  to anon
+  to public
   with check (author_id is null);
 
 drop policy if exists "feedback_update_anon" on public.feedback;
 create policy "feedback_update_anon"
   on public.feedback for update
-  to anon
+  to public
   using (true)
   with check (true);
 
 drop policy if exists "feedback_delete_anon" on public.feedback;
 create policy "feedback_delete_anon"
   on public.feedback for delete
-  to anon
+  to public
   using (true);
 
 drop policy if exists "feedback_storage_read_anon" on storage.objects;
 create policy "feedback_storage_read_anon"
   on storage.objects for select
-  to anon
+  to public
   using (bucket_id = 'feedback-photos');
 
 drop policy if exists "feedback_storage_insert_anon" on storage.objects;
 create policy "feedback_storage_insert_anon"
   on storage.objects for insert
-  to anon
+  to public
   with check (bucket_id = 'feedback-photos');
 
 -- 사진 삭제는 열지 않았다(관리자만 가능) — 개선요청 글은 누구나 지울 수 있게
