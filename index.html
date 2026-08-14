@@ -291,6 +291,11 @@
   .mode-select-title{ font-size:1em; font-weight:800; letter-spacing:-1.6px; color:var(--ink); margin:0; word-break:keep-all; line-height:1.05; }
   /* DOC 만 브랜드 색으로 빼서 워드마크처럼 보이게 */
   .mode-select-title .t-doc{ color:var(--primary); }
+  /* "DOC!" 부분도 mascot과 같은 관리자 진입용 길게 누르기 대상이다. */
+  #adminEntryTrigger2{
+    -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
   .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 36px; }
 
   /* 좁은 화면에서 로고가 넘치지 않게 */
@@ -447,10 +452,11 @@
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
     </div>
     <div class="mode-title-row">
-      <!-- mascot 길게 누르면(약 2.5초) 관리자 로그인 창이 뜬다 — 일반 사용자에게는
-           보이지 않는 숨은 입구. 회원가입은 없고, 이미 있는 관리자 계정으로만 로그인. -->
+      <!-- mascot과 "DOC!" 글자, 둘 중 아무 데나 길게(약 2.5초) 누르면 관리자
+           로그인 창이 뜬다 — 일반 사용자에게는 보이지 않는 숨은 입구.
+           회원가입은 없고, 이미 있는 관리자 계정으로만 로그인. -->
       <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot" id="adminEntryTrigger" draggable="false">
-      <h1 class="mode-select-title">뚝 <span class="t-doc">DOC</span>!</h1>
+      <h1 class="mode-select-title">뚝 <span id="adminEntryTrigger2"><span class="t-doc">DOC</span>!</span></h1>
     </div>
     <p class="mode-select-sub">일잘러 모바일 문서 생성기</p>
 
@@ -3244,7 +3250,10 @@
   var authSubmitBtn = document.getElementById('authSubmitBtn');
   var authCancelBtn = document.getElementById('authCancelBtn');
   var adminUser = null;
-  var adminEntryTriggerEl = document.getElementById('adminEntryTrigger');
+  var adminEntryTriggerEls = [
+    document.getElementById('adminEntryTrigger'),
+    document.getElementById('adminEntryTrigger2')
+  ];
 
   function archiveAvailable(){
     return !!(window.Archive && Archive.isEnabled());
@@ -3299,7 +3308,8 @@
   adminChipEl.addEventListener('click', signOutAdmin);
   modeAdminChipEl.addEventListener('click', signOutAdmin);
 
-  // mascot을 약 2.5초 길게 눌러야 열린다 — 실수로 짧게 누르거나 스크롤하면 안 뜬다.
+  // mascot, "DOC!" 글자 둘 다 약 2.5초 길게 눌러야 열린다 — 실수로 짧게
+  // 누르거나 스크롤하면 안 뜬다.
   (function setupAdminEntry(){
     var LONG_PRESS_MS = 2500;
     var timer = null;
@@ -3310,17 +3320,20 @@
     function clear(){
       if(timer){ clearTimeout(timer); timer = null; }
     }
-    adminEntryTriggerEl.addEventListener('touchstart', start, { passive: true });
-    adminEntryTriggerEl.addEventListener('touchend', clear);
-    adminEntryTriggerEl.addEventListener('touchmove', clear);
-    adminEntryTriggerEl.addEventListener('touchcancel', clear);
-    adminEntryTriggerEl.addEventListener('mousedown', start);
-    adminEntryTriggerEl.addEventListener('mouseup', clear);
-    adminEntryTriggerEl.addEventListener('mouseleave', clear);
-    /* 안드로이드 크롬은 이미지 길게 누르면 CSS(-webkit-touch-callout, iOS 전용)와
-       무관하게 contextmenu 이벤트로 "이미지 저장/공유" 메뉴를 띄운다 — 막아야
-       우리 타이머(관리자 로그인)가 방해받지 않는다. */
-    adminEntryTriggerEl.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+    adminEntryTriggerEls.forEach(function(el){
+      if(!el) return;
+      el.addEventListener('touchstart', start, { passive: true });
+      el.addEventListener('touchend', clear);
+      el.addEventListener('touchmove', clear);
+      el.addEventListener('touchcancel', clear);
+      el.addEventListener('mousedown', start);
+      el.addEventListener('mouseup', clear);
+      el.addEventListener('mouseleave', clear);
+      /* 안드로이드 크롬은 이미지 길게 누르면 CSS(-webkit-touch-callout, iOS 전용)와
+         무관하게 contextmenu 이벤트로 "이미지 저장/공유" 메뉴를 띄운다 — 막아야
+         우리 타이머(관리자 로그인)가 방해받지 않는다. */
+      el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+    });
   })();
 
   authCancelBtn.addEventListener('click', closeAuthModal);
