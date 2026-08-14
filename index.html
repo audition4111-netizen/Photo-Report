@@ -465,10 +465,6 @@
       <span class="auth-chip" id="modeAdminChip" hidden></span>
     </div>
 
-    <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
-      <span class="mode-choice-title">사진대장 만들기</span>
-      <span class="mode-choice-desc">현장 사진과 설명을 정리하는 보고서</span>
-    </button>
     <button type="button" class="mode-choice-btn" id="chooseManualModeBtn">
       <span class="mode-choice-title">매뉴얼 만들기</span>
       <span class="mode-choice-desc">사진마다 순번을 매겨 절차를 안내하는 문서</span>
@@ -476,6 +472,10 @@
     <button type="button" class="mode-choice-btn" id="chooseFaultModeBtn">
       <span class="mode-choice-title">고장 보고서 만들기</span>
       <span class="mode-choice-desc">고장 요약과 관련 사진을 정리하는 핫라인 메모</span>
+    </button>
+    <button type="button" class="mode-choice-btn" id="openArchiveModeBtn">
+      <span class="mode-choice-title">문서 보관함</span>
+      <span class="mode-choice-desc">저장된 매뉴얼·고장 보고서를 찾아보기</span>
     </button>
   </div>
   <span class="pm-credit">Project Manager : Steven Kim</span>
@@ -493,10 +493,10 @@
       <img src="manual-logo.gif" alt="한국지역난방공사" class="app-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
-    <h1 class="app-title" id="appTitle">사진대장</h1>
+    <h1 class="app-title" id="appTitle">매뉴얼</h1>
 
     <div style="text-align:center;">
-      <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
+      <span class="mode-indicator" id="modeIndicator">매뉴얼 모드 · 변경</span>
     </div>
 
     <div class="auth-row" id="authRow" hidden>
@@ -529,7 +529,7 @@
 
     <div class="field-group">
       <label class="field-label" for="fileNameInput">파일명</label>
-      <input type="text" id="fileNameInput" class="field-input" placeholder="예: 사진대장">
+      <input type="text" id="fileNameInput" class="field-input" placeholder="예: 현장 매뉴얼">
     </div>
 
     <!-- 로그인이 없어 작성자는 여기서 직접 입력받는다(매뉴얼·고장 보고서 전용).
@@ -719,7 +719,7 @@
         <ol>
           <li>파일명(문서 제목)과 내용을 입력 합니다.</li>
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영" 중 선택합니다.</li>
-          <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
+          <li>카메라로 촬영한 사진은 촬영 즉시 목록에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>매뉴얼에서는 [텍스트 추가]로 사진 없이 글만 들어가는 순번을 만들 수 있습니다. 사진과 텍스트는 누른 순서대로 번호가 이어집니다. (텍스트 최대 30개)</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
@@ -731,7 +731,7 @@
         </ol>
         <b>사용 가이드 추천</b>
         <ol>
-          <li>사진대장, 매뉴얼, 고장 보고서 작성 시 사용
+          <li>매뉴얼, 고장 보고서 작성 시 사용
             <ul>
               <li>[메일로 전송]을 통해 회사메일로 전송</li>
               <li>자료 교환 후 사용</li>
@@ -976,7 +976,7 @@
   var idCounter = 0;
   var replaceTargetId = null;
   var isGenerating = false;
-  var appMode = 'report';
+  var appMode = 'manual';
 
   function isTextItem(item){ return !!item && item.kind === 'text'; }
   function photoItems(){ return photos.filter(function(p){ return !isTextItem(p); }); }
@@ -1029,9 +1029,9 @@
   var cancelChoiceBtn = document.getElementById('cancelChoiceBtn');
 
   var modeSelectScreen = document.getElementById('modeSelectScreen');
-  var chooseReportModeBtn = document.getElementById('chooseReportModeBtn');
   var chooseManualModeBtn = document.getElementById('chooseManualModeBtn');
   var chooseFaultModeBtn = document.getElementById('chooseFaultModeBtn');
+  var openArchiveModeBtn = document.getElementById('openArchiveModeBtn');
   var modeIndicatorEl = document.getElementById('modeIndicator');
   var appTitleEl = document.getElementById('appTitle');
 
@@ -1117,9 +1117,9 @@
     if(mode === 'fault') prefillFaultTimes();
     modeSelectScreen.classList.add('closed');
   }
-  chooseReportModeBtn.addEventListener('click', function(){ selectMode('report'); });
   chooseManualModeBtn.addEventListener('click', function(){ selectMode('manual'); });
   chooseFaultModeBtn.addEventListener('click', function(){ selectMode('fault'); });
+  openArchiveModeBtn.addEventListener('click', function(){ location.href = 'search.html'; });
   modeIndicatorEl.addEventListener('click', function(){
     modeSelectScreen.classList.remove('closed');
   });
