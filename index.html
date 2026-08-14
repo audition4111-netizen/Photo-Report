@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="뚝 DOC(관리자용)">
+<meta name="apple-mobile-web-app-title" content="뚝 DOC">
 <style>
   :root{
     --primary:#ff385c;
@@ -313,7 +313,10 @@
   .mode-choice-title{ display:block; font-size:16px; font-weight:600; color:var(--ink); margin:0 0 4px; }
   .mode-choice-desc{ display:block; font-size:13px; color:var(--muted); line-height:1.5; }
   /* 눈에 잘 띄도록 키우고 진하게 — 예전엔 12px 연한 회색이라 놓치기 쉬웠다. */
-  .mode-indicator{ display:inline-block; font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; margin:0 0 14px; }
+  .mode-indicator{ display:inline-block; font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; }
+  /* 모드 변경(왼쪽)·보관함 조회(오른쪽)를 한 행에 둬서 줄 수를 줄인다. */
+  .mode-header-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 14px; }
+  .mode-header-row #archiveLink[hidden]{ display:none; }
 
   .auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 14px; }
   .auth-row[hidden]{ display:none; }
@@ -495,13 +498,15 @@
     </div>
     <h1 class="app-title" id="appTitle">사진대장</h1>
 
-    <div style="text-align:center;">
+    <!-- 모드 변경(왼쪽)과 보관함 조회(오른쪽)를 한 행에 묶어 줄 수를 줄인다.
+         보관함 조회는 Supabase가 연결됐을 때만 개별적으로 나타난다. -->
+    <div class="mode-header-row">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
+      <a class="auth-chip" id="archiveLink" href="search.html" hidden>보관함 조회</a>
     </div>
 
+    <!-- 관리자로 로그인했을 때만 나타난다. 일반 사용자에게는 보이지 않는다. -->
     <div class="auth-row" id="authRow" hidden>
-      <a class="auth-chip" id="archiveLink" href="search.html">보관함 조회</a>
-      <!-- 관리자로 로그인했을 때만 나타난다. 일반 사용자에게는 보이지 않는다. -->
       <span class="auth-chip" id="adminChip" hidden></span>
     </div>
 
@@ -3241,6 +3246,7 @@
      한 번 로그인해 두면 다음에 다시 열어도 로그인 상태가 유지된다. */
 
   var authRowEl = document.getElementById('authRow');
+  var archiveLinkEl = document.getElementById('archiveLink');
   var adminChipEl = document.getElementById('adminChip');
   var modeAdminChipEl = document.getElementById('modeAdminChip');
   var authModalEl = document.getElementById('authModal');
@@ -3264,14 +3270,14 @@
     authMsgEl.className = 'auth-msg' + (text ? ' show ' + (kind || '') : '');
   }
 
-  // 보관함 조회 링크는 로그인과 무관하게 항상 보인다. 관리자 칩은 관리자로
-  // 로그인했을 때만 나타난다(일반 사용자는 볼 일이 없다).
+  // 보관함 조회 링크는 로그인과 무관하게 항상 보인다(모드 변경과 같은 행).
+  // 관리자 칩은 관리자로 로그인했을 때만 나타난다(일반 사용자는 볼 일이 없다).
   function renderAuthState(){
-    var show = archiveAvailable();
-    authRowEl.hidden = !show;
-    modeAuthRowEl.hidden = !show;
+    archiveLinkEl.hidden = !archiveAvailable();
+    modeAuthRowEl.hidden = !archiveAvailable();
 
     var isAdmin = !!(window.Archive && Archive.isAdmin(adminUser));
+    authRowEl.hidden = !isAdmin;
     adminChipEl.hidden = !isAdmin;
     modeAdminChipEl.hidden = !isAdmin;
     if(isAdmin){
