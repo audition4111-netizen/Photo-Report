@@ -39,7 +39,23 @@
   .tab{ flex:1; padding:12px 0; font-family:inherit; font-size:14px; font-weight:600; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--muted); cursor:pointer; }
   .tab.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
 
+  /* 조회 조건은 접어 두고 필요할 때만 펼친다. 화면을 열면 결과가 먼저 보이고,
+     조건을 바꿀 때만 펼치면 되므로 목록에 쓸 자리가 넓어진다. */
   .filters{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin:0 0 16px; }
+  .filter-toggle{ display:flex; align-items:center; gap:8px; width:100%; padding:0; border:none; background:none;
+    font-family:inherit; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer; text-align:left; }
+  .filter-toggle-label{ flex:none; }
+  /* 접힌 상태에서도 조건이 걸려 있는지 알 수 있게 개수를 띄운다 */
+  .filter-active{ flex:none; font-size:12px; font-weight:600; color:#fff; background:var(--primary);
+    border-radius:var(--radius-full); padding:2px 9px; }
+  .filter-active[hidden]{ display:none; }
+  .filter-caret{ margin-left:auto; flex:none; font-size:13px; color:var(--muted); transition:transform .2s ease; }
+  .filters.open .filter-caret{ transform:rotate(180deg); }
+  /* 0fr -> 1fr 로 두면 내용 높이를 몰라도 부드럽게 펼쳐진다 */
+  .filter-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }
+  .filters.open .filter-body{ grid-template-rows:1fr; }
+  .filter-body-inner{ overflow:hidden; min-height:0; }
+  .filters.open .filter-body-inner{ padding-top:14px; }
   /* 항상 2열: 지사·분야가 첫 줄, 그 아래 종류별 나머지 항목이 온다 (모바일에서도 유지). */
   .fgrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 10px; margin:0 0 4px; }
   .fgroup{ min-width:0; margin-bottom:0; }
@@ -110,7 +126,15 @@
       <button type="button" class="tab" data-type="fault">고장 보고서</button>
     </div>
 
-    <div class="filters">
+    <div class="filters" id="filters">
+      <button type="button" class="filter-toggle" id="filterToggleBtn" aria-expanded="false" aria-controls="filterBody">
+        <span class="filter-toggle-label">조회 조건</span>
+        <span class="filter-active" id="filterActive" hidden></span>
+        <span class="filter-caret" aria-hidden="true">▾</span>
+      </button>
+
+      <div class="filter-body" id="filterBody">
+      <div class="filter-body-inner">
       <!-- 첫 줄: 지사·분야 (공통). 그 아래는 종류에 따라 배치가 바뀐다. -->
       <div class="fgrid" id="fgrid">
         <div class="fgroup" id="gBranch">
@@ -155,6 +179,8 @@
       <div class="fbtns">
         <button type="button" id="resetBtn">초기화</button>
         <button type="button" class="primary" id="searchBtn">조회</button>
+      </div>
+      </div>
       </div>
     </div>
 
@@ -219,6 +245,33 @@
     fillSelect('fField', currentType === 'fault' ? FAULT_FIELDS : MANUAL_FIELDS);
   }
 
+  /* 조회 조건 접기/펼치기.
+     처음에는 접힌 채로 두어 결과가 먼저 보이게 하고, 조건을 만질 때만 편다. */
+  var filtersEl = el('filters');
+  var filterToggleBtn = el('filterToggleBtn');
+  var filterActiveEl = el('filterActive');
+
+  function setFiltersOpen(open){
+    filtersEl.classList.toggle('open', open);
+    filterToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  /* 접혀 있으면 어떤 조건이 걸렸는지 보이지 않으므로 개수를 배지로 알린다.
+     지금 종류에서 실제로 쓰이는(화면에 보이는) 칸만 센다. */
+  function refreshFilterCount(){
+    var used = ['fBranch','fField','fManualType','fFacility','fContent','fAuthor','fFileName'].filter(function(id){
+      var group = el(id).closest('.fgroup');
+      if(group && group.classList.contains('hidden')) return false;
+      return el(id).value.trim() !== '';
+    });
+    filterActiveEl.hidden = used.length === 0;
+    filterActiveEl.textContent = used.length + '개 적용';
+  }
+
+  filterToggleBtn.addEventListener('click', function(){
+    setFiltersOpen(!filtersEl.classList.contains('open'));
+  });
+
   function applyTypeVisibility(){
     el('fgrid').className = 'fgrid type-' + currentType;
     show(el('gManualType'), currentType === 'manual');
@@ -226,6 +279,7 @@
     show(el('gContent'), currentType === 'fault');
     fillFieldOptions();
     fillSelect('fBranch', BRANCHES);   // 지사는 두 종류 공통
+    refreshFilterCount();
   }
 
   function fmtDateTime(iso){
@@ -390,6 +444,7 @@
   }
 
   function runSearch(){
+    refreshFilterCount();
     setStatus('조회 중입니다...');
     resultsEl.innerHTML = '';
 

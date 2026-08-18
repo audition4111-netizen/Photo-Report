@@ -30,6 +30,13 @@
     --canvas:#ffffff;
     --surface-soft:#f7f7f7;
     --surface-strong:#f2f2f2;
+    /* 문서 보관함 전용 — 만들기(주 동작, 빨강)와 성격이 다른 '찾아보기'임을
+       색으로 알리되, 더 눈에 띄지는 않도록 차분한 파랑 계열로 둔다. */
+    --archive:#0b6bab;
+    --archive-muted:#4d7fa2;
+    --archive-soft:#eff6fb;
+    --archive-soft-active:#e0eef8;
+    --archive-line:#bcd9ec;
     --on-primary:#ffffff;
     --radius-xs:4px;
     --radius-sm:8px;
@@ -308,6 +315,13 @@
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
+  /* 문서 보관함은 '만들기'가 아니라 '찾아보기'라, 위 두 버튼과 묶여 보이지
+     않도록 간격을 벌리고 색을 달리한다. */
+  .mode-choice-btn.archive{ margin-top:22px; background:var(--archive-soft); border-color:var(--archive-line); }
+  .mode-choice-btn.archive:active{ background:var(--archive-soft-active); }
+  .mode-choice-btn.archive .mode-choice-title{ color:var(--archive); }
+  .mode-choice-btn.archive .mode-choice-desc{ color:var(--archive-muted); }
+  .mode-choice-icon{ margin-right:7px; }
   /* 로그인 상태 줄은 로그인한 뒤에만 나타난다. 로그아웃 상태의 첫 화면에는
      로그인 관련 요소가 전혀 보이지 않고, 만들기를 누르는 순간 팝업으로 뜬다. */
   .mode-auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 22px; }
@@ -479,8 +493,8 @@
       <span class="mode-choice-title">고장 보고서 만들기</span>
       <span class="mode-choice-desc">고장 요약과 관련 사진을 정리하는 핫라인 메모</span>
     </button>
-    <button type="button" class="mode-choice-btn" id="openArchiveModeBtn">
-      <span class="mode-choice-title">문서 보관함</span>
+    <button type="button" class="mode-choice-btn archive" id="openArchiveModeBtn">
+      <span class="mode-choice-title"><span class="mode-choice-icon" aria-hidden="true">🗂️</span>문서 보관함</span>
       <span class="mode-choice-desc">저장된 매뉴얼·고장 보고서를 찾아보기</span>
     </button>
   </div>
