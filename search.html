@@ -51,9 +51,10 @@
   .filter-active{ flex:none; font-size:12px; font-weight:600; color:#fff; background:var(--primary);
     border-radius:var(--radius-full); padding:2px 9px; }
   .filter-active[hidden]{ display:none; }
-  /* 접혀 있을 때 "펼칠 수 있다"는 신호가 이 화살표뿐이라 또렷해야 하지만,
-     26px 은 과했다. 속이 빈 ▾ 대신 꽉 찬 ▼ 를 쓰므로 작아도 충분히 보인다. */
-  .filter-caret{ margin-left:auto; flex:none; font-size:19px; line-height:1; color:var(--ink); transition:transform .2s ease; }
+  /* 접혀 있을 때 "펼칠 수 있다"는 신호가 이 화살표뿐이지만, 꽉 찬 ▼ 는
+     얇은 ▾ 와 달리 작아도 잘 보인다. 옆의 "조회 검색" 글자(15px)와 같은
+     크기로 맞춰 튀지 않게 둔다. */
+  .filter-caret{ margin-left:auto; flex:none; font-size:15px; line-height:1; color:var(--ink); transition:transform .2s ease; }
   .filters.open .filter-caret{ transform:rotate(180deg); }
   /* 0fr -> 1fr 로 두면 내용 높이를 몰라도 부드럽게 펼쳐진다 */
   .filter-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }
