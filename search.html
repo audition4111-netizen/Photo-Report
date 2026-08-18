@@ -49,7 +49,8 @@
   .filter-active{ flex:none; font-size:12px; font-weight:600; color:#fff; background:var(--primary);
     border-radius:var(--radius-full); padding:2px 9px; }
   .filter-active[hidden]{ display:none; }
-  .filter-caret{ margin-left:auto; flex:none; font-size:13px; color:var(--muted); transition:transform .2s ease; }
+  /* 접혀 있을 때 "펼칠 수 있다"는 신호가 이 화살표뿐이라, 작으면 놓치기 쉽다. */
+  .filter-caret{ margin-left:auto; flex:none; font-size:20px; line-height:1; color:var(--ink); transition:transform .2s ease; }
   .filters.open .filter-caret{ transform:rotate(180deg); }
   /* 0fr -> 1fr 로 두면 내용 높이를 몰라도 부드럽게 펼쳐진다 */
   .filter-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }

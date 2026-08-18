@@ -350,6 +350,10 @@
   /* 모드 변경(왼쪽)·보관함 조회(오른쪽)를 한 행에 둬서 줄 수를 줄인다. */
   .mode-header-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 14px; }
   .mode-header-row #archiveLink[hidden]{ display:none; }
+  /* 첫 화면의 "문서 보관함" 버튼과 같은 곳으로 가는 링크라 색도 같게 맞춘다.
+     회색 칩으로 두면 옆의 "모드 변경"과 구분이 되지 않는다. */
+  .mode-header-row #archiveLink{ background:var(--archive-soft); border-color:var(--archive-line); color:var(--archive); }
+  .mode-header-row #archiveLink:active{ background:var(--archive-soft-active); }
 
   .auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 14px; }
   .auth-row[hidden]{ display:none; }
