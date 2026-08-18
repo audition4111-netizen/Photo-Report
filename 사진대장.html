@@ -30,6 +30,12 @@
     --canvas:#ffffff;
     --surface-soft:#f7f7f7;
     --surface-strong:#f2f2f2;
+    /* 보관함으로 가는 링크 전용 — 만들기(주 동작, 빨강)와 성격이 다른
+       '찾아보기'임을 색으로 알리되, 더 눈에 띄지는 않도록 차분한 파랑 계열. */
+    --archive:#0b6bab;
+    --archive-soft:#eff6fb;
+    --archive-soft-active:#e0eef8;
+    --archive-line:#bcd9ec;
     --on-primary:#ffffff;
     --radius-xs:4px;
     --radius-sm:8px;
@@ -322,6 +328,10 @@
   .auth-row[hidden]{ display:none; }
   .auth-chip{ font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; text-decoration:none; }
   .auth-chip:active{ background:var(--hairline); }
+  /* 보관함으로 가는 링크는 첫 화면·작성 화면 어디에 있든 같은 색으로 둔다.
+     회색 칩이면 바로 옆 '모드 변경'과 구분이 되지 않는다. */
+  .auth-chip.archive-chip{ background:var(--archive-soft); border-color:var(--archive-line); color:var(--archive); }
+  .auth-chip.archive-chip:active{ background:var(--archive-soft-active); }
   /* 관리자 모드일 때는 눈에 확 띄도록 색을 채운다 — 지금 관리자 권한으로
      보고 있다는 걸 놓치면 안 되고, 로그아웃 버튼 위치도 바로 보여야 한다. */
   #adminChip, #modeAdminChip{ background:var(--primary); border-color:var(--primary); color:#fff; }
@@ -464,7 +474,7 @@
     <p class="mode-select-sub">일잘러 모바일 문서 생성기</p>
 
     <div class="mode-auth-row" id="modeAuthRow" hidden>
-      <a class="auth-chip" href="search.html">보관함 조회</a>
+      <a class="auth-chip archive-chip" href="search.html">보관함 조회</a>
       <span class="auth-chip" id="modeAdminChip" hidden></span>
     </div>
 
@@ -502,7 +512,7 @@
          보관함 조회는 Supabase가 연결됐을 때만 개별적으로 나타난다. -->
     <div class="mode-header-row">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
-      <a class="auth-chip" id="archiveLink" href="search.html" hidden>보관함 조회</a>
+      <a class="auth-chip archive-chip" id="archiveLink" href="search.html" hidden>보관함 조회</a>
     </div>
 
     <!-- 관리자로 로그인했을 때만 나타난다. 일반 사용자에게는 보이지 않는다. -->
