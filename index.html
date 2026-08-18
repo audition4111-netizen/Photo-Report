@@ -317,7 +317,9 @@
   }
   /* "보관함 조회" 줄이 빠지면서(일반 사용자에겐 mode-auth-row가 안 보임) 생긴
      빈자리만큼 여기서 여백을 더 줘 제목과 버튼 사이 균형을 맞춘다. */
-  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 44px; }
+  /* 앱이 무엇을 해 주는지 한 줄로 알리는 문구라, 흐린 회색 대신 본문색으로
+     굵게 둬서 로고 다음으로 눈에 들어오게 한다. (14.5px -> 17px, 약 2pt 증가) */
+  .mode-select-sub{ font-size:17px; font-weight:700; color:var(--ink); margin:0 0 44px; }
 
   /* 좁은 화면에서 로고가 넘치지 않게 */
   @media (max-width:359px){
@@ -498,7 +500,7 @@
       <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot" id="adminEntryTrigger" draggable="false">
       <h1 class="mode-select-title">뚝 <span id="adminEntryTrigger2"><span class="t-doc">DOC</span>!</span></h1>
     </div>
-    <p class="mode-select-sub">일잘러 모바일 문서 생성기</p>
+    <p class="mode-select-sub">현장에서 5분만에 만드는 매뉴얼</p>
 
     <!-- "보관함 조회" 링크는 뺐다 — 아래 버튼 중 "문서 보관함"이 같은 역할을 한다.
          이 줄은 이제 관리자로 로그인했을 때 상태 표시·로그아웃 용도로만 남는다. -->
