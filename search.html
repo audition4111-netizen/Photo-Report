@@ -41,7 +41,9 @@
 
   /* 조회 조건은 접어 두고 필요할 때만 펼친다. 화면을 열면 결과가 먼저 보이고,
      조건을 바꿀 때만 펼치면 되므로 목록에 쓸 자리가 넓어진다. */
-  .filters{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin:0 0 16px; }
+  /* 흰 배경이면 아래 결과 목록과 경계가 흐려 "여기가 검색 줄"임이 드러나지 않는다.
+     연한 회색 판으로 깔아 두면 안의 입력칸(흰색)도 함께 또렷해진다. */
+  .filters{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin:0 0 16px; background:var(--surface-soft); }
   .filter-toggle{ display:flex; align-items:center; gap:8px; width:100%; padding:0; border:none; background:none;
     font-family:inherit; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer; text-align:left; }
   .filter-toggle-label{ flex:none; }
@@ -49,8 +51,10 @@
   .filter-active{ flex:none; font-size:12px; font-weight:600; color:#fff; background:var(--primary);
     border-radius:var(--radius-full); padding:2px 9px; }
   .filter-active[hidden]{ display:none; }
-  /* 접혀 있을 때 "펼칠 수 있다"는 신호가 이 화살표뿐이라, 작으면 놓치기 쉽다. */
-  .filter-caret{ margin-left:auto; flex:none; font-size:20px; line-height:1; color:var(--ink); transition:transform .2s ease; }
+  /* 접혀 있을 때 "펼칠 수 있다"는 신호가 이 화살표뿐이지만, 꽉 찬 ▼ 는
+     얇은 ▾ 와 달리 작아도 잘 보인다. 옆의 "조회 검색" 글자(15px)와 같은
+     크기로 맞춰 튀지 않게 둔다. */
+  .filter-caret{ margin-left:auto; flex:none; font-size:15px; line-height:1; color:var(--ink); transition:transform .2s ease; }
   .filters.open .filter-caret{ transform:rotate(180deg); }
   /* 0fr -> 1fr 로 두면 내용 높이를 몰라도 부드럽게 펼쳐진다 */
   .filter-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }
@@ -129,9 +133,9 @@
 
     <div class="filters" id="filters">
       <button type="button" class="filter-toggle" id="filterToggleBtn" aria-expanded="false" aria-controls="filterBody">
-        <span class="filter-toggle-label">조회 조건</span>
+        <span class="filter-toggle-label">조회 검색</span>
         <span class="filter-active" id="filterActive" hidden></span>
-        <span class="filter-caret" aria-hidden="true">▾</span>
+        <span class="filter-caret" aria-hidden="true">▼</span>
       </button>
 
       <div class="filter-body" id="filterBody">
