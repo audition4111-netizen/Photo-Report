@@ -430,8 +430,15 @@
       delBtn.addEventListener('click', function(){
         if(!window.confirm('"' + row.file_name + '" 문서를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
         delBtn.disabled = true;
-        Archive.deleteDocument(row).then(function(){
+        Archive.deleteDocument(row).then(function(res){
           card.remove();
+          /* 행은 지워졌지만 저장된 PDF 가 남은 경우를 조용히 넘기지 않는다.
+             Storage 삭제 정책(db/storage-delete-admin.sql)이 빠져 있으면 여기로 온다. */
+          if(res && res.fileRemoved === false){
+            setStatus('문서는 삭제했지만 저장된 PDF 파일은 지우지 못했습니다. '
+              + 'Storage 삭제 권한을 확인해 주세요.', true);
+            return;
+          }
           showStatusAfterDelete();
         }).catch(function(err){
           delBtn.disabled = false;
