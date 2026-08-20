@@ -286,8 +286,18 @@
       if (!res.data || res.data.length === 0) {
         throw new Error('삭제 권한이 없습니다. 관리자 계정으로 로그인되어 있는지 확인해 주세요.');
       }
-      return c.storage.from(BUCKET).remove([row.pdf_path]).catch(function (err) {
+      /* ⚠️ storage.remove() 는 실패해도 예외를 던지지 않는다. {data, error} 를
+         돌려줄 뿐이라 .catch 만 걸어 두면 아무것도 걸리지 않는다. 게다가 삭제
+         정책이 없으면 error 조차 비어 있고 data 가 빈 배열로 온다 — 그래서
+         "지웠다"고 나오는데 Storage 에는 파일이 그대로 남는 일이 생겼다.
+         error 와 지워진 개수를 모두 확인해서 호출한 쪽에 알린다. */
+      return c.storage.from(BUCKET).remove([row.pdf_path]).then(function (res) {
+        var removed = !res.error && res.data && res.data.length > 0;
+        if (!removed) console.error('PDF 파일 삭제 실패(행은 삭제됨):', res.error || '0건 삭제');
+        return { fileRemoved: removed };
+      }, function (err) {
         console.error('PDF 파일 삭제 실패(행은 삭제됨):', err);
+        return { fileRemoved: false };
       });
     });
   }
