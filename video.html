@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>뚝 DOC 시연 영상</title>
+<meta name="theme-color" content="#000000">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+  /* QR 로 들어오면 다른 것 없이 영상만 화면에 꽉 차게 보여 주는 페이지.
+     드라이브 재생기는 재생·10초·볼륨·속도·설정 막대를 항상 띄우고 숨길 방법이
+     없어서, 같은 영상을 유튜브 embed(controls=0)로 감쌌다.
+     embed 주소는 직접 열면 유튜브가 오류 153 을 내므로 이렇게 페이지가 필요하다. */
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
+  #player{ position:fixed; inset:0; width:100%; height:100%; border:0; }
+  #player iframe{ width:100%; height:100%; border:0; display:block; }
+
+  /* 소리가 꺼진 동안에만 잠깐 보이는 표시. 버튼이 아니라 아이콘 하나뿐이고,
+     화면 어디를 눌러도 소리가 켜지면서 사라진다. */
+  .muted-mark{
+    position:fixed; top:calc(14px + env(safe-area-inset-top)); right:14px;
+    width:44px; height:44px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55); color:#fff; font-size:19px;
+    pointer-events:none;   /* 아이콘이 화면 탭을 가로채지 않게 */
+    transition:opacity .3s ease;
+  }
+  .muted-mark[hidden]{ display:none; }
+
+  /* 유튜브 iframe 은 터치를 자기가 먹어 버려서 바깥 리스너까지 오지 않는다.
+     소리를 켤 첫 탭만 받아 내려고 투명한 덮개를 잠깐 씌워 두고, 소리를 켠
+     뒤에는 없애서 이후 탭은 재생기로 그대로 전달되게 한다. */
+  .tap-catcher{ position:fixed; inset:0; background:transparent; z-index:5; }
+  .tap-catcher[hidden]{ display:none; }
+</style>
+</head>
+<body>
+
+<div id="player"></div>
+<div class="muted-mark" id="mutedMark" hidden aria-hidden="true">🔇</div>
+<div class="tap-catcher" id="tapCatcher" hidden></div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+  'use strict';
+  var VIDEO_ID = 'vaO6CESErg8';
+  var player = null;
+  var mark = document.getElementById('mutedMark');
+  var catcher = document.getElementById('tapCatcher');
+  var unmuted = false;
+
+  function turnSoundOn(){
+    if(unmuted || !player || !player.unMute) return;
+    unmuted = true;
+    player.unMute();
+    player.setVolume(100);
+    mark.hidden = true;
+    catcher.hidden = true;   // 이후 탭은 재생기가 받게 한다
+  }
+
+  window.onYouTubeIframeAPIReady = function(){
+    player = new YT.Player('player', {
+      videoId: VIDEO_ID,
+      playerVars: {
+        controls: 0,          // 재생·10초·볼륨·속도·설정 막대를 없앤다
+        rel: 0,               // 끝나고 다른 영상 추천을 띄우지 않는다
+        playsinline: 1,       // 모바일에서 화면 안에서 재생
+        modestbranding: 1,
+        iv_load_policy: 3,    // 영상 위 주석 끄기
+        autoplay: 1,
+        loop: 1,
+        playlist: VIDEO_ID    // loop 는 playlist 가 있어야 동작한다
+      },
+      events: {
+        onReady: function(e){
+          /* 먼저 소리를 켠 채로 시도한다. 이게 통하면 아무것도 누를 필요가 없다.
+             다만 대부분의 모바일 브라우저는 소리 있는 자동재생을 막으므로,
+             재생이 시작되지 않으면 무음으로라도 틀고 첫 터치에서 소리를 켠다. */
+          e.target.unMute();
+          e.target.setVolume(100);
+          e.target.playVideo();
+
+          setTimeout(function(){
+            var st = e.target.getPlayerState();
+            var playing = (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING);
+            if(playing && !e.target.isMuted()){
+              unmuted = true;          // 소리까지 자동으로 됐다
+              return;
+            }
+            e.target.mute();
+            e.target.playVideo();
+            mark.hidden = false;       // 소리가 꺼져 있음을 알리는 표시
+            catcher.hidden = false;    // 첫 탭을 받아 낼 덮개를 씌운다
+          }, 1200);
+        }
+      }
+    });
+  };
+
+  // 화면 어디를 눌러도 소리가 켜진다 — 따로 누를 버튼을 두지 않는다.
+  ['pointerdown','touchstart','click'].forEach(function(ev){
+    catcher.addEventListener(ev, turnSoundOn, { passive:true });
+    document.addEventListener(ev, turnSoundOn, { passive:true });
+  });
+})();
+</script>
+</body>
+</html>
