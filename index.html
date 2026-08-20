@@ -204,8 +204,8 @@
   .wrap-line{ display:flex; align-items:flex-start; }
   .wrap-marker{ flex:none; white-space:pre; }
   .wrap-body{ flex:1 1 auto; min-width:0; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; }
-  /* 사진 설명처럼 가운데로 맞춘 칸이라도, 기호를 단 줄은 목록이므로 왼쪽에 세운다 */
-  .wrap-line.has-marker .wrap-body{ text-align:left; }
+  /* 기호를 단 줄도 칸의 정렬을 그대로 따른다. 예전엔 설명 칸이 가운데 정렬이라
+     목록만 왼쪽으로 세웠는데, 이제 설명 칸이 양쪽정렬이라 따로 뗄 이유가 없다. */
   /* 텍스트 항목은 사진 칸/설명 칸으로 나누지 않고 칸 하나를 통째로 쓴다.
      위쪽 여백은 좌상단 순번 배지(2mm+6mm)를 피하려고 넉넉히 잡았다. */
   .text-box{ flex:1 1 auto; min-height:0; display:flex; align-items:flex-start; padding:9mm 5mm 5mm; box-sizing:border-box; overflow:hidden; }
@@ -2525,7 +2525,7 @@
       descText.className = 'desc-text';
       // 사진 설명은 가운데로 맞춘 짧은 칸이라, 문장이 "(1)"·"※"·"- " 같은 단락기호로
       // 시작해도 목록처럼 왼쪽으로 떼지 않고 통째로 가운데 정렬한다.
-      fillWrappedText(descText, item.description || '', false);
+      fillWrappedText(descText, item.description || '');
       descBox.appendChild(descText);
 
       box.appendChild(photoBox);
@@ -3058,7 +3058,7 @@
         cap.className = 'fr-photo-cap';
         // 사진 설명은 가운데로 맞춘 짧은 칸이라, 단락기호로 시작해도 목록처럼
         // 왼쪽으로 떼지 않고 통째로 가운데 정렬한다.
-        fillWrappedText(cap, item.description || '', false);
+        fillWrappedText(cap, item.description || '');
 
         cell.appendChild(box);
         cell.appendChild(cap);
