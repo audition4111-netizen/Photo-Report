@@ -190,7 +190,10 @@
   .photo-box{ flex:1 1 auto; min-height:0; height:95mm; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:3mm; box-sizing:border-box; }
   .photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
   .desc-box{ flex:0 0 auto; min-height:9mm; padding:2.5mm 4mm; box-sizing:border-box; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .desc-text{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:14px; font-weight:700; line-height:1.5; text-align:center; }
+  /* 양쪽정렬. 가운데 정렬이던 때는 줄마다 폭이 달라 첫 글자가 들쭉날쭉했는데,
+     왼쪽 끝을 맞추면 줄이 넘어가든 엔터로 줄을 바꾸든 첫 글자가 같은 열에서
+     시작한다. 오른쪽 끝은 justify 가 어절 간격을 늘려 맞춘다. */
+  .desc-text{ width:100%; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; font-size:14px; font-weight:700; line-height:1.5; text-align:justify; }
 
   /* 출력물 본문의 한 줄.
      - word-break:keep-all — 한글의 기본 줄바꿈은 음절 단위라 "타이어"가
@@ -246,7 +249,7 @@
   .fr-photo-box{ height:62mm; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:2mm; box-sizing:border-box; }
   .fr-photo-box img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
   /* 줄이 여러 개인 설명도 세로 가운데를 지키도록 세로 방향으로 쌓는다 */
-  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:14px; font-weight:700; line-height:1.4; text-align:center; display:flex; flex-direction:column; align-items:stretch; justify-content:center; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; box-sizing:border-box; }
+  .fr-photo-cap{ border-top:1px solid #000; min-height:12mm; padding:1.5mm 2mm; font-size:14px; font-weight:700; line-height:1.4; text-align:justify; display:flex; flex-direction:column; align-items:stretch; justify-content:center; white-space:pre-wrap; word-break:keep-all; overflow-wrap:break-word; box-sizing:border-box; }
 
   .page-count-line{ text-align:center; font-size:12px; color:#6b7280; margin:0 0 14px; }
 
