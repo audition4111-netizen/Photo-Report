@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>뚝 DOC 시연 영상</title>
+<meta name="theme-color" content="#000000">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+  /* QR 로 들어오면 조작 막대 없이 영상만 꽉 차게 보여 주는 페이지.
+     드라이브 재생기는 재생·10초·볼륨·속도·설정 막대를 항상 띄우고 그걸 숨길
+     방법이 없어서, 같은 영상을 유튜브 embed(controls=0)로 감싼다.
+     embed 주소는 직접 열면 유튜브가 오류 153 을 내므로 이렇게 페이지로 감싸야 한다. */
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
+  #player{ position:fixed; inset:0; width:100%; height:100%; border:0; }
+  #player iframe{ width:100%; height:100%; border:0; display:block; }
+
+  /* 브라우저는 소리 있는 자동재생을 막는다. 그래서 무음으로 시작하고,
+     소리는 한 번 눌러 켜게 한다. (누른 뒤에는 버튼을 감춘다) */
+  .sound-btn{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(22px + env(safe-area-inset-bottom));
+    display:flex; align-items:center; gap:8px;
+    padding:13px 22px; border:0; border-radius:9999px;
+    background:rgba(0,0,0,.72); color:#fff;
+    font-family:-apple-system,system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    font-size:15px; font-weight:700; cursor:pointer;
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    box-shadow:0 2px 12px rgba(0,0,0,.5);
+  }
+  .sound-btn[hidden]{ display:none; }
+  .sound-btn:active{ background:rgba(0,0,0,.88); }
+</style>
+</head>
+<body>
+
+<div id="player"></div>
+
+<button type="button" class="sound-btn" id="soundBtn" hidden>
+  <span aria-hidden="true">🔊</span><span>소리 켜기</span>
+</button>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+  'use strict';
+  var VIDEO_ID = 'vaO6CESErg8';
+  var player = null;
+  var btn = document.getElementById('soundBtn');
+
+  window.onYouTubeIframeAPIReady = function(){
+    player = new YT.Player('player', {
+      videoId: VIDEO_ID,
+      playerVars: {
+        controls: 0,          // 재생·10초·볼륨·속도·설정 막대를 없앤다
+        rel: 0,               // 끝나고 다른 영상 추천을 띄우지 않는다
+        playsinline: 1,       // 모바일에서 화면 안에서 재생
+        modestbranding: 1,
+        iv_load_policy: 3,    // 영상 위 주석 표시 끄기
+        autoplay: 1,
+        mute: 1,              // 무음이어야 자동재생이 허용된다
+        loop: 1,
+        playlist: VIDEO_ID    // loop 는 playlist 가 있어야 동작한다
+      },
+      events: {
+        onReady: function(e){
+          e.target.mute();
+          e.target.playVideo();
+          btn.hidden = false;   // 재생이 시작된 뒤에 버튼을 보여 준다
+        }
+      }
+    });
+  };
+
+  btn.addEventListener('click', function(){
+    if(player && player.unMute){
+      player.unMute();
+      player.setVolume(100);
+    }
+    btn.hidden = true;
+  });
+})();
+</script>
+</body>
+</html>
