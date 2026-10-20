@@ -305,7 +305,7 @@
     -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
     -webkit-tap-highlight-color:transparent;
   }
-  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 36px; }
+  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 36px; word-break:keep-all; text-wrap:balance; }
 
   /* 좁은 화면에서 로고가 넘치지 않게 */
   @media (max-width:359px){
@@ -474,7 +474,7 @@
       <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot" id="adminEntryTrigger" draggable="false">
       <h1 class="mode-select-title">뚝 <span id="adminEntryTrigger2"><span class="t-doc">DOC</span>!</span></h1>
     </div>
-    <p class="mode-select-sub">퇴근을 앞당기는 현장 문서 작성 앱</p>
+    <p class="mode-select-sub">현장 사진이 문서가 되는 현장 문서 작성 앱</p>
 
     <div class="mode-auth-row" id="modeAuthRow" hidden>
       <a class="auth-chip archive-chip" href="search.html">보관함 조회</a>
