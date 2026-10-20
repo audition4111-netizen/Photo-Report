@@ -96,6 +96,27 @@
   .card-actions button{ height:40px; padding:0 16px; font-family:inherit; font-size:13px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
   .card-actions .del-btn{ margin-left:auto; border-color:var(--error); color:var(--error); }
 
+  /* 비밀번호 잠금 — 화면 전체를 덮어, 풀기 전에는 목록이 보이지도 조회되지도 않는다. */
+  .pw-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:500;
+    display:flex; align-items:center; justify-content:center; padding:24px; }
+  .pw-modal[hidden]{ display:none; }
+  .pw-card{ width:100%; max-width:330px; background:var(--canvas);
+    border-radius:var(--radius-md); padding:26px 22px; text-align:center; }
+  .pw-title{ font-size:19px; font-weight:800; color:var(--error); margin:0 0 6px; letter-spacing:-0.3px; }
+  .pw-sub{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+  .pw-boxes{ display:flex; justify-content:center; gap:10px; margin:0 0 14px; }
+  .pw-boxes input{ width:52px; height:60px; padding:0; text-align:center;
+    font-family:inherit; font-size:26px; font-weight:700; color:var(--ink);
+    border:2px solid var(--hairline); border-radius:var(--radius-sm);
+    background:var(--canvas); -webkit-appearance:none; appearance:none; }
+  .pw-boxes input:focus{ outline:none; border-color:var(--ink); }
+  .pw-boxes input.filled{ border-color:var(--ink); }
+  .pw-msg{ font-size:13px; color:var(--error); min-height:19px; margin:0; }
+  /* 틀렸을 때 좌우로 한 번 흔들어 바로 알아채게 한다 */
+  .pw-card.shake{ animation:pw-shake .3s; }
+  @keyframes pw-shake{ 0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-7px); } 75%{ transform:translateX(7px); } }
+
   .gate{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:20px; }
   .gate h2{ font-size:16px; font-weight:600; margin:0 0 6px; }
   .gate p{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 14px; }
@@ -103,6 +124,21 @@
 </style>
 </head>
 <body>
+<!-- 비밀번호 잠금. 풀기 전에는 아래 내용을 조회하지 않는다. -->
+<div class="pw-modal" id="pwModal" hidden>
+  <div class="pw-card" id="pwCard">
+    <p class="pw-title">외부인 열람금지</p>
+    <p class="pw-sub">비밀번호를 입력해 주세요</p>
+    <div class="pw-boxes" id="pwBoxes">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="비밀번호 1번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="비밀번호 2번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="비밀번호 3번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="비밀번호 4번째 자리">
+    </div>
+    <p class="pw-msg" id="pwMsg"></p>
+  </div>
+</div>
+
 <div class="shell">
   <div class="head-row">
     <img src="manual-logo.gif" alt="한국지역난방공사" class="head-logo">
@@ -520,14 +556,113 @@
     }
   }
 
-  // 시작 — 로그인이 없으므로 연결만 되어 있으면 바로 조회 화면으로 들어간다.
-  if(!window.Archive || !Archive.isEnabled()){
-    show(notConfigured, true);
-  }else{
+  // 비밀번호를 풀고 나서야 실행된다. 그 전에는 조회 요청을 한 번도 보내지 않는다.
+  function startBrowsing(){
+    if(!window.Archive || !Archive.isEnabled()){
+      show(notConfigured, true);
+      return;
+    }
     show(browser, true);
     applyTypeVisibility();
     runSearch();
     Archive.currentUser().then(applyAdminState).catch(function(){ applyAdminState(null); });
+  }
+
+  /* ---- 비밀번호 잠금 --------------------------------------------------
+     주의: 화면 앞단을 막는 잠금장치다. 비밀번호가 이 파일 안에 들어 있어
+     소스를 열어 보면 보이므로, 외부인이 우연히 들어오는 것을 막는 용도다.
+     실제 데이터 보호는 Supabase 의 RLS 정책이 담당한다.
+     한 번 풀면 그 탭을 닫을 때까지는 다시 묻지 않는다(sessionStorage). */
+  var PASSCODE = '2488';
+  var PASS_KEY = 'ddoc-archive-unlocked';
+  var pwModal = el('pwModal');
+  var pwCard = el('pwCard');
+  var pwMsg = el('pwMsg');
+  var pwInputs = Array.prototype.slice.call(document.querySelectorAll('#pwBoxes input'));
+
+  function pwValue(){
+    return pwInputs.map(function(i){ return i.value; }).join('');
+  }
+
+  function pwClear(focus){
+    pwInputs.forEach(function(i){ i.value = ''; i.classList.remove('filled'); });
+    if(focus !== false) pwInputs[0].focus();
+  }
+
+  function unlock(){
+    try{ sessionStorage.setItem(PASS_KEY, '1'); }catch(e){ /* 시크릿 모드 등 */ }
+    pwModal.hidden = true;
+    startBrowsing();
+  }
+
+  function tryPasscode(){
+    if(pwValue() === PASSCODE){ unlock(); return; }
+    pwMsg.textContent = '비밀번호가 맞지 않습니다.';
+    pwCard.classList.remove('shake');
+    void pwCard.offsetWidth;        // 애니메이션을 다시 돌리려면 한 번 끊어 줘야 한다
+    pwCard.classList.add('shake');
+    setTimeout(function(){ pwClear(true); }, 280);
+  }
+
+  pwInputs.forEach(function(input, idx){
+    input.addEventListener('input', function(){
+      // 숫자만 남긴다(한글 자판이나 붙여넣기로 다른 글자가 들어올 수 있다)
+      var v = input.value.replace(/[^0-9]/g, '');
+      input.value = v.slice(-1);
+      input.classList.toggle('filled', input.value !== '');
+      pwMsg.textContent = '';
+      // 한 자를 넣으면 자동으로 다음 칸으로 넘어간다
+      if(input.value && idx < pwInputs.length - 1) pwInputs[idx + 1].focus();
+      if(pwValue().length === pwInputs.length) tryPasscode();
+    });
+    input.addEventListener('keydown', function(e){
+      // 빈 칸에서 지우기를 누르면 앞 칸으로 돌아가 지운다
+      if(e.key === 'Backspace' && !input.value && idx > 0){
+        e.preventDefault();
+        pwInputs[idx - 1].value = '';
+        pwInputs[idx - 1].classList.remove('filled');
+        pwInputs[idx - 1].focus();
+        return;
+      }
+      if(e.key === 'ArrowLeft' && idx > 0){ e.preventDefault(); pwInputs[idx - 1].focus(); }
+      if(e.key === 'ArrowRight' && idx < pwInputs.length - 1){ e.preventDefault(); pwInputs[idx + 1].focus(); }
+      if(e.key === 'Enter' && pwValue().length === pwInputs.length) tryPasscode();
+    });
+    // 네 자리를 한 번에 붙여넣는 경우
+    input.addEventListener('paste', function(e){
+      var data = e.clipboardData || window.clipboardData;
+      var text = data ? (data.getData('text') || '') : '';
+      var digits = text.replace(/[^0-9]/g, '').slice(0, pwInputs.length);
+      if(!digits) return;
+      e.preventDefault();
+      pwClear(false);
+      for(var k = 0; k < digits.length; k++){
+        pwInputs[k].value = digits.charAt(k);
+        pwInputs[k].classList.add('filled');
+      }
+      pwInputs[Math.min(digits.length, pwInputs.length - 1)].focus();
+      if(digits.length === pwInputs.length) tryPasscode();
+    });
+  });
+
+  // 잠금창 아무 곳을 눌러도 입력칸으로 초점이 가게 한다
+  pwModal.addEventListener('click', function(){
+    if(pwModal.hidden) return;
+    var next = null;
+    for(var k = 0; k < pwInputs.length; k++){
+      if(!pwInputs[k].value){ next = pwInputs[k]; break; }
+    }
+    (next || pwInputs[pwInputs.length - 1]).focus();
+  });
+
+  // ---- 시작 ----
+  var unlocked = false;
+  try{ unlocked = sessionStorage.getItem(PASS_KEY) === '1'; }catch(e){}
+  if(unlocked){
+    startBrowsing();
+  }else{
+    pwModal.hidden = false;
+    setTimeout(function(){ pwInputs[0].focus(); }, 60);
   }
 })();
 </script>
