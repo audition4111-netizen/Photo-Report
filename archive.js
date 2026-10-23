@@ -13,6 +13,9 @@
   'use strict';
 
   var BUCKET = 'documents';
+  // 수정용 원본 꾸러미. documents 버킷을 통째로 내려받는 전집 다운로드에
+  // JSON 이 섞이지 않도록 버킷을 따로 둔다. db/edit-source.sql 참고.
+  var SOURCE_BUCKET = 'document-sources';
   var FEEDBACK_BUCKET = 'feedback-photos';
   var ADMIN_EMAIL = 'audition411@kdhc.co.kr';
   var client = null;
@@ -169,30 +172,181 @@
     return attempt(1);
   }
 
+  // ---- 수정용 원본 꾸러미 ---------------------------------------------------
+
+  /* 원본 꾸러미 = 작성 화면을 그대로 되살릴 수 있는 값 전부(입력값·사진·설명).
+     PDF 는 눌러 찍은 결과물이라 되돌릴 수 없어서, 수정하려면 이것이 따로 있어야
+     한다. 파일 이름을 문서 id 로 정해 두면 제목을 바꿔도 자리가 그대로라,
+     덮어쓸 때 예전 파일이 고아로 남지 않는다. */
+  function sourcePathFor(docId) {
+    return docId + '.json.gz';
+  }
+
+  function newDocId() {
+    if (global.crypto && global.crypto.randomUUID) return global.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (ch) {
+      var r = Math.random() * 16 | 0;
+      return (ch === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  /* 사진이 base64 로 들어 있어 꾸러미가 수 MB 가 된다. gzip 으로 올리면 base64
+     때문에 늘어난 만큼을 대부분 되돌려받는다. 압축을 못 쓰는 브라우저에서는
+     그냥 평문으로 올린다 — 읽을 때 내용을 보고 판단하므로 섞여 있어도 된다. */
+  function toSourceBlob(source) {
+    var plain = new Blob([JSON.stringify(source)], { type: 'application/json' });
+    if (!global.CompressionStream || !plain.stream) return Promise.resolve(plain);
+    try {
+      var stream = plain.stream().pipeThrough(new global.CompressionStream('gzip'));
+      return new Response(stream).blob().then(function (gz) {
+        return new Blob([gz], { type: 'application/gzip' });
+      }, function () { return plain; });
+    } catch (e) {
+      return Promise.resolve(plain);
+    }
+  }
+
+  function fromSourceBlob(blob) {
+    // gzip 파일은 1f 8b 로 시작한다. 파일 이름이 아니라 내용으로 판단한다.
+    return blob.slice(0, 2).arrayBuffer().then(function (head) {
+      var b = new Uint8Array(head);
+      var gzipped = b.length >= 2 && b[0] === 0x1f && b[1] === 0x8b;
+      if (!gzipped) return blob.text().then(function (t) { return JSON.parse(t); });
+      var stream = blob.stream().pipeThrough(new global.DecompressionStream('gzip'));
+      return new Response(stream).text().then(function (t) { return JSON.parse(t); });
+    });
+  }
+
+  function putSource(c, docId, source) {
+    var path = sourcePathFor(docId);
+    return toSourceBlob(source).then(function (blob) {
+      return c.storage.from(SOURCE_BUCKET)
+        .upload(path, blob, { contentType: blob.type, upsert: true })
+        .then(function (up) {
+          if (up.error) throw up.error;
+          return { path: path, bytes: blob.size };
+        });
+    });
+  }
+
+  // 수정할 수 있는 문서인지 — 원본 꾸러미가 있어야 한다(예전 문서는 없다)
+  function canEdit(row) {
+    return !!(row && row.source_path);
+  }
+
+  function getDocument(id) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.from('documents').select('*').eq('id', id).maybeSingle().then(function (res) {
+      if (res.error) throw res.error;
+      return res.data || null;
+    });
+  }
+
+  function loadSource(path) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.storage.from(SOURCE_BUCKET).download(path).then(function (res) {
+      if (res.error) throw res.error;
+      if (!res.data) throw new Error('원본을 찾지 못했습니다.');
+      return fromSourceBlob(res.data);
+    });
+  }
+
   /* meta: doc_type, file_name, title, author_name(화면 입력칸에서 직접 받음),
      branch, field, year, manual_type(매뉴얼만), photo_count, page_count 및
      종류별 필드. 로그인이 없으므로 author_id는 채우지 않는다(null로 저장). */
-  function saveDocument(meta, pdfBlob) {
+  function saveDocument(meta, pdfBlob, source) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
 
+    // 원본 꾸러미 이름을 문서 id 로 쓰므로, 행을 넣기 전에 id 를 먼저 정한다
+    var docId = newDocId();
     var basePath = storagePath(meta.doc_type, meta.branch, meta.field, meta.manual_type, meta.title, meta.year);
 
     return uploadWithRetry(c, BUCKET, basePath, pdfBlob, 'application/pdf').then(function (path) {
-      var row = Object.assign({}, meta, {
-        pdf_path: path,
-        pdf_bytes: pdfBlob.size
-      });
+      /* 원본 꾸러미가 실패해도 PDF 저장까지 되돌리지는 않는다. 수정만 못 할 뿐
+         보관·열람은 정상이라, 문서를 통째로 잃는 것보다 낫다. */
+      var srcStep = source
+        ? putSource(c, docId, source).catch(function (err) {
+            console.error('원본 꾸러미 저장 실패(PDF 는 저장됨):', err);
+            return null;
+          })
+        : Promise.resolve(null);
 
-      return c.from('documents').insert(row).select().single().then(function (ins) {
-        if (ins.error) {
-          // 행 저장이 실패하면 업로드한 파일이 고아로 남지 않게 정리
-          c.storage.from(BUCKET).remove([path]);
-          throw ins.error;
-        }
-        return ins.data;
+      return srcStep.then(function (src) {
+        var row = Object.assign({}, meta, {
+          id: docId,
+          pdf_path: path,
+          pdf_bytes: pdfBlob.size,
+          source_path: src ? src.path : null,
+          source_bytes: src ? src.bytes : null
+        });
+
+        return c.from('documents').insert(row).select().single().then(function (ins) {
+          if (ins.error) {
+            // 행 저장이 실패하면 업로드한 파일이 고아로 남지 않게 정리
+            c.storage.from(BUCKET).remove([path]);
+            if (src) c.storage.from(SOURCE_BUCKET).remove([src.path]);
+            throw ins.error;
+          }
+          return ins.data;
+        });
       });
     });
+  }
+
+  /* 수정한 뒤 다시 출력할 때 — 새 행을 만들지 않고 있던 행을 덮어쓴다.
+     제목·지사·분야가 바뀌면 PDF 가 들어갈 폴더와 파일명도 달라지므로 새 자리에
+     올리고 예전 파일을 치운다. 원본 꾸러미는 문서 id 로 이름이 정해져 있어
+     언제나 같은 자리에 덮어쓴다. */
+  function updateDocument(row, meta, pdfBlob, source) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+
+    var newPath = storagePath(meta.doc_type, meta.branch, meta.field, meta.manual_type, meta.title, meta.year);
+    var movedFile = newPath !== row.pdf_path;
+
+    return c.storage.from(BUCKET)
+      .upload(newPath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+      .then(function (up) {
+        if (up.error) throw up.error;
+        return source
+          ? putSource(c, row.id, source).catch(function (err) {
+              console.error('원본 꾸러미 저장 실패(PDF 는 갱신됨):', err);
+              return null;
+            })
+          : Promise.resolve(null);
+      })
+      .then(function (src) {
+        var patch = Object.assign({}, meta, {
+          pdf_path: newPath,
+          pdf_bytes: pdfBlob.size,
+          updated_at: new Date().toISOString()
+        });
+        if (src) {
+          patch.source_path = src.path;
+          patch.source_bytes = src.bytes;
+        }
+        delete patch.created_at;   // 최초 작성 시각은 건드리지 않는다
+
+        return c.from('documents').update(patch).eq('id', row.id).select().then(function (res) {
+          if (res.error) throw res.error;
+          /* RLS 는 권한이 없어도 에러 대신 0건으로 조용히 넘어간다. 갱신된 행을
+             직접 세어, 안 된 것을 성공으로 넘기지 않는다. */
+          if (!res.data || res.data.length === 0) {
+            throw new Error('수정 권한이 없습니다. db/edit-source.sql 을 실행했는지 확인해 주세요.');
+          }
+          if (!movedFile) return { row: res.data[0], oldFileRemoved: true };
+          return c.storage.from(BUCKET).remove([row.pdf_path]).then(function (rm) {
+            var removed = !rm.error && rm.data && rm.data.length > 0;
+            if (!removed) console.error('자리를 옮긴 뒤 예전 PDF 삭제 실패:', rm.error || '0건 삭제');
+            return { row: res.data[0], oldFileRemoved: removed };
+          }, function () {
+            return { row: res.data[0], oldFileRemoved: false };
+          });
+        });
+      });
   }
 
   // ---- 조회 -----------------------------------------------------------------
@@ -291,13 +445,24 @@
          정책이 없으면 error 조차 비어 있고 data 가 빈 배열로 온다 — 그래서
          "지웠다"고 나오는데 Storage 에는 파일이 그대로 남는 일이 생겼다.
          error 와 지워진 개수를 모두 확인해서 호출한 쪽에 알린다. */
+      // 수정용 원본 꾸러미도 짝으로 지운다. 없는 문서(예전 자료)면 건너뛴다.
+      var dropSource = row.source_path
+        ? c.storage.from(SOURCE_BUCKET).remove([row.source_path]).then(function (res) {
+            if (res.error || !res.data || res.data.length === 0) {
+              console.error('원본 꾸러미 삭제 실패(행은 삭제됨):', res.error || '0건 삭제');
+            }
+          }, function (err) {
+            console.error('원본 꾸러미 삭제 실패(행은 삭제됨):', err);
+          })
+        : Promise.resolve();
+
       return c.storage.from(BUCKET).remove([row.pdf_path]).then(function (res) {
         var removed = !res.error && res.data && res.data.length > 0;
         if (!removed) console.error('PDF 파일 삭제 실패(행은 삭제됨):', res.error || '0건 삭제');
-        return { fileRemoved: removed };
+        return dropSource.then(function () { return { fileRemoved: removed }; });
       }, function (err) {
         console.error('PDF 파일 삭제 실패(행은 삭제됨):', err);
-        return { fileRemoved: false };
+        return dropSource.then(function () { return { fileRemoved: false }; });
       });
     });
   }
@@ -438,6 +603,10 @@
     onAuthChange: onAuthChange,
     isAdmin: isAdmin,
     saveDocument: saveDocument,
+    updateDocument: updateDocument,
+    getDocument: getDocument,
+    loadSource: loadSource,
+    canEdit: canEdit,
     queryDocuments: queryDocuments,
     existsByTitle: existsByTitle,
     canDelete: canDelete,
