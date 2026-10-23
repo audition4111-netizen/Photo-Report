@@ -490,11 +490,17 @@
     });
   }
 
-  // 비공개 버킷이므로 열람은 만료되는 서명 URL로만
-  function signedUrl(path, seconds) {
+  /* 비공개 버킷이므로 열람은 만료되는 서명 URL로만.
+
+     downloadName 을 주면 서버가 "내려받기" 로 응답하게 하고 그 이름으로 저장된다.
+     Storage 에 올라간 파일 이름은 한글을 못 써서 영문으로 바꿔 두었는데, 이
+     방법을 쓰면 받는 쪽에는 원래 한글 이름으로 떨어진다. 파일을 브라우저로
+     한 번 받아 와 다시 저장하는 방식(blob)보다 가볍기도 하다. */
+  function signedUrl(path, seconds, downloadName) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
-    return c.storage.from(BUCKET).createSignedUrl(path, seconds || 3600).then(function (res) {
+    var opts = downloadName ? { download: downloadName } : undefined;
+    return c.storage.from(BUCKET).createSignedUrl(path, seconds || 3600, opts).then(function (res) {
       if (res.error) throw res.error;
       return res.data.signedUrl;
     });
