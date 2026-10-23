@@ -249,6 +249,70 @@
     return !!(row && row.source_path);
   }
 
+  // ---- 문서 비밀번호 ---------------------------------------------------------
+
+  /* 로그인이 없어 서버가 사람을 구분할 수 없으므로, 문서마다 네 자리 숫자를 걸어
+     두고 지울 때 맞추게 한다. 숫자 자체는 되돌릴 수 없는 형태로만 서버에 남고,
+     조회로는 절대 내려오지 않는다(db/document-password.sql 참고).
+
+     저장한 직후에만 걸 수 있다. 실패해도 문서는 이미 저장된 뒤라 되돌리지 않고,
+     "관리자만 지울 수 있는 문서"가 될 뿐이다. */
+  function setDocumentPassword(docId, password) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.rpc('set_document_password', {
+      p_document_id: docId,
+      p_password: password
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data === true;
+    });
+  }
+
+  /* 삭제. 관리자는 비밀번호 없이, 그 외에는 맞아야 지워진다.
+     돌려받는 값:
+       { ok:true,  pdfPath, sourcePath }           지워짐 — 파일도 치우면 된다
+       { ok:false, reason:'wrong' }                비밀번호가 틀림
+       { ok:false, reason:'locked' }               여러 번 틀려 잠김
+       { ok:false, reason:'admin_only' }           비밀번호 없는 예전 문서
+       { ok:false, reason:'not_found' }            이미 없는 문서 */
+  function deleteDocumentByPassword(row, password) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
+    return c.rpc('delete_document_with_password', {
+      p_document_id: row.id,
+      p_password: password || null
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      var r = (res.data && res.data[0]) || null;
+      if (!r) throw new Error('삭제 결과를 받지 못했습니다.');
+      if (!r.ok) return { ok: false, reason: r.reason };
+
+      /* 행이 사라졌으니 PDF 와 원본은 주인 없는 파일이 되었다. 이제 지울 수
+         있다(정책이 주인 없는 파일만 허용한다). 실패해도 삭제 자체는 끝난
+         것이므로 알리기만 한다. */
+      var jobs = [];
+      if (r.pdf_path) {
+        jobs.push(c.storage.from(BUCKET).remove([r.pdf_path]).then(function (rm) {
+          return !rm.error && rm.data && rm.data.length > 0;
+        }, function () { return false; }));
+      } else {
+        jobs.push(Promise.resolve(true));
+      }
+      if (r.source_path) {
+        jobs.push(c.storage.from(SOURCE_BUCKET).remove([r.source_path]).then(function () {
+          return true;
+        }, function () { return false; }));
+      } else {
+        jobs.push(Promise.resolve(true));
+      }
+      return Promise.all(jobs).then(function (done) {
+        if (!done[0]) console.error('PDF 파일 삭제 실패(행은 삭제됨):', r.pdf_path);
+        return { ok: true, fileRemoved: done[0] };
+      });
+    });
+  }
+
   function getDocument(id) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('Supabase가 설정되지 않았습니다.'));
@@ -636,6 +700,8 @@
     getDocument: getDocument,
     loadSource: loadSource,
     canEdit: canEdit,
+    setDocumentPassword: setDocumentPassword,
+    deleteDocumentByPassword: deleteDocumentByPassword,
     queryDocuments: queryDocuments,
     existsByTitle: existsByTitle,
     canDelete: canDelete,
