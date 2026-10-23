@@ -13,8 +13,26 @@
 --
 -- 이 파일을 SQL Editor 에 붙여넣고 Run 하면 된다. 여러 번 실행해도 안전하다.
 
--- 비밀번호를 해싱하는 데 쓴다. Supabase 에는 보통 이미 깔려 있다.
-create extension if not exists pgcrypto with schema extensions;
+-- 비밀번호를 해싱하는 데 쓴다(crypt, gen_salt).
+--
+-- Supabase 는 보통 extensions 스키마에 미리 깔아 두지만, 프로젝트에 따라 자리가
+-- 다르거나 그 스키마가 없을 수도 있다. 자리를 단정하고 적었다가 틀리면 이 파일
+-- 전체가 한 번에 되돌아가므로(SQL Editor 는 통째로 한 묶음으로 실행한다),
+-- 있으면 그대로 쓰고 없을 때만 깔되 자리는 되는 쪽으로 맡긴다.
+do $ext$
+begin
+  if not exists (select 1 from pg_extension where extname = 'pgcrypto') then
+    begin
+      execute 'create extension pgcrypto with schema extensions';
+    exception when others then
+      execute 'create extension pgcrypto';
+    end;
+  end if;
+end
+$ext$;
+
+-- 어느 스키마에 깔렸든 함수가 찾을 수 있도록, 아래 함수들의 search_path 에
+-- 그 스키마를 넣어 둔다(아래 2·3 의 set search_path 참고).
 
 -- ---------------------------------------------------------------------------
 -- 1) 비밀번호를 담을 표
@@ -50,7 +68,7 @@ create or replace function public.set_document_password(
 ) returns boolean
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public, extensions, pg_catalog, pg_temp
 as $$
 declare
   v_created timestamptz;
@@ -71,7 +89,7 @@ begin
   end if;
 
   insert into public.document_locks (document_id, pw_hash)
-  values (p_document_id, extensions.crypt(p_password, extensions.gen_salt('bf', 8)));
+  values (p_document_id, crypt(p_password, gen_salt('bf', 8)));
 
   update public.documents set pw_set = true where id = p_document_id;
   return true;
@@ -89,7 +107,7 @@ create or replace function public.delete_document_with_password(
 ) returns table (ok boolean, reason text, pdf_path text, source_path text)
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public, extensions, pg_catalog, pg_temp
 as $$
 declare
   v_doc      record;
@@ -121,7 +139,7 @@ begin
     end if;
 
     if p_password is null
-       or extensions.crypt(p_password, v_lock.pw_hash) <> v_lock.pw_hash then
+       or crypt(p_password, v_lock.pw_hash) <> v_lock.pw_hash then
       v_fails := v_lock.fails + 1;
       update public.document_locks
          set fails = v_fails,
