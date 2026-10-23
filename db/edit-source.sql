@@ -49,6 +49,11 @@ on conflict (id) do nothing;
 --
 -- author_id 는 로그인 없이 채울 수 없으니, 수정할 때도 계속 비어 있어야 한다.
 -- (누가 남의 문서에 작성자 UUID 를 심어 놓는 일을 막는다)
+-- ❗ 정책(RLS)만으로는 부족하다. SQL 차원의 권한(GRANT)이 따로 있어야 한다.
+--    db/schema-main-no-login.sql 은 "grant select, insert" 까지만 줬기 때문에,
+--    이게 없으면 정책이 있어도 permission denied for table documents 로 막힌다.
+grant update on public.documents to anon, authenticated;
+
 drop policy if exists "documents_update_anon" on public.documents;
 create policy "documents_update_anon"
   on public.documents for update
@@ -100,6 +105,22 @@ create policy "src_storage_delete_anon"
   using (bucket_id = 'document-sources');
 
 -- ---------------------------------------------------------------------------
+-- 6) 원본은 올라갔는데 행에 연결이 안 된 문서를 고친다
+-- ---------------------------------------------------------------------------
+-- 저장할 때 원본 업로드는 성공했는데 그 응답이 앱에 닿지 못하면, 파일은 남고
+-- 행에는 "원본 없음"으로 기록된다. 그러면 보관함에 수정 버튼이 뜨지 않는다.
+--
+-- 원본 파일 이름이 문서 id 라서 짝을 정확히 찾을 수 있다. 아래를 실행하면
+-- 짝이 있는 문서가 다시 수정 가능해진다. 여러 번 실행해도 안전하다.
+update public.documents d
+set source_path  = o.name,
+    source_bytes = nullif(o.metadata ->> 'size', '')::int
+from storage.objects o
+where o.bucket_id = 'document-sources'
+  and o.name = d.id::text || '.json.gz'
+  and d.source_path is null;
+
+-- ---------------------------------------------------------------------------
 -- 확인
 -- ---------------------------------------------------------------------------
 -- 1) 칸이 생겼는지
@@ -114,7 +135,15 @@ order by column_name;
 select id, public from storage.buckets where id = 'document-sources';
 -- 기대: document-sources / false
 
--- 3) 정책이 다 붙었는지
+-- 3) update 권한이 들어갔는지
+select grantee, privilege_type
+from information_schema.role_table_grants
+where table_schema = 'public' and table_name = 'documents'
+  and privilege_type = 'UPDATE' and grantee in ('anon', 'authenticated')
+order by grantee;
+-- 기대: anon / UPDATE, authenticated / UPDATE  (두 줄이 나와야 한다)
+
+-- 4) 정책이 다 붙었는지
 select policyname, cmd
 from pg_policies
 where (schemaname = 'public'  and tablename = 'documents')

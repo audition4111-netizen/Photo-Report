@@ -217,15 +217,30 @@
     });
   }
 
+  /* 꾸러미가 수백 KB~수 MB 라 휴대폰 전파가 약하면 올리다 끊기기 쉽다. 한 번
+     끊기면 그 문서는 영영 수정할 수 없게 되므로 두 번까지 다시 시도한다.
+     upsert 라서 앞 시도가 서버에 닿았더라도 덮어쓰기만 될 뿐 탈이 없다. */
+  var SOURCE_UPLOAD_ATTEMPTS = 3;
+
   function putSource(c, docId, source) {
     var path = sourcePathFor(docId);
     return toSourceBlob(source).then(function (blob) {
-      return c.storage.from(SOURCE_BUCKET)
-        .upload(path, blob, { contentType: blob.type, upsert: true })
-        .then(function (up) {
-          if (up.error) throw up.error;
-          return { path: path, bytes: blob.size };
-        });
+      function attempt(n) {
+        return c.storage.from(SOURCE_BUCKET)
+          .upload(path, blob, { contentType: blob.type, upsert: true })
+          .then(function (up) {
+            if (up.error) throw up.error;
+            return { path: path, bytes: blob.size };
+          })
+          .catch(function (err) {
+            if (n >= SOURCE_UPLOAD_ATTEMPTS) throw err;
+            console.warn('원본 꾸러미 업로드 ' + n + '차 실패, 다시 시도합니다:', err);
+            return new Promise(function (go) { setTimeout(go, 600 * n); }).then(function () {
+              return attempt(n + 1);
+            });
+          });
+      }
+      return attempt(1);
     });
   }
 
@@ -267,8 +282,12 @@
     return uploadWithRetry(c, BUCKET, basePath, pdfBlob, 'application/pdf').then(function (path) {
       /* 원본 꾸러미가 실패해도 PDF 저장까지 되돌리지는 않는다. 수정만 못 할 뿐
          보관·열람은 정상이라, 문서를 통째로 잃는 것보다 낫다. */
+      var sourceError = null;
       var srcStep = source
         ? putSource(c, docId, source).catch(function (err) {
+            /* 조용히 넘기면 "왜 수정 버튼이 없지?" 하고 한참을 헤매게 된다.
+               이유를 담아 올려 보내, 화면에 그대로 띄운다. */
+            sourceError = (err && err.message) || String(err);
             console.error('원본 꾸러미 저장 실패(PDF 는 저장됨):', err);
             return null;
           })
@@ -290,7 +309,11 @@
             if (src) c.storage.from(SOURCE_BUCKET).remove([src.path]);
             throw ins.error;
           }
-          return ins.data;
+          /* 저장은 됐지만 원본이 없으면 수정이 안 된다. 어느 쪽인지 알 수 있게
+             행에 표시를 달아 보낸다(DB 에 들어가는 값이 아니다). */
+          var saved = ins.data;
+          if (saved && sourceError) saved.__sourceError = sourceError;
+          return saved;
         });
       });
     });

@@ -1015,11 +1015,12 @@
   var revisionInputEl = document.getElementById('revisionInput');
   var revisionGroupEl = document.getElementById('revisionGroup');
 
-  /* 개정번호는 직접 적는 대신 고르게 한다. 0 은 최초 작성본을 뜻한다. */
+  /* 개정번호는 직접 적는 대신 고르게 한다. 최초 작성본이 1 이다. */
+  var REVISION_MIN = 1;
   var REVISION_MAX = 20;
   (function fillRevisionOptions(){
     var html = '<option value="">선택</option>';
-    for(var i = 0; i <= REVISION_MAX; i++) html += '<option value="' + i + '">' + i + '</option>';
+    for(var i = REVISION_MIN; i <= REVISION_MAX; i++) html += '<option value="' + i + '">' + i + '</option>';
     revisionInputEl.innerHTML = html;
   })();
 
@@ -3979,6 +3980,13 @@
           editingSignature = sourceSignature(source);
           revisionBumped = false;
           updateEditBadge();
+        }
+        /* 원본을 못 올리면 이 문서는 나중에 수정할 수 없다. 조용히 넘기면
+           보관함에 수정 버튼이 왜 없는지 알 길이 없으므로 이유를 알린다. */
+        if(saved && saved.__sourceError){
+          showToast('보관함에 저장했지만 수정용 원본을 올리지 못해 이 문서는 수정할 수 없습니다: '
+            + saved.__sourceError);
+          return;
         }
         showToast('보관함에 저장했습니다.');
       });
