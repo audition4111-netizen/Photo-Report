@@ -332,6 +332,34 @@
     background:#eff6fb; border:1px solid #bcd9ec; border-radius:var(--radius-full);
     padding:7px 14px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .edit-badge[hidden]{ display:none; }
+
+  /* 문서 비밀번호 — 보관함에 넣기 직전에 묻는다. 보관함 조회의 잠금창과
+     같은 모양으로 맞춰, 쓰는 사람이 같은 것으로 알아보게 한다. */
+  .docpw-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:600;
+    display:flex; align-items:center; justify-content:center; padding:24px; }
+  .docpw-modal[hidden]{ display:none; }
+  .docpw-card{ width:100%; max-width:330px; background:var(--canvas);
+    border-radius:var(--radius-md); padding:24px 22px; text-align:center; }
+  .docpw-title{ font-size:18px; font-weight:800; color:var(--ink); margin:0 0 18px; letter-spacing:-0.3px; }
+  .docpw-boxes{ display:flex; justify-content:center; gap:10px; margin:0 0 16px; }
+  .docpw-boxes input{ width:52px; height:60px; padding:0; text-align:center;
+    font-family:inherit; font-size:26px; font-weight:700; color:var(--ink);
+    border:2px solid var(--hairline); border-radius:var(--radius-sm);
+    background:var(--canvas); -webkit-appearance:none; appearance:none; }
+  .docpw-boxes input:focus{ outline:none; border-color:var(--ink); }
+  .docpw-boxes input.filled{ border-color:var(--ink); }
+  .docpw-notes{ margin:0 0 20px; }
+  .docpw-notes p{ font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.5; }
+  .docpw-notes p:last-child{ margin-bottom:0; }
+  .docpw-msg{ font-size:13px; color:var(--error); min-height:19px; margin:0 0 8px; }
+  .docpw-btns{ display:flex; gap:10px; }
+  .docpw-btns button{ flex:1; height:46px; font-family:inherit; font-size:15px; font-weight:700;
+    border-radius:var(--radius-sm); cursor:pointer; }
+  .docpw-skip{ border:1px solid var(--hairline); background:var(--canvas); color:var(--ink); }
+  .docpw-go{ border:1px solid #0b6bab; background:#0b6bab; color:#fff; }
+  .docpw-card.shake{ animation:docpw-shake .3s; }
+  @keyframes docpw-shake{ 0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-7px); } 75%{ transform:translateX(7px); } }
   .mode-header-row #archiveLink[hidden]{ display:none; }
 
   .auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 14px; }
@@ -883,6 +911,25 @@
       <button type="button" class="sk-tool" id="sketchClearBtn">전체 지우기</button>
     </div>
     <div class="sk-hint" id="sketchHint">손가락이나 마우스로 사진 위에 그려 주세요.</div>
+  </div>
+</div>
+
+<!-- 보관함에 넣기 직전에 뜬다. 출력·메일 전송 둘 다 같은 자리에서 묻는다. -->
+<div class="docpw-modal" id="docPwModal" hidden>
+  <div class="docpw-card" id="docPwCard">
+    <p class="docpw-title" id="docPwTitle">문서 비밀번호 입력</p>
+    <div class="docpw-boxes" id="docPwBoxes">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 1번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 2번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 3번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 4번째 자리">
+    </div>
+    <div class="docpw-notes" id="docPwNotes"></div>
+    <p class="docpw-msg" id="docPwMsg"></p>
+    <div class="docpw-btns">
+      <button type="button" class="docpw-skip" id="docPwSkip">보관 안 함</button>
+      <button type="button" class="docpw-go" id="docPwGo">보관함 저장</button>
+    </div>
   </div>
 </div>
 
@@ -3919,10 +3966,139 @@
     return meta;
   }
 
+  /* ---- 문서 비밀번호 ------------------------------------------------------
+     로그인이 없어 서버가 사람을 구분하지 못하므로, 보관함에 넣을 때 네 자리를
+     걸어 두고 지울 때 맞추게 한다. 번호는 이 기기에 기억해 두었다가 다음부터
+     미리 채워 준다 — 외워 두기만 하면 다른 기기에서도 그대로 쓸 수 있다. */
+  var DOC_PW_KEY = 'ddoc-doc-pw';
+  var docPwModal = document.getElementById('docPwModal');
+  var docPwCard = document.getElementById('docPwCard');
+  var docPwTitle = document.getElementById('docPwTitle');
+  var docPwNotes = document.getElementById('docPwNotes');
+  var docPwMsg = document.getElementById('docPwMsg');
+  var docPwSkipBtn = document.getElementById('docPwSkip');
+  var docPwGoBtn = document.getElementById('docPwGo');
+  var docPwInputs = Array.prototype.slice.call(document.querySelectorAll('#docPwBoxes input'));
+  var docPwDone = null;          // 팝업이 닫힐 때 부를 함수
+  var pendingArchivePw = null;   // 이번 출력에서 쓸 비밀번호 (없으면 보관 안 함)
+
+  function rememberedDocPw(){
+    try{
+      var v = localStorage.getItem(DOC_PW_KEY) || '';
+      return /^[0-9]{4}$/.test(v) ? v : '';
+    }catch(e){ return ''; }
+  }
+
+  function rememberDocPw(v){
+    try{ localStorage.setItem(DOC_PW_KEY, v); }catch(e){ /* 사생활 보호 모드 등 */ }
+  }
+
+  function docPwValue(){
+    return docPwInputs.map(function(i){ return i.value; }).join('');
+  }
+
+  function fillDocPw(v){
+    for(var i = 0; i < docPwInputs.length; i++){
+      docPwInputs[i].value = v.charAt(i) || '';
+      docPwInputs[i].classList.toggle('filled', !!docPwInputs[i].value);
+    }
+  }
+
+  docPwInputs.forEach(function(input, idx){
+    input.addEventListener('input', function(){
+      input.value = input.value.replace(/[^0-9]/g, '').slice(-1);
+      input.classList.toggle('filled', input.value !== '');
+      docPwMsg.textContent = '';
+      if(input.value && idx < docPwInputs.length - 1) docPwInputs[idx + 1].focus();
+    });
+    input.addEventListener('keydown', function(e){
+      if(e.key === 'Backspace' && !input.value && idx > 0){
+        e.preventDefault();
+        docPwInputs[idx - 1].value = '';
+        docPwInputs[idx - 1].classList.remove('filled');
+        docPwInputs[idx - 1].focus();
+        return;
+      }
+      if(e.key === 'Enter') docPwGoBtn.click();
+    });
+  });
+
+  function closeDocPw(){
+    docPwModal.hidden = true;
+    docPwDone = null;
+  }
+
+  /* 네 자리가 안 찼으면 흔들어 알리고 닫지 않는다. */
+  docPwGoBtn.addEventListener('click', function(){
+    var v = docPwValue();
+    if(!/^[0-9]{4}$/.test(v)){
+      docPwMsg.textContent = '네 자리를 모두 입력해 주세요.';
+      docPwCard.classList.remove('shake');
+      void docPwCard.offsetWidth;
+      docPwCard.classList.add('shake');
+      return;
+    }
+    var done = docPwDone;
+    closeDocPw();
+    rememberDocPw(v);
+    if(done) done(v);
+  });
+
+  docPwSkipBtn.addEventListener('click', function(){
+    var done = docPwDone;
+    closeDocPw();
+    if(done) done(null);
+  });
+
+  function openDocPw(done){
+    var saved = rememberedDocPw();
+    docPwTitle.textContent = saved ? '문서 비밀번호 확인' : '문서 비밀번호 입력';
+    docPwNotes.innerHTML = saved
+      ? '<p>삭제 시 비밀번호 확인</p>'
+      : '<p>삭제 시 비밀번호 필요</p><p>같은 번호 사용 권장</p>';
+    docPwMsg.textContent = '';
+    fillDocPw(saved);
+    docPwDone = done;
+    docPwModal.hidden = false;
+    setTimeout(function(){
+      var next = docPwInputs.filter(function(i){ return !i.value; })[0] || docPwInputs[0];
+      next.focus();
+    }, 60);
+  }
+
+  // 보관함에 저장될 출력인지 — 사진대장과 미설정은 묻지 않는다
+  function willArchive(){
+    if(!window.Archive || !Archive.isEnabled()) return false;
+    return appMode === 'manual' || appMode === 'fault';
+  }
+
+  /* 출력을 시작하기 전에 비밀번호를 먼저 받는다.
+
+     ⚠️ 메일 전송은 Gmail 창을 window.open 으로 여는데, 브라우저는 "사용자가
+        방금 누른 것" 이 아니면 창 열기를 막는다. 그래서 run 은 팝업 버튼을
+        누른 그 자리에서 바로 불러야 한다 — 사이에 기다리는 일을 두면 안 된다.
+        (예전처럼 저장 단계에서 물으면 팝업이 Gmail 탭 뒤에 가려졌다) */
+  function withArchivePassword(run){
+    pendingArchivePw = null;
+    if(editingDoc || !willArchive()){
+      run();              // 개정은 처음 번호를 그대로 쓰고, 사진대장은 저장 안 함
+      return;
+    }
+    openDocPw(function(pw){
+      pendingArchivePw = pw;
+      run();
+    });
+  }
+
   function archiveGeneratedPdf(pdf, filename){
     if(!window.Archive || !Archive.isEnabled()) return;
     // 사진대장은 보관하지 않는다 — 조회 대상이 아니므로 안내도 띄우지 않는다.
     if(appMode !== 'manual' && appMode !== 'fault') return;
+    // 팝업에서 [보관 안 함] 을 고른 경우. 개정 중에는 번호를 묻지 않으므로 예외.
+    if(!editingDoc && !pendingArchivePw){
+      showToast('PDF 는 저장했습니다. 보관함에는 넣지 않았습니다.');
+      return;
+    }
 
     var pageCount = computeDocPages().length;
     var meta = buildArchiveMeta(filename, pageCount);
@@ -3977,6 +4153,16 @@
           editingDoc = saved;
           updateEditBadge();
         }
+        /* 비밀번호 걸기. 실패해도 문서는 이미 저장된 뒤라 되돌리지 않고,
+           "관리자만 지울 수 있는 문서" 가 될 뿐이므로 알리기만 한다. */
+        if(saved && saved.id && pendingArchivePw){
+          Archive.setDocumentPassword(saved.id, pendingArchivePw).then(function(set){
+            if(!set) showToast('저장했지만 문서 비밀번호를 걸지 못했습니다. 이 문서는 관리자만 지울 수 있습니다.');
+          }).catch(function(err){
+            console.error(err);
+            showToast('저장했지만 문서 비밀번호를 걸지 못했습니다: ' + ((err && err.message) || '알 수 없는 오류'));
+          });
+        }
         /* 원본을 못 올리면 이 문서는 나중에 수정할 수 없다. 조용히 넘기면
            보관함에 수정 버튼이 왜 없는지 알 길이 없으므로 이유를 알린다. */
         if(saved && saved.__sourceError){
@@ -4004,6 +4190,8 @@
     if(!filename) return;
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
+
+    withArchivePassword(function(){
     setGenerating(true, '생성 중...', null);
 
     buildPdfDocument().then(function(pdf){
@@ -4019,6 +4207,7 @@
       console.error(err);
       showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setGenerating(false);
+    });
     });
   }
 
@@ -4049,6 +4238,10 @@
     if(!filename) return;
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
+
+    withArchivePassword(function(){
+    /* 이 줄은 반드시 팝업 버튼을 누른 흐름 안에서 바로 실행돼야 한다.
+       앞에 기다리는 일이 끼면 브라우저가 창 열기를 막는다. */
     var preOpenedWindow = window.open('', '_blank');
     if(preOpenedWindow){
       preOpenedWindow.document.write('<p style="font-family:sans-serif;padding:24px;color:#374151;">PDF를 준비하고 있습니다. 잠시만 기다려 주세요...</p>');
@@ -4084,6 +4277,7 @@
       }
       showToast('메일 전송 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setGenerating(false);
+    });
     });
   }
 

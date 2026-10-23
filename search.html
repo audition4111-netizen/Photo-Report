@@ -125,6 +125,33 @@
   @keyframes pw-shake{ 0%,100%{ transform:translateX(0); }
     25%{ transform:translateX(-7px); } 75%{ transform:translateX(7px); } }
 
+  /* 삭제 확인 — 문서 비밀번호를 받는다. 작성 화면의 팝업과 같은 모양. */
+  .delpw-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:490;
+    display:flex; align-items:center; justify-content:center; padding:24px; }
+  .delpw-modal[hidden]{ display:none; }
+  .delpw-card{ width:100%; max-width:330px; background:var(--canvas);
+    border-radius:var(--radius-md); padding:24px 22px; text-align:center; }
+  .delpw-title{ font-size:18px; font-weight:800; color:var(--error); margin:0 0 6px; letter-spacing:-0.3px; }
+  .delpw-doc{ font-size:14px; font-weight:700; color:var(--archive); margin:0 0 18px;
+    word-break:break-all; line-height:1.4; }
+  .delpw-boxes{ display:flex; justify-content:center; gap:10px; margin:0 0 16px; }
+  .delpw-boxes input{ width:52px; height:60px; padding:0; text-align:center;
+    font-family:inherit; font-size:26px; font-weight:700; color:var(--ink);
+    border:2px solid var(--hairline); border-radius:var(--radius-sm);
+    background:var(--canvas); -webkit-appearance:none; appearance:none; }
+  .delpw-boxes input:focus{ outline:none; border-color:var(--ink); }
+  .delpw-boxes input.filled{ border-color:var(--ink); }
+  .delpw-note{ font-size:13px; color:var(--muted); margin:0 0 6px; line-height:1.5; }
+  .delpw-msg{ font-size:13px; color:var(--error); min-height:19px; margin:0 0 14px; }
+  .delpw-btns{ display:flex; gap:10px; }
+  .delpw-btns button{ flex:1; height:46px; font-family:inherit; font-size:15px; font-weight:700;
+    border-radius:var(--radius-sm); cursor:pointer; }
+  .delpw-cancel{ border:1px solid var(--hairline); background:var(--canvas); color:var(--ink); }
+  .delpw-go{ border:1px solid var(--error); background:var(--error); color:#fff; }
+  .delpw-card.shake{ animation:delpw-shake .3s; }
+  @keyframes delpw-shake{ 0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-7px); } 75%{ transform:translateX(7px); } }
+
   /* 수정 전 확인 팝업 — 어떤 문서를 고치는지 제목을 먼저 보여 준다. */
   .ask-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:480;
     display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -160,6 +187,26 @@
       <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="비밀번호 4번째 자리">
     </div>
     <p class="pw-msg" id="pwMsg"></p>
+  </div>
+</div>
+
+<!-- 삭제 전 확인 — 문서 비밀번호 -->
+<div class="delpw-modal" id="delPwModal" hidden>
+  <div class="delpw-card" id="delPwCard">
+    <p class="delpw-title">삭제</p>
+    <p class="delpw-doc" id="delPwDoc"></p>
+    <div class="delpw-boxes" id="delPwBoxes">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 1번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 2번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 3번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 4번째 자리">
+    </div>
+    <p class="delpw-note">되돌릴 수 없습니다</p>
+    <p class="delpw-msg" id="delPwMsg"></p>
+    <div class="delpw-btns">
+      <button type="button" class="delpw-cancel" id="delPwCancel">취소</button>
+      <button type="button" class="delpw-go" id="delPwGo">삭제</button>
+    </div>
   </div>
 </div>
 
@@ -466,7 +513,10 @@
     var revChip = (row.doc_type === 'manual' && row.revision)
       ? '<span class="rev-chip"></span>' : '';
 
-    var canDel = Archive.canDelete(currentUser);
+    /* 삭제 버튼은 모두에게 보인다. 실제로 지울 수 있는지는 문서 비밀번호가
+       가린다(관리자는 비밀번호 없이). 예전 문서처럼 비밀번호가 없는 건은
+       눌렀을 때 관리자만 가능하다고 알려 준다. */
+    var canDel = true;
     // 원본 꾸러미가 있는 문서만 고칠 수 있다(이 기능이 생기기 전 자료에는 없다)
     var canEdit = Archive.canEdit(row);
     // 매뉴얼은 고치면 개정번호가 올라가므로 "개정"이 더 맞는 말이다
@@ -552,27 +602,171 @@
     var delBtn = card.querySelector('.del-btn');
     if(delBtn){
       delBtn.addEventListener('click', function(){
-        if(!window.confirm('"' + row.file_name + '" 문서를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
-        delBtn.disabled = true;
-        Archive.deleteDocument(row).then(function(res){
-          card.remove();
-          /* 행은 지워졌지만 저장된 PDF 가 남은 경우를 조용히 넘기지 않는다.
-             Storage 삭제 정책(db/storage-delete-admin.sql)이 빠져 있으면 여기로 온다. */
-          if(res && res.fileRemoved === false){
-            setStatus('문서는 삭제했지만 저장된 PDF 파일은 지우지 못했습니다. '
-              + 'Storage 삭제 권한을 확인해 주세요.', true);
-            return;
-          }
-          showStatusAfterDelete();
-        }).catch(function(err){
-          delBtn.disabled = false;
-          console.error(err);
-          setStatus('삭제하지 못했습니다: ' + (err.message || ''), true);
-        });
+        askDelete(row, card, delBtn);
       });
     }
     return card;
   }
+
+  /* ---- 삭제 (문서 비밀번호) ------------------------------------------------
+     로그인이 없어 서버가 사람을 구분하지 못하므로, 문서를 만들 때 걸어 둔 네
+     자리를 맞춰야 지워진다. 관리자로 로그인한 경우에는 묻지 않고 바로 지운다.
+     맞는지 따지는 일은 모두 서버가 한다 — 여기서는 받아서 넘길 뿐이다. */
+  var DOC_PW_KEY = 'ddoc-doc-pw';
+  var delPwModal = el('delPwModal');
+  var delPwCard = el('delPwCard');
+  var delPwDocEl = el('delPwDoc');
+  var delPwMsg = el('delPwMsg');
+  var delPwGoBtn = el('delPwGo');
+  var delPwCancelBtn = el('delPwCancel');
+  var delPwInputs = Array.prototype.slice.call(document.querySelectorAll('#delPwBoxes input'));
+  var delTarget = null;   // { row, card, btn }
+
+  function rememberedDocPw(){
+    try{
+      var v = localStorage.getItem(DOC_PW_KEY) || '';
+      return /^[0-9]{4}$/.test(v) ? v : '';
+    }catch(e){ return ''; }
+  }
+
+  function delPwValue(){
+    return delPwInputs.map(function(i){ return i.value; }).join('');
+  }
+
+  function fillDelPw(v){
+    for(var i = 0; i < delPwInputs.length; i++){
+      delPwInputs[i].value = v.charAt(i) || '';
+      delPwInputs[i].classList.toggle('filled', !!delPwInputs[i].value);
+    }
+  }
+
+  function shakeDelPw(msg){
+    delPwMsg.textContent = msg;
+    delPwCard.classList.remove('shake');
+    void delPwCard.offsetWidth;
+    delPwCard.classList.add('shake');
+  }
+
+  delPwInputs.forEach(function(input, idx){
+    input.addEventListener('input', function(){
+      input.value = input.value.replace(/[^0-9]/g, '').slice(-1);
+      input.classList.toggle('filled', input.value !== '');
+      delPwMsg.textContent = '';
+      if(input.value && idx < delPwInputs.length - 1) delPwInputs[idx + 1].focus();
+    });
+    input.addEventListener('keydown', function(e){
+      if(e.key === 'Backspace' && !input.value && idx > 0){
+        e.preventDefault();
+        delPwInputs[idx - 1].value = '';
+        delPwInputs[idx - 1].classList.remove('filled');
+        delPwInputs[idx - 1].focus();
+        return;
+      }
+      if(e.key === 'Enter') delPwGoBtn.click();
+    });
+  });
+
+  function closeDelPw(){
+    delPwModal.hidden = true;
+    if(delTarget && delTarget.btn) delTarget.btn.disabled = false;
+    delTarget = null;
+  }
+
+  delPwCancelBtn.addEventListener('click', closeDelPw);
+  delPwModal.addEventListener('click', function(e){
+    if(e.target === delPwModal) closeDelPw();
+  });
+
+  function askDelete(row, card, btn){
+    // 관리자는 비밀번호를 묻지 않는다
+    if(Archive.canDelete(currentUser)){
+      if(!window.confirm('"' + (row.file_name || '문서') + '" 를 삭제하시겠습니까?')) return;
+      btn.disabled = true;
+      /* 관리자는 예전 경로를 그대로 쓴다. 문서 비밀번호 기능을 위한 SQL 을
+         아직 실행하지 않았더라도 관리자 삭제는 끊기지 않게 하려는 것이다. */
+      Archive.deleteDocument(row).then(function(res){
+        card.remove();
+        if(res && res.fileRemoved === false){
+          setStatus('문서는 삭제했지만 저장된 PDF 파일은 지우지 못했습니다. '
+            + 'Storage 삭제 권한을 확인해 주세요.', true);
+          return;
+        }
+        showStatusAfterDelete();
+      }).catch(function(err){
+        btn.disabled = false;
+        console.error(err);
+        setStatus('삭제하지 못했습니다: ' + (err.message || ''), true);
+      });
+      return;
+    }
+    if(!row.pw_set){
+      setStatus('이 문서는 비밀번호가 없어 관리자만 삭제할 수 있습니다.', true);
+      return;
+    }
+    delTarget = { row: row, card: card, btn: btn };
+    btn.disabled = true;
+    delPwDocEl.textContent = row.file_name || row.title || '문서';
+    delPwMsg.textContent = '';
+    fillDelPw(rememberedDocPw());
+    delPwModal.hidden = false;
+    setTimeout(function(){
+      var next = delPwInputs.filter(function(i){ return !i.value; })[0] || delPwInputs[0];
+      next.focus();
+    }, 60);
+  }
+
+  var DELETE_FAIL_MESSAGE = {
+    wrong: '비밀번호가 맞지 않습니다.',
+    locked: '여러 번 틀려 잠겼습니다. 10분 뒤에 다시 시도해 주세요.',
+    admin_only: '이 문서는 비밀번호가 없어 관리자만 삭제할 수 있습니다.',
+    not_found: '이미 삭제된 문서입니다.'
+  };
+
+  function runDelete(row, card, btn, password){
+    return Archive.deleteDocumentByPassword(row, password).then(function(res){
+      if(!res.ok){
+        if(delTarget){
+          shakeDelPw(DELETE_FAIL_MESSAGE[res.reason] || '삭제하지 못했습니다.');
+          if(res.reason !== 'wrong') setTimeout(closeDelPw, 1600);
+        }else{
+          btn.disabled = false;
+          setStatus(DELETE_FAIL_MESSAGE[res.reason] || '삭제하지 못했습니다.', true);
+        }
+        if(res.reason === 'not_found') card.remove();
+        return;
+      }
+      closeDelPw();
+      card.remove();
+      /* 행은 지워졌는데 저장된 PDF 가 남은 경우를 조용히 넘기지 않는다. */
+      if(res.fileRemoved === false){
+        setStatus('문서는 삭제했지만 저장된 PDF 파일은 지우지 못했습니다. '
+          + 'Storage 삭제 권한을 확인해 주세요.', true);
+        return;
+      }
+      showStatusAfterDelete();
+    }).catch(function(err){
+      console.error(err);
+      if(delTarget) shakeDelPw((err && err.message) || '삭제하지 못했습니다.');
+      else{
+        btn.disabled = false;
+        setStatus('삭제하지 못했습니다: ' + (err.message || ''), true);
+      }
+    });
+  }
+
+  delPwGoBtn.addEventListener('click', function(){
+    if(!delTarget) return;
+    var v = delPwValue();
+    if(!/^[0-9]{4}$/.test(v)){
+      shakeDelPw('네 자리를 모두 입력해 주세요.');
+      return;
+    }
+    var t = delTarget;
+    delPwGoBtn.disabled = true;
+    runDelete(t.row, t.card, t.btn, v).then(function(){
+      delPwGoBtn.disabled = false;
+    });
+  });
 
   /* 예/아니오 확인 팝업. window.confirm 은 버튼 글자가 확인/취소로 고정이라
      직접 만든다. */
