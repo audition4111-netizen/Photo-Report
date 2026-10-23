@@ -3939,8 +3939,6 @@
     if(editingDoc){
       Archive.updateDocument(editingDoc, meta, blob, source).then(function(res){
         editingDoc = res.row || editingDoc;
-        editingSignature = sourceSignature(source);
-        revisionBumped = false;
         updateEditBadge();
         if(res.oldFileRemoved === false){
           showToast('수정했습니다. 다만 제목이 바뀌어 예전 PDF 파일이 보관소에 남았습니다.');
@@ -3977,8 +3975,6 @@
         // 바로 이어서 고칠 수 있도록, 저장한 문서를 수정 대상으로 잡아 둔다
         if(saved && saved.source_path){
           editingDoc = saved;
-          editingSignature = sourceSignature(source);
-          revisionBumped = false;
           updateEditBadge();
         }
         /* 원본을 못 올리면 이 문서는 나중에 수정할 수 없다. 조용히 넘기면
@@ -4008,7 +4004,6 @@
     if(!filename) return;
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
-    applyRevisionBump();   // 올라간 번호가 PDF 에 찍히도록 그리기 전에
     setGenerating(true, '생성 중...', null);
 
     buildPdfDocument().then(function(pdf){
@@ -4054,8 +4049,6 @@
     if(!filename) return;
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
-    applyRevisionBump();   // 올라간 번호가 PDF 에 찍히도록 그리기 전에
-
     var preOpenedWindow = window.open('', '_blank');
     if(preOpenedWindow){
       preOpenedWindow.document.write('<p style="font-family:sans-serif;padding:24px;color:#374151;">PDF를 준비하고 있습니다. 잠시만 기다려 주세요...</p>');
@@ -4114,8 +4107,6 @@
      수정 중에 출력하면 새 문서를 쌓지 않고 있던 문서를 덮어쓴다. */
   var EDIT_REQUEST_KEY = 'ddoc-edit-doc-id';
   var editingDoc = null;         // 수정 중인 보관함 행 (없으면 새 문서)
-  var editingSignature = null;   // 불러왔을 때의 내용 — 달라졌는지 비교용
-  var revisionBumped = false;    // 이번 수정에서 개정번호를 이미 올렸는지
 
   function updateEditBadge(){
     if(!editingDoc){
@@ -4127,30 +4118,13 @@
     editBadgeEl.textContent = '수정 중 · ' + (editingDoc.title || '보관함 문서');
   }
 
-  /* 내용이 달라졌는지 보는 지문. 저장 시각과 수정 상태는 내용이 아니고,
-     개정번호는 사용자가 직접 올릴 수도 있어 빼고 비교한다. */
-  function sourceSignature(payload){
-    var copy = Object.assign({}, payload);
-    delete copy.savedAt;
-    delete copy.editing;
-    copy.fields = Object.assign({}, copy.fields || {});
-    delete copy.fields.revisionInput;
-    return JSON.stringify(copy);
-  }
-
-  /* 고친 내용이 실제로 달라졌으면 개정번호를 하나 올린다. 출력 직전에 부르므로
-     올라간 번호가 그대로 PDF 에 찍힌다. 사용자가 직접 바꿔 둔 경우에는 그 뜻을
-     존중해 건드리지 않는다. */
-  function applyRevisionBump(){
-    if(!editingDoc || appMode !== 'manual' || revisionBumped) return;
-    var original = (editingDoc.revision == null ? '' : String(editingDoc.revision)).trim();
-    if(revisionInputEl.value.trim() !== original) return;
-    if(!editingSignature || sourceSignature(collectDraft()) === editingSignature) return;
-    var n = parseInt(original, 10);
-    var next = isNaN(n) ? 1 : n + 1;
-    setRevision(String(next));
-    revisionBumped = true;
-    showToast('내용이 바뀌어 개정번호를 ' + next + ' 로 올렸습니다.');
+  /* 보관함에 적힌 개정번호의 다음 번호. 비어 있거나 숫자가 아니면 1 로 본다.
+     수정 화면에 들어올 때 한 번만 올린다 — 출력할 때 또 올리면, 한 번 고치는
+     동안 번호가 두 번 뛰어 어디까지 올라갈지 알 수 없게 된다. 다른 번호로
+     내보내고 싶으면 화면에서 직접 고르면 된다. */
+  function nextRevision(value){
+    var n = parseInt(String(value == null ? '' : value).trim(), 10);
+    return String(isNaN(n) ? 1 : n + 1);
   }
 
   function pendingEditId(){
@@ -4169,12 +4143,10 @@
     }).then(function(payload){
       return applyDraft(payload).then(function(){
         editingDoc = row;
-        revisionBumped = false;
-        if(row.doc_type === 'manual') setRevision(row.revision);
-        /* 비교 기준을 내려받은 꾸러미가 아니라 "화면에 올린 뒤 다시 모은 값"
-           으로 잡는다. 값이 비어 있던 항목이 화면에서 기본값으로 채워지는 일이
-           있어, 그대로 비교하면 고치지도 않았는데 달라진 것으로 읽힌다. */
-        editingSignature = sourceSignature(collectDraft());
+        /* 들어오는 순간 개정번호를 하나 올려 보여 준다. 몇 번으로 나갈지 미리
+           알고, 필요하면 직접 고를 수 있다. 목록에 없는 번호(20 초과)여도
+           setRevision 이 만들어 넣는다. */
+        if(row.doc_type === 'manual') setRevision(nextRevision(row.revision));
         updateEditBadge();
         showToast('"' + (row.title || '문서') + '" 을(를) 수정합니다. 출력하면 덮어쓰기 됩니다.');
       });
@@ -4212,7 +4184,7 @@
       idCounter: idCounter,
       /* 수정 도중 임시저장했다가 이어서 작성할 때, 어떤 문서를 고치던 중이었는지
          잊지 않도록 함께 담는다. 보관함에 올리는 원본 꾸러미에서는 지운다. */
-      editing: editingDoc ? { row: editingDoc, signature: editingSignature } : null,
+      editing: editingDoc ? { row: editingDoc } : null,
       photos: photos.map(function(p){
         // 텍스트 칸은 이미지 관련 항목이 통째로 없다
         if(isTextItem(p)) return { id: p.id, kind: 'text', description: p.description };
@@ -4262,8 +4234,6 @@
 
     // 임시저장에서 돌아온 경우에만 값이 있다. 보관함 원본에는 들어 있지 않다.
     editingDoc = (payload.editing && payload.editing.row) || null;
-    editingSignature = (payload.editing && payload.editing.signature) || null;
-    revisionBumped = false;
     updateEditBadge();
 
     var fields = payload.fields || {};
