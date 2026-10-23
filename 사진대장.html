@@ -325,7 +325,13 @@
   /* 눈에 잘 띄도록 키우고 진하게 — 예전엔 12px 연한 회색이라 놓치기 쉬웠다. */
   .mode-indicator{ display:inline-block; font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; }
   /* 모드 변경(왼쪽)·보관함 조회(오른쪽)를 한 행에 둬서 줄 수를 줄인다. */
-  .mode-header-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 14px; }
+  .mode-header-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 14px; flex-wrap:wrap; }
+  /* 보관함에 있던 문서를 고치는 중이라는 표시 — 새 문서를 만드는 것과 헷갈리면
+     같은 문서가 두 건이 된 줄 알게 되므로 눈에 띄게 둔다. */
+  .edit-badge{ display:inline-block; font-size:13px; font-weight:700; color:#0b6bab;
+    background:#eff6fb; border:1px solid #bcd9ec; border-radius:var(--radius-full);
+    padding:7px 14px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .edit-badge[hidden]{ display:none; }
   .mode-header-row #archiveLink[hidden]{ display:none; }
 
   .auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 14px; }
@@ -520,6 +526,7 @@
     <div class="mode-header-row">
       <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
       <a class="auth-chip archive-chip" id="archiveLink" href="search.html" hidden>보관함 조회</a>
+      <span class="edit-badge" id="editBadge" hidden></span>
     </div>
 
     <!-- 관리자로 로그인했을 때만 나타난다. 일반 사용자에게는 보이지 않는다. -->
@@ -564,7 +571,7 @@
       </div>
       <div class="field-group" id="revisionGroup" hidden>
         <label class="field-label" for="revisionInput">개정번호</label>
-        <input type="text" id="revisionInput" class="field-input" placeholder="예: 1">
+        <select id="revisionInput" class="field-input"></select>
       </div>
     </div>
 
@@ -1007,6 +1014,28 @@
   var fileNameInputEl = document.getElementById('fileNameInput');
   var revisionInputEl = document.getElementById('revisionInput');
   var revisionGroupEl = document.getElementById('revisionGroup');
+
+  /* 개정번호는 직접 적는 대신 고르게 한다. 최초 작성본이 1 이다. */
+  var REVISION_MIN = 1;
+  var REVISION_MAX = 20;
+  (function fillRevisionOptions(){
+    var html = '<option value="">선택</option>';
+    for(var i = REVISION_MIN; i <= REVISION_MAX; i++) html += '<option value="' + i + '">' + i + '</option>';
+    revisionInputEl.innerHTML = html;
+  })();
+
+  /* 목록에 없는 값(예전에 손으로 적어 둔 값, 자동으로 올라가 20을 넘긴 값)이
+     들어와도 그대로 선택되도록 없으면 만들어 넣는다. */
+  function setRevision(value){
+    var v = value == null ? '' : String(value).trim();
+    if(v && !revisionInputEl.querySelector('option[value="' + v.replace(/"/g, '\\"') + '"]')){
+      var opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      revisionInputEl.appendChild(opt);
+    }
+    revisionInputEl.value = v;
+  }
   var docTypeSelectEl = document.getElementById('docTypeSelect');
   var docTypeGroupEl = document.getElementById('docTypeGroup');
   var fieldSelectEl = document.getElementById('fieldSelect');
@@ -1055,6 +1084,7 @@
   var chooseManualModeBtn = document.getElementById('chooseManualModeBtn');
   var chooseFaultModeBtn = document.getElementById('chooseFaultModeBtn');
   var modeIndicatorEl = document.getElementById('modeIndicator');
+  var editBadgeEl = document.getElementById('editBadge');
   var appTitleEl = document.getElementById('appTitle');
 
   var modeAuthRowEl = document.getElementById('modeAuthRow');
@@ -3897,6 +3927,34 @@
     var pageCount = computeDocPages().length;
     var meta = buildArchiveMeta(filename, pageCount);
 
+    /* 작성 화면을 그대로 되살릴 수 있는 원본 꾸러미. PDF 는 눌러 찍은 결과물이라
+       되돌릴 수 없어서, 나중에 수정하려면 이것이 따로 저장돼 있어야 한다. */
+    var source = collectDraft();
+    delete source.editing;
+
+    var blob;
+    try{ blob = pdf.output('blob'); }catch(e){ return; }
+
+    // 수정 중이면 새로 쌓지 않고 있던 문서를 덮어쓴다.
+    if(editingDoc){
+      Archive.updateDocument(editingDoc, meta, blob, source).then(function(res){
+        editingDoc = res.row || editingDoc;
+        editingSignature = sourceSignature(source);
+        revisionBumped = false;
+        updateEditBadge();
+        if(res.oldFileRemoved === false){
+          showToast('수정했습니다. 다만 제목이 바뀌어 예전 PDF 파일이 보관소에 남았습니다.');
+          return;
+        }
+        showToast('보관함의 문서를 수정했습니다.');
+      }).catch(function(err){
+        console.error(err);
+        showToast('수정 저장에 실패했습니다: ' + ((err && err.message) || '알 수 없는 오류')
+          + ' (PDF 다운로드는 정상 완료되었습니다.)');
+      });
+      return;
+    }
+
     // PDF 출력·메일 전송을 여러 번 누르면 같은 문서가 보관함에 계속 쌓인다.
     // 저장 전에 같은 제목·같은 작성자 이름의 문서가 이미 있는지 먼저 확인하고,
     // 있으면 사용자에게 물어본 뒤에만 저장을 진행한다.
@@ -3915,9 +3973,21 @@
           return;
         }
       }
-      var blob;
-      try{ blob = pdf.output('blob'); }catch(e){ return; }
-      return Archive.saveDocument(meta, blob).then(function(){
+      return Archive.saveDocument(meta, blob, source).then(function(saved){
+        // 바로 이어서 고칠 수 있도록, 저장한 문서를 수정 대상으로 잡아 둔다
+        if(saved && saved.source_path){
+          editingDoc = saved;
+          editingSignature = sourceSignature(source);
+          revisionBumped = false;
+          updateEditBadge();
+        }
+        /* 원본을 못 올리면 이 문서는 나중에 수정할 수 없다. 조용히 넘기면
+           보관함에 수정 버튼이 왜 없는지 알 길이 없으므로 이유를 알린다. */
+        if(saved && saved.__sourceError){
+          showToast('보관함에 저장했지만 수정용 원본을 올리지 못해 이 문서는 수정할 수 없습니다: '
+            + saved.__sourceError);
+          return;
+        }
         showToast('보관함에 저장했습니다.');
       });
     }).catch(function(err){
@@ -3938,6 +4008,7 @@
     if(!filename) return;
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
+    applyRevisionBump();   // 올라간 번호가 PDF 에 찍히도록 그리기 전에
     setGenerating(true, '생성 중...', null);
 
     buildPdfDocument().then(function(pdf){
@@ -3983,6 +4054,7 @@
     if(!filename) return;
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
+    applyRevisionBump();   // 올라간 번호가 PDF 에 찍히도록 그리기 전에
 
     var preOpenedWindow = window.open('', '_blank');
     if(preOpenedWindow){
@@ -4036,6 +4108,82 @@
     return !!(window.Draft && Draft.isEnabled());
   }
 
+  /* ---- 보관함 문서 수정 ----------------------------------------------------
+     보관함에서 [수정]을 누르면 문서 id 만 넘어온다. 원본 꾸러미가 수 MB 라
+     주소나 세션에 실어 보내지 않고, 이 화면에서 직접 받아 되살린다.
+     수정 중에 출력하면 새 문서를 쌓지 않고 있던 문서를 덮어쓴다. */
+  var EDIT_REQUEST_KEY = 'ddoc-edit-doc-id';
+  var editingDoc = null;         // 수정 중인 보관함 행 (없으면 새 문서)
+  var editingSignature = null;   // 불러왔을 때의 내용 — 달라졌는지 비교용
+  var revisionBumped = false;    // 이번 수정에서 개정번호를 이미 올렸는지
+
+  function updateEditBadge(){
+    if(!editingDoc){
+      editBadgeEl.hidden = true;
+      editBadgeEl.textContent = '';
+      return;
+    }
+    editBadgeEl.hidden = false;
+    editBadgeEl.textContent = '수정 중 · ' + (editingDoc.title || '보관함 문서');
+  }
+
+  /* 내용이 달라졌는지 보는 지문. 저장 시각과 수정 상태는 내용이 아니고,
+     개정번호는 사용자가 직접 올릴 수도 있어 빼고 비교한다. */
+  function sourceSignature(payload){
+    var copy = Object.assign({}, payload);
+    delete copy.savedAt;
+    delete copy.editing;
+    copy.fields = Object.assign({}, copy.fields || {});
+    delete copy.fields.revisionInput;
+    return JSON.stringify(copy);
+  }
+
+  /* 고친 내용이 실제로 달라졌으면 개정번호를 하나 올린다. 출력 직전에 부르므로
+     올라간 번호가 그대로 PDF 에 찍힌다. 사용자가 직접 바꿔 둔 경우에는 그 뜻을
+     존중해 건드리지 않는다. */
+  function applyRevisionBump(){
+    if(!editingDoc || appMode !== 'manual' || revisionBumped) return;
+    var original = (editingDoc.revision == null ? '' : String(editingDoc.revision)).trim();
+    if(revisionInputEl.value.trim() !== original) return;
+    if(!editingSignature || sourceSignature(collectDraft()) === editingSignature) return;
+    var n = parseInt(original, 10);
+    var next = isNaN(n) ? 1 : n + 1;
+    setRevision(String(next));
+    revisionBumped = true;
+    showToast('내용이 바뀌어 개정번호를 ' + next + ' 로 올렸습니다.');
+  }
+
+  function pendingEditId(){
+    try{ return sessionStorage.getItem(EDIT_REQUEST_KEY); }catch(e){ return null; }
+  }
+
+  function startPendingEdit(id){
+    try{ sessionStorage.removeItem(EDIT_REQUEST_KEY); }catch(e){}
+    showToast('보관함에서 문서를 불러오는 중입니다...');
+    var row = null;
+    return Archive.getDocument(id).then(function(found){
+      if(!found) throw new Error('보관함에서 문서를 찾지 못했습니다.');
+      row = found;
+      if(!row.source_path) throw new Error('이 문서는 수정할 수 있는 원본이 없습니다.');
+      return Archive.loadSource(row.source_path);
+    }).then(function(payload){
+      return applyDraft(payload).then(function(){
+        editingDoc = row;
+        revisionBumped = false;
+        if(row.doc_type === 'manual') setRevision(row.revision);
+        /* 비교 기준을 내려받은 꾸러미가 아니라 "화면에 올린 뒤 다시 모은 값"
+           으로 잡는다. 값이 비어 있던 항목이 화면에서 기본값으로 채워지는 일이
+           있어, 그대로 비교하면 고치지도 않았는데 달라진 것으로 읽힌다. */
+        editingSignature = sourceSignature(collectDraft());
+        updateEditBadge();
+        showToast('"' + (row.title || '문서') + '" 을(를) 수정합니다. 출력하면 덮어쓰기 됩니다.');
+      });
+    }).catch(function(err){
+      console.error(err);
+      showToast((err && err.message) || '문서를 불러오지 못했습니다.');
+    });
+  }
+
   var DRAFT_FIELD_IDS = ['fileNameInput', 'authorInput', 'revisionInput', 'docTypeSelect', 'fieldSelect',
     'manualBranchSelect', 'manualPurpose', 'manualPrep', 'manualCaution'];
 
@@ -4062,6 +4210,9 @@
       manualSkip: manualSkip,
       manualPrepTable: manualPrepTable,
       idCounter: idCounter,
+      /* 수정 도중 임시저장했다가 이어서 작성할 때, 어떤 문서를 고치던 중이었는지
+         잊지 않도록 함께 담는다. 보관함에 올리는 원본 꾸러미에서는 지운다. */
+      editing: editingDoc ? { row: editingDoc, signature: editingSignature } : null,
       photos: photos.map(function(p){
         // 텍스트 칸은 이미지 관련 항목이 통째로 없다
         if(isTextItem(p)) return { id: p.id, kind: 'text', description: p.description };
@@ -4108,6 +4259,12 @@
   function applyDraft(payload){
     appMode = payload.appMode || 'report';
     updateModeIndicator();
+
+    // 임시저장에서 돌아온 경우에만 값이 있다. 보관함 원본에는 들어 있지 않다.
+    editingDoc = (payload.editing && payload.editing.row) || null;
+    editingSignature = (payload.editing && payload.editing.signature) || null;
+    revisionBumped = false;
+    updateEditBadge();
 
     var fields = payload.fields || {};
     DRAFT_FIELD_IDS.forEach(function(id){
@@ -4216,7 +4373,15 @@
 
   updateCountDisplay();
   renderList();
-  offerResume();
+
+  /* 보관함에서 [수정]을 눌러 넘어온 경우에는 임시저장을 묻지 않는다. 둘 다
+     뜨면 어느 쪽을 여는 것인지 알 수 없다. */
+  var pendingId = pendingEditId();
+  if(pendingId && window.Archive && Archive.isEnabled()){
+    startPendingEdit(pendingId);
+  }else{
+    offerResume();
+  }
 })();
 </script>
 </body>

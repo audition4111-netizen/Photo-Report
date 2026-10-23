@@ -14,6 +14,8 @@
     --ink:#222222; --muted:#6a6a6a; --hairline:#dddddd;
     --canvas:#ffffff; --surface-soft:#f7f7f7; --surface-strong:#f2f2f2;
     --radius-sm:8px; --radius-md:14px; --radius-full:9999px;
+    /* 보관함 계열 색 — index.html 과 같은 값 */
+    --archive:#0b6bab; --archive-soft:#eff6fb; --archive-line:#bcd9ec;
     --elevation:rgba(0,0,0,.02) 0 0 0 1px,rgba(0,0,0,.04) 0 2px 6px 0,rgba(0,0,0,.1) 0 4px 8px 0;
   }
   *{ box-sizing:border-box; }
@@ -92,9 +94,12 @@
   .badge{ flex:none; font-size:11px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radius-full); padding:3px 9px; }
   .meta{ font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:6px; }
   .meta b{ color:var(--ink); font-weight:600; }
-  .card-actions{ margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .card-actions{ margin-top:10px; display:flex; align-items:center; gap:8px; }
   .card-actions button{ height:40px; padding:0 16px; font-family:inherit; font-size:13px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
-  .card-actions .del-btn{ margin-left:auto; border-color:var(--error); color:var(--error); }
+  /* PDF 열기만 왼쪽. 수정·삭제는 오른쪽에 수정 → 삭제 순으로 붙는다. */
+  .card-actions .pdf-btn{ margin-right:auto; }
+  .card-actions .edit-btn{ border-color:var(--archive); color:var(--archive); background:var(--archive-soft); }
+  .card-actions .del-btn{ border-color:var(--error); color:var(--error); }
 
   /* 비밀번호 잠금 — 화면 전체를 덮어, 풀기 전에는 목록이 보이지도 조회되지도 않는다. */
   .pw-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:500;
@@ -117,6 +122,22 @@
   @keyframes pw-shake{ 0%,100%{ transform:translateX(0); }
     25%{ transform:translateX(-7px); } 75%{ transform:translateX(7px); } }
 
+  /* 수정 전 확인 팝업 — 어떤 문서를 고치는지 제목을 먼저 보여 준다. */
+  .ask-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:480;
+    display:flex; align-items:center; justify-content:center; padding:24px; }
+  .ask-modal[hidden]{ display:none; }
+  .ask-card{ width:100%; max-width:340px; background:var(--canvas);
+    border-radius:var(--radius-md); padding:24px 22px; text-align:center; }
+  .ask-title{ font-size:16px; font-weight:700; color:var(--ink); margin:0 0 10px; }
+  .ask-name{ font-size:15px; font-weight:700; color:var(--archive); margin:0 0 10px;
+    word-break:break-all; line-height:1.5; }
+  .ask-note{ font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+  .ask-btns{ display:flex; gap:10px; }
+  .ask-btns button{ flex:1; height:46px; font-family:inherit; font-size:15px; font-weight:700;
+    border-radius:var(--radius-sm); cursor:pointer; }
+  .ask-no{ border:1px solid var(--hairline); background:var(--canvas); color:var(--ink); }
+  .ask-yes{ border:1px solid var(--archive); background:var(--archive); color:#fff; }
+
   .gate{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:20px; }
   .gate h2{ font-size:16px; font-weight:600; margin:0 0 6px; }
   .gate p{ font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 14px; }
@@ -136,6 +157,19 @@
       <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="비밀번호 4번째 자리">
     </div>
     <p class="pw-msg" id="pwMsg"></p>
+  </div>
+</div>
+
+<!-- 수정 전 확인 -->
+<div class="ask-modal" id="askModal" hidden>
+  <div class="ask-card">
+    <p class="ask-title">이 문서를 수정합니다</p>
+    <p class="ask-name" id="askName"></p>
+    <p class="ask-note">작성 화면으로 넘어갑니다. 출력하면 지금 문서에 덮어쓰기 됩니다.</p>
+    <div class="ask-btns">
+      <button type="button" class="ask-no" id="askNo">아니오</button>
+      <button type="button" class="ask-yes" id="askYes">예</button>
+    </div>
   </div>
 </div>
 
@@ -430,6 +464,8 @@
       ? '<span class="rev-chip"></span>' : '';
 
     var canDel = Archive.canDelete(currentUser);
+    // 원본 꾸러미가 있는 문서만 고칠 수 있다(이 기능이 생기기 전 자료에는 없다)
+    var canEdit = Archive.canEdit(row);
 
     card.innerHTML =
       '<div class="card-top">' +
@@ -441,6 +477,7 @@
       '<div class="meta">' + meta + '</div>' +
       '<div class="card-actions">' +
         '<button type="button" class="pdf-btn">PDF 열기</button>' +
+        (canEdit ? '<button type="button" class="edit-btn">수정</button>' : '') +
         (canDel ? '<button type="button" class="del-btn">삭제</button>' : '') +
       '</div>';
 
@@ -460,6 +497,23 @@
         setStatus('PDF를 열지 못했습니다: ' + (err.message || ''), true);
       });
     });
+
+    var editBtn = card.querySelector('.edit-btn');
+    if(editBtn){
+      editBtn.addEventListener('click', function(){
+        askEdit(row.file_name || row.title || '문서', function(){
+          /* 원본 꾸러미는 수 MB 라 주소나 세션에 실어 보내지 않는다. 문서 id 만
+             넘기고 작성 화면이 직접 받아 가게 한다. */
+          try{
+            sessionStorage.setItem('ddoc-edit-doc-id', row.id);
+          }catch(e){
+            setStatus('이 브라우저에서는 수정 기능을 사용할 수 없습니다.', true);
+            return;
+          }
+          location.href = 'index.html';
+        });
+      });
+    }
 
     var delBtn = card.querySelector('.del-btn');
     if(delBtn){
@@ -485,6 +539,40 @@
     }
     return card;
   }
+
+  /* 예/아니오 확인 팝업. window.confirm 은 버튼 글자가 확인/취소로 고정이라
+     직접 만든다. */
+  var askModal = el('askModal');
+  var askNameEl = el('askName');
+  var askYesBtn = el('askYes');
+  var askNoBtn = el('askNo');
+  var askAccept = null;
+
+  function closeAsk(){
+    askModal.hidden = true;
+    askAccept = null;
+  }
+
+  function askEdit(name, onYes){
+    askNameEl.textContent = name;
+    askAccept = onYes;
+    askModal.hidden = false;
+    askYesBtn.focus();
+  }
+
+  askYesBtn.addEventListener('click', function(){
+    var run = askAccept;
+    closeAsk();
+    if(run) run();
+  });
+  askNoBtn.addEventListener('click', closeAsk);
+  // 바깥 어두운 곳을 누르면 닫힌다(카드 안쪽을 누른 것은 제외)
+  askModal.addEventListener('click', function(e){
+    if(e.target === askModal) closeAsk();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && !askModal.hidden) closeAsk();
+  });
 
   function showStatusAfterDelete(){
     var left = resultsEl.querySelectorAll('.card').length;
