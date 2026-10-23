@@ -121,6 +121,32 @@ where o.bucket_id = 'document-sources'
   and d.source_path is null;
 
 -- ---------------------------------------------------------------------------
+-- 7) 개정하면서 자리를 옮긴 PDF 의 "예전 파일" 을 치울 수 있게 한다
+-- ---------------------------------------------------------------------------
+-- PDF 가 들어갈 자리는 지사/연도/분야/종류/제목 으로 정해진다. 그래서 제목이나
+-- 종류를 바꿔 개정하거나, 해가 바뀐 뒤에 개정하면 자리가 달라진다. 앱은 새 자리에
+-- 올리고 예전 파일을 지우는데, 지금은 삭제가 관리자 전용이라 일반 사용자가
+-- 개정하면 예전 파일이 그대로 남는다. 같은 문서가 두 군데 있게 된다.
+--
+-- 그렇다고 "누구나 삭제" 로 열면, 보관함에 들어온 사람이 멀쩡한 PDF 를 지울 수
+-- 있게 된다(목록에는 문서가 보이는데 열면 파일이 없는 상태).
+--
+-- 그래서 "어떤 문서도 가리키지 않는 파일" 만 지울 수 있게 한다.
+-- 앱은 행의 pdf_path 를 새 자리로 먼저 바꾼 다음 예전 파일을 지우므로, 그 시점에
+-- 예전 파일은 이미 주인 없는 파일이다 — 그래서 이 조건으로 충분하다.
+-- 반대로 지금 쓰이고 있는 PDF 는 누가 시도해도 지워지지 않는다.
+drop policy if exists "docs_storage_delete_orphan" on storage.objects;
+create policy "docs_storage_delete_orphan"
+  on storage.objects for delete
+  to public
+  using (
+    bucket_id = 'documents'
+    and not exists (
+      select 1 from public.documents d where d.pdf_path = storage.objects.name
+    )
+  );
+
+-- ---------------------------------------------------------------------------
 -- 확인
 -- ---------------------------------------------------------------------------
 -- 1) 칸이 생겼는지
@@ -153,6 +179,18 @@ order by tablename, policyname;
 --       src_storage_read_anon(SELECT), src_storage_insert_anon(INSERT),
 --       src_storage_update_anon(UPDATE), src_storage_delete_anon(DELETE)
 --       + 원래 있던 정책들
+
+-- 5) 주인 없는 PDF 가 남아 있는지 (올리는 중간에 끊기면 생길 수 있다)
+select o.name as 주인없는_파일, round(( o.metadata ->> 'size')::numeric / 1024) as KB
+from storage.objects o
+where o.bucket_id = 'documents'
+  and not exists (select 1 from public.documents d where d.pdf_path = o.name)
+order by o.name;
+-- 기대: 0건. 나오면 위 7) 정책 덕분에 앱에서도, 여기서도 지울 수 있다.
+--      지우려면 아래 주석을 풀고 실행한다.
+-- delete from storage.objects o
+-- where o.bucket_id = 'documents'
+--   and not exists (select 1 from public.documents d where d.pdf_path = o.name);
 
 -- ---------------------------------------------------------------------------
 -- 참고 — 이 작업 전에 만든 문서들은 원본이 없어 수정할 수 없다.
