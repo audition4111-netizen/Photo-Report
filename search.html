@@ -94,10 +94,13 @@
   .badge{ flex:none; font-size:11px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radius-full); padding:3px 9px; }
   .meta{ font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:6px; }
   .meta b{ color:var(--ink); font-weight:600; }
-  .card-actions{ margin-top:10px; display:flex; align-items:center; gap:8px; }
+  .card-actions{ margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  /* 좁은 화면에서는 오른쪽 묶음이 통째로 아랫줄로 내려간다. 묶어 두지 않으면
+     삭제 하나만 떨어져 왼쪽에 붙어 어색해진다. */
+  .card-actions .ca-group{ display:flex; align-items:center; gap:8px; }
+  .card-actions .ca-right{ margin-left:auto; }
   .card-actions button{ height:40px; padding:0 16px; font-family:inherit; font-size:13px; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
-  /* PDF 열기만 왼쪽. 수정·삭제는 오른쪽에 수정 → 삭제 순으로 붙는다. */
-  .card-actions .pdf-btn{ margin-right:auto; }
+
   .card-actions .edit-btn{ border-color:var(--archive); color:var(--archive); background:var(--archive-soft); }
   .card-actions .del-btn{ border-color:var(--error); color:var(--error); }
 
@@ -163,7 +166,7 @@
 <!-- 수정 전 확인 -->
 <div class="ask-modal" id="askModal" hidden>
   <div class="ask-card">
-    <p class="ask-title">이 문서를 수정합니다</p>
+    <p class="ask-title" id="askTitle">이 문서를 수정합니다</p>
     <p class="ask-name" id="askName"></p>
     <p class="ask-note">작성 화면으로 넘어갑니다.<br>수정 후에는 지금 문서에 덮어쓰기 됩니다.</p>
     <div class="ask-btns">
@@ -466,6 +469,11 @@
     var canDel = Archive.canDelete(currentUser);
     // 원본 꾸러미가 있는 문서만 고칠 수 있다(이 기능이 생기기 전 자료에는 없다)
     var canEdit = Archive.canEdit(row);
+    // 매뉴얼은 고치면 개정번호가 올라가므로 "개정"이 더 맞는 말이다
+    var editLabel = row.doc_type === 'manual' ? '개정' : '수정';
+    // 내려받을 때 쓸 이름. Storage 에는 영문으로 올라가 있어 여기서 한글로 돌린다.
+    var downloadName = (row.file_name || row.title || '문서');
+    if(!/\.pdf$/i.test(downloadName)) downloadName += '.pdf';
 
     card.innerHTML =
       '<div class="card-top">' +
@@ -476,9 +484,15 @@
       '</div>' +
       '<div class="meta">' + meta + '</div>' +
       '<div class="card-actions">' +
-        '<button type="button" class="pdf-btn">PDF 열기</button>' +
-        (canEdit ? '<button type="button" class="edit-btn">수정</button>' : '') +
-        (canDel ? '<button type="button" class="del-btn">삭제</button>' : '') +
+        '<div class="ca-group ca-left">' +
+          '<button type="button" class="pdf-btn">PDF 열기</button>' +
+          '<button type="button" class="dl-btn">다운로드</button>' +
+        '</div>' +
+        ((canEdit || canDel) ?
+          '<div class="ca-group ca-right">' +
+            (canEdit ? '<button type="button" class="edit-btn">' + editLabel + '</button>' : '') +
+            (canDel ? '<button type="button" class="del-btn">삭제</button>' : '') +
+          '</div>' : '') +
       '</div>';
 
     card.querySelector('.card-title').textContent = row.file_name;
@@ -498,10 +512,30 @@
       });
     });
 
+    var dlBtn = card.querySelector('.dl-btn');
+    dlBtn.addEventListener('click', function(){
+      dlBtn.disabled = true;
+      /* 서명 URL 에 내려받기 이름을 실어 달라고 한다. 서버가 "첨부"로 응답하므로
+         다른 사이트 주소라도 그대로 저장된다(download 속성만으로는 안 된다). */
+      Archive.signedUrl(row.pdf_path, 600, downloadName).then(function(url){
+        dlBtn.disabled = false;
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = downloadName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }).catch(function(err){
+        dlBtn.disabled = false;
+        console.error(err);
+        setStatus('다운로드하지 못했습니다: ' + (err.message || ''), true);
+      });
+    });
+
     var editBtn = card.querySelector('.edit-btn');
     if(editBtn){
       editBtn.addEventListener('click', function(){
-        askEdit(row.file_name || row.title || '문서', function(){
+        askEdit(row.file_name || row.title || '문서', editLabel, function(){
           /* 원본 꾸러미는 수 MB 라 주소나 세션에 실어 보내지 않는다. 문서 id 만
              넘기고 작성 화면이 직접 받아 가게 한다. */
           try{
@@ -543,6 +577,7 @@
   /* 예/아니오 확인 팝업. window.confirm 은 버튼 글자가 확인/취소로 고정이라
      직접 만든다. */
   var askModal = el('askModal');
+  var askTitleEl = el('askTitle');
   var askNameEl = el('askName');
   var askYesBtn = el('askYes');
   var askNoBtn = el('askNo');
@@ -553,7 +588,8 @@
     askAccept = null;
   }
 
-  function askEdit(name, onYes){
+  function askEdit(name, label, onYes){
+    askTitleEl.textContent = '이 문서를 ' + label + '합니다';
     askNameEl.textContent = name;
     askAccept = onYes;
     askModal.hidden = false;
