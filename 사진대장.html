@@ -4049,9 +4049,9 @@
   function openDocPw(done){
     var saved = rememberedDocPw();
     docPwTitle.textContent = saved ? '문서 비밀번호 확인' : '문서 비밀번호 입력';
-    docPwNotes.innerHTML = saved
-      ? '<p>삭제 시 비밀번호가 됩니다</p><p>반드시 기억해주세요</p>'
-      : '<p>삭제 시 비밀번호 필요</p><p>같은 번호 사용 권장</p>';
+    /* 처음 정할 때든 확인할 때든 같은 말을 한다. 번호를 처음 고르는 순간이
+       오히려 기억해 달라고 말해야 할 자리다. */
+    docPwNotes.innerHTML = '<p>삭제 시 비밀번호가 됩니다</p><p>반드시 기억해주세요</p>';
     docPwMsg.textContent = '';
     fillDocPw(saved);
     docPwDone = done;
