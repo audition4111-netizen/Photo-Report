@@ -4050,7 +4050,7 @@
     var saved = rememberedDocPw();
     docPwTitle.textContent = saved ? '문서 비밀번호 확인' : '문서 비밀번호 입력';
     docPwNotes.innerHTML = saved
-      ? '<p>삭제 시 비밀번호 확인</p>'
+      ? '<p>삭제 시 비밀번호가 됩니다</p><p>반드시 기억해주세요</p>'
       : '<p>삭제 시 비밀번호 필요</p><p>같은 번호 사용 권장</p>';
     docPwMsg.textContent = '';
     fillDocPw(saved);
