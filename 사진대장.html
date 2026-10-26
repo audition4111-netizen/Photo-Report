@@ -1025,13 +1025,9 @@
   /* 서비스 워커 등록 — 앱 설치와 오프라인 실행에 필요하다.
      file:// 로 열면(사내망 단일 파일 사본) 등록이 불가능하고 콘솔 오류만 나므로
      http(s) 로 열렸을 때만 시도한다. */
-  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (err) {
-        console.error('서비스 워커 등록 실패:', err);
-      });
-    });
-  }
+  /* 등록과 자동 갱신은 아래 본문 스크립트의 setupAutoUpdate() 에서 한다.
+     새 버전으로 갈아 끼워도 되는 때인지 판단하려면 작성 중인지를 알아야 하는데,
+     그 정보가 본문 스크립트 안에 있기 때문이다. */
 </script>
 
 <script>
@@ -4534,6 +4530,66 @@
       resumeModalEl.classList.add('open');
     });
   }
+
+  /* ---- 새 버전 자동 적용 --------------------------------------------------
+     HTML 과 JS 는 서버에서 늘 새로 받는다(sw.js 의 networkFirst). 하지만 그건
+     "앱을 여는" 순간의 이야기다. 홈 화면 앱은 화면을 껐다 켜거나 다른 앱에
+     다녀와도 다시 열리는 것이 아니라 멈춰 둔 것이 깨어날 뿐이라, 처음 띄웠을
+     때의 코드가 며칠이고 그대로 돈다. 실제로 그 사이에 새 기능이 빠진 채
+     저장되어, 나중에 개정할 수 없는 문서가 생겼다.
+
+     그래서 앱이 화면 앞으로 돌아올 때마다 새 버전이 있는지 확인하고, 작성
+     중이 아닐 때만 조용히 새로 불러온다. 묻지 않는다 — 미룰 수 있게 하면
+     사람마다 버전이 갈려 같은 일이 또 생긴다. */
+  function safeToReloadForUpdate(){
+    if(isGenerating) return false;                                   // 만드는 중
+    if(!modeSelectScreen.classList.contains('closed')) return true;  // 아직 고르기 전
+    if(!photos.length && !fileNameInputEl.value.trim()) return true; // 열었지만 빈 화면
+    return false;                                                    // 작성 중 — 건드리지 않는다
+  }
+
+  (function setupAutoUpdate(){
+    /* file:// 로 열면(사내망 단일 파일 사본) 등록 자체가 안 되고 콘솔 오류만
+       난다. http(s) 로 열렸을 때만 시도한다. */
+    if(!('serviceWorker' in navigator) || location.protocol.indexOf('http') !== 0) return;
+
+    var UPDATE_CHECK_GAP = 5 * 60 * 1000;   // 앞으로 올 때마다 묻지 않고 5분에 한 번
+    var hadController = !!navigator.serviceWorker.controller;
+    var lastCheck = 0;
+    var updateReady = false;
+    var reloading = false;
+
+    function reloadIfSafe(){
+      if(!updateReady || reloading) return;
+      if(!safeToReloadForUpdate()) return;   // 지금은 말고, 다음에 올 때 다시 본다
+      reloading = true;
+      location.reload();
+    }
+
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      /* 이 기기에 처음 설치되는 경우에는 갈아 끼울 옛 화면이 없다. 다만 그때
+         부터는 "맡고 있는 워커가 있는" 상태가 되므로 표시를 바꿔 둔다 —
+         안 그러면 그 뒤에 올라오는 새 버전도 전부 그냥 지나친다. */
+      if(!hadController){ hadController = true; return; }
+      updateReady = true;
+      reloadIfSafe();
+    });
+
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').then(function(reg){
+        document.addEventListener('visibilitychange', function(){
+          if(document.visibilityState !== 'visible') return;
+          reloadIfSafe();                      // 아까 미뤄 둔 것이 있으면 지금
+          var now = Date.now();
+          if(now - lastCheck < UPDATE_CHECK_GAP) return;
+          lastCheck = now;
+          reg.update().catch(function(){});    // 새 버전이 올라왔는지 확인
+        });
+      }).catch(function(err){
+        console.error('서비스 워커 등록 실패:', err);
+      });
+    });
+  })();
 
   updateCountDisplay();
   renderList();
