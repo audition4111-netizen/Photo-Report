@@ -316,6 +316,11 @@
   .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
+  /* 조작대상 찾기는 "문서를 만드는 일" 이 아니라 "찾아보는 일" 이라, 위의 만들기
+     세 개와 한눈에 구분되도록 보관함과 같은 계열 색을 쓴다. */
+  .mode-choice-btn.lookup{ border-color:#bcd9ec; background:#eff6fb; }
+  .mode-choice-btn.lookup .mode-choice-title{ color:#0b6bab; }
+  .mode-choice-btn.lookup:active{ background:#e0eef8; }
   /* 로그인 상태 줄은 로그인한 뒤에만 나타난다. 로그아웃 상태의 첫 화면에는
      로그인 관련 요소가 전혀 보이지 않고, 만들기를 누르는 순간 팝업으로 뜬다. */
   .mode-auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 22px; }
@@ -531,6 +536,11 @@
       <span class="mode-choice-title">고장 보고서 만들기</span>
       <span class="mode-choice-desc">고장 요약과 관련 사진을 정리하는 핫라인 메모</span>
     </button>
+    <!-- 문서를 만드는 기능이 아니라 찾아보는 기능이라 모드 전환 없이 바로 넘어간다. -->
+    <a class="mode-choice-btn lookup" id="redtagLink" href="redtag.html">
+      <span class="mode-choice-title">조작대상 찾기</span>
+      <span class="mode-choice-desc">점검할 기기로 조작할 차단기와 그 위치를 찾습니다</span>
+    </a>
   </div>
   <span class="pm-credit">Project Manager : Steven Kim</span>
   <button type="button" class="feedback-fab" id="feedbackFabBtn" title="개선요청">
