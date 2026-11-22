@@ -216,7 +216,10 @@
         배전반 머리의 건수와 펼친 줄 수가 어긋나 있었다(CT MOV 54 vs 40).
         그래서 조작대상에서 출발해 연결을 나중에 붙인다. 안 붙은 것도
         "점검대상 미지정" 으로 그대로 내보낸다 — 안 보이면 없는 줄 안다. */
-  function listFeeders(site, group) {
+  /* volt 를 주면 그 전압등급만 가져온다. 배전반 하나가 여러 전압을 품는 일이
+     있어서(#1 CONTROL BLDG MCC 는 460V 와 220V 를 함께 가진다), 전압등급을
+     고르고 들어왔는데 다른 전압까지 쏟아져 나오던 것을 막는다. */
+  function listFeeders(site, group, volt) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('조작대상 데이터에 연결되어 있지 않습니다.'));
 
@@ -227,6 +230,7 @@
         .order('device_name', { ascending: true })
         .range(a, b);
       q = group === NO_GROUP ? q.is('group_name', null) : q.eq('group_name', group);
+      if (volt) q = volt === '기타' ? q.is('voltage_class', null) : q.eq('voltage_class', volt);
       return site === 'sasong'
         ? q.ilike('location', '%사송%')
         : q.or('location.not.ilike.%사송%,location.is.null');

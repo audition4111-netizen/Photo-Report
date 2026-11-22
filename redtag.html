@@ -757,11 +757,11 @@
       wrap.classList.toggle('open');
       if(!wrap.classList.contains('open') || loaded) return;
       loaded = true;
-      var key = site + '|' + g.name;
+      var key = site + '|' + volt + '|' + g.name;
       var job = feederCache[key]
         ? Promise.resolve(feederCache[key])
-        : RedTag.listFeeders(site, g.name).then(function(rows){ feederCache[key] = rows; return rows; });
-      job.then(function(rows){ fillPanel(body, rows); })
+        : RedTag.listFeeders(site, g.name, volt).then(function(rows){ feederCache[key] = rows; return rows; });
+      job.then(function(rows){ fillPanel(body, rows, g.count); })
          .catch(function(err){
            console.error(err);
            body.innerHTML = '<p class="panel-loading">불러오지 못했습니다: '
@@ -772,25 +772,36 @@
     return wrap;
   }
 
-  function fillPanel(body, rows){
+  function fillPanel(body, rows, devCount){
     if(!rows.length){
       body.innerHTML = '<p class="panel-loading">이 배전반에는 조작대상이 없습니다.</p>';
       return;
     }
     var bare = rows.filter(function(r){ return r.noEquipment; }).length;
+    /* 머리의 숫자는 조작대상 종수, 표의 줄 수는 점검대상까지 곱한 수다.
+       한 차단기가 여러 기기를 먹이면 기기마다 한 줄이 된다 — 레드태그는
+       그 짝마다 한 줄이 필요하니 맞는 모양이지만, 두 숫자가 달라 보이므로
+       다르면 왜 다른지 적어 준다. */
+    var note = [];
+    if(devCount && rows.length !== devCount){
+      note.push('조작대상 ' + devCount + '종 · 점검대상까지 치면 ' + rows.length + '줄입니다'
+                + ' (한 차단기가 여러 기기를 먹이면 기기마다 한 줄).');
+    }
+    if(bare){
+      note.push(bare + '건은 점검대상이 아직 연결되지 않았습니다. 담은 뒤 작업 리스트에서 직접 적어 주세요.');
+    }
     body.innerHTML =
       '<div class="table-wrap"><table><thead><tr>' +
         '<th>점검대상</th><th>조작대상(차단기명)</th>' +
         '<th class="nowrap">조작</th><th class="col-pick"></th>' +
       '</tr></thead><tbody></tbody></table></div>' +
-      (bare ? '<p class="panel-note"></p>' : '') +
+      (note.length ? '<p class="panel-note"></p>' : '') +
       '<div class="panel-acts">' +
         '<button type="button" class="all">이 배전반 전체 선택</button>' +
         '<button type="button" class="go">담기</button>' +
       '</div>';
-    if(bare){
-      body.querySelector('.panel-note').textContent =
-        '※ ' + bare + '건은 점검대상이 아직 연결되지 않았습니다. 담은 뒤 작업 리스트에서 직접 적어 주세요.';
+    if(note.length){
+      body.querySelector('.panel-note').textContent = '※ ' + note.join(' ');
     }
     var tb = body.querySelector('tbody');
     rows.forEach(function(r, i){
