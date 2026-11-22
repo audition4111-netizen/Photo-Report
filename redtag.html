@@ -164,9 +164,9 @@
         <table>
           <thead>
             <tr>
+              <th>점검대상</th><th>조작대상(차단기명)</th>
+              <th class="nowrap">조작</th><th>그룹</th><th>위치</th>
               <th class="col-pick"><input type="checkbox" id="pickHead" aria-label="전체 선택"></th>
-              <th>위치</th><th>그룹</th><th>차단기명</th>
-              <th class="nowrap">조작</th><th>점검대상</th>
             </tr>
           </thead>
           <tbody id="foundBody">
@@ -192,8 +192,8 @@
           <thead>
             <tr>
               <th class="nowrap">No.</th>
-              <th>위치</th><th>그룹</th><th>차단기명</th>
-              <th class="nowrap">조작</th><th>점검대상</th>
+              <th>점검대상</th><th>조작대상(차단기명)</th>
+              <th class="nowrap">조작</th><th>그룹</th><th>위치</th>
               <th class="nowrap">행</th>
             </tr>
           </thead>
@@ -304,15 +304,15 @@
     found.forEach(function(r, i){
       var tr = document.createElement('tr');
       tr.innerHTML =
-        '<td class="col-pick"><input type="checkbox" data-i="' + i + '" aria-label="선택"></td>' +
-        '<td class="loc"></td><td class="grp muted"></td><td class="dev"></td>' +
+        '<td class="eq"></td><td class="dev"></td>' +
         '<td class="nowrap"><span class="' + opClass(r.operation) + '"></span></td>' +
-        '<td class="eq muted"></td>';
-      tr.querySelector('.loc').textContent = r.location || '—';
-      tr.querySelector('.grp').textContent = r.groupName || '—';
+        '<td class="grp muted"></td><td class="loc"></td>' +
+        '<td class="col-pick"><input type="checkbox" data-i="' + i + '" aria-label="선택"></td>';
+      tr.querySelector('.eq').textContent = r.equipmentName;
       tr.querySelector('.dev').textContent = r.deviceName;
       tr.querySelector('.op').textContent = r.operation || '—';
-      tr.querySelector('.eq').textContent = r.equipmentName;
+      tr.querySelector('.grp').textContent = r.groupName || '—';
+      tr.querySelector('.loc').textContent = r.location || '—';
       foundBody.appendChild(tr);
     });
   }
@@ -380,13 +380,13 @@
       var tr = document.createElement('tr');
       tr.innerHTML =
         '<td class="nowrap">' + (i + 1) + '</td>' +
-        '<td><input class="cell-input" data-f="location"      placeholder="위치"></td>' +
-        '<td><input class="cell-input" data-f="groupName"     placeholder="그룹"></td>' +
-        '<td><input class="cell-input" data-f="deviceName"    placeholder="차단기명"></td>' +
+        '<td><input class="cell-input" data-f="equipmentName" placeholder="점검대상"></td>' +
+        '<td><input class="cell-input" data-f="deviceName"    placeholder="조작대상"></td>' +
         '<td><select class="cell-input" data-f="operation">' +
           '<option value="">선택</option><option value="개방">개방</option><option value="투입">투입</option>' +
         '</select></td>' +
-        '<td><input class="cell-input" data-f="equipmentName" placeholder="점검대상"></td>' +
+        '<td><input class="cell-input" data-f="groupName"     placeholder="그룹"></td>' +
+        '<td><input class="cell-input" data-f="location"      placeholder="위치"></td>' +
         '<td><div class="row-btns">' +
           '<button type="button" class="up"   title="위로">↑</button>' +
           '<button type="button" class="ins"  title="아래에 빈 행">+</button>' +
