@@ -239,6 +239,113 @@
     });
   }
 
+  /* ---- 점검대상(기기)으로 찾기 ---------------------------------------------
+     배전반 쪽은 "차단기가 어디 있나" 로 찾아가는 길이고, 이쪽은 "무슨 설비가
+     있나" 로 훑는 길이다. 펌프 종류를 쭉 보고 싶을 때는 이쪽이 맞다.
+
+     ⚠️ 하나라도 빠지면 안 되는 자료다. 조작대상이 아직 연결되지 않은 기기도
+        숨기지 않고 그대로 보여 주고 그렇다고 적는다 — 안 보이면 없는 줄 안다. */
+  var EQ_TYPE_ORDER = ['발전기', 'GIS', '변압기', '수배전반', '전동기', '부속기기'];
+  var UNKNOWN_SITE = '(사업장 미상)';
+
+  var eqCache = {};
+
+  function fetchAllPaged(build) {
+    var all = [];
+    function page(from) {
+      return build(from, from + PAGE - 1).then(function (res) {
+        if (res.error) throw res.error;
+        var got = res.data || [];
+        all = all.concat(got);
+        return got.length === PAGE ? page(from + PAGE) : all;
+      });
+    }
+    return page(0);
+  }
+
+  /* 기기와 그 기기의 조작대상을 한꺼번에 받아 종류별로 묶는다.
+     기기 표에는 사업장 칸이 없어서, 그 기기를 끊는 차단기가 어디 있는지로
+     사업장을 가린다. 차단기가 아직 없는 기기는 가릴 수가 없어 양쪽 모두에
+     "사업장 미상" 으로 둔다 — 빠뜨리는 것보다 낫다. */
+  function listEquipment(site) {
+    if (eqCache[site]) return Promise.resolve(eqCache[site]);
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('조작대상 데이터에 연결되어 있지 않습니다.'));
+
+    var eqs = fetchAllPaged(function (a, b) {
+      return c.from('equipment')
+        .select('id,equipment_name,equipment_number,equipment_type,sub_type,facility_group,voltage_class')
+        .order('equipment_name', { ascending: true })
+        .range(a, b);
+    });
+
+    var maps = fetchAllPaged(function (a, b) {
+      return c.from('equipment_switch_map')
+        .select('equipment_id,operation_order,operation_type,remarks,' +
+                'switch:switch_device_id(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)')
+        .order('equipment_id', { ascending: true })
+        .range(a, b);
+    });
+
+    return Promise.all([eqs, maps]).then(function (both) {
+      var equipment = both[0], links = both[1];
+
+      var feedersOf = {};
+      links.forEach(function (m) {
+        var sw = m.switch;
+        if (!sw) return;
+        var row = toRow({ operation_order: m.operation_order, operation_type: m.operation_type,
+                          remarks: m.remarks, switch: sw, equipment: null });
+        (feedersOf[m.equipment_id] = feedersOf[m.equipment_id] || []).push(row);
+      });
+
+      var byType = {};
+      var counts = { total: 0, noFeeder: 0 };
+      equipment.forEach(function (eq) {
+        var mine = (feedersOf[eq.id] || []).slice();
+        // 이 사업장 것만 남긴다. 차단기가 없으면 가릴 수 없으니 양쪽에 둔다.
+        var here = mine.filter(function (f) { return siteOf(f) === site; });
+        var belongs = mine.length ? here.length > 0 : true;
+        if (!belongs) return;
+
+        here.sort(function (a, b) {
+          return (a.order - b.order) ||
+                 a.deviceName.localeCompare(b.deviceName, 'ko', { numeric: true });
+        });
+        here.forEach(function (f) {
+          f.equipmentName = eq.equipment_name;
+          f.equipmentId = eq.id;
+        });
+
+        var t = eq.equipment_type || '기타';
+        (byType[t] = byType[t] || []).push({
+          id: eq.id,
+          name: eq.equipment_name,
+          number: eq.equipment_number || '',
+          subType: eq.sub_type || '',
+          facilityGroup: eq.facility_group || '',
+          voltage: eq.voltage_class || '',
+          site: mine.length ? site : UNKNOWN_SITE,
+          feeders: here
+        });
+        counts.total += 1;
+        if (!here.length) counts.noFeeder += 1;
+      });
+
+      var out = Object.keys(byType).sort(function (a, b) {
+        var ia = EQ_TYPE_ORDER.indexOf(a), ib = EQ_TYPE_ORDER.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      }).map(function (t) {
+        var items = byType[t];
+        items.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko', { numeric: true }); });
+        return { type: t, count: items.length, items: items };
+      });
+
+      eqCache[site] = { types: out, counts: counts };
+      return eqCache[site];
+    });
+  }
+
   // 사송가압장 것인지 — 엑셀 시트를 나눠 담을 때 쓴다
   function isSasong(row) {
     return siteOf(row) === 'sasong';
@@ -258,6 +365,8 @@
     siteOf: siteOf,
     listGroups: listGroups,
     listFeeders: listFeeders,
+    listEquipment: listEquipment,
+    UNKNOWN_SITE: UNKNOWN_SITE,
     NO_GROUP: NO_GROUP,
     SITES: SITES,
     operationEnglish: operationEnglish

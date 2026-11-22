@@ -86,6 +86,17 @@
     border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
   .panel-acts .go{ margin-left:auto; border-color:var(--archive); background:var(--archive); color:#fff; }
   .panel-loading{ padding:16px 14px; font-size:14px; color:var(--muted); }
+  /* 조작대상이 아직 연결되지 않은 기기 — 숨기지 않고 그렇다고 적어 둔다 */
+  .panel.bare .panel-head{ background:#fff7f5; }
+  .panel-warn{ flex:none; font-size:11px; font-weight:700; color:var(--error);
+    border:1px solid var(--error); border-radius:var(--radius-full); padding:2px 8px; }
+  .panel-sub{ font-size:12px; color:var(--muted); }
+  /* 배전반으로 / 점검대상으로 */
+  .view-tabs{ display:flex; gap:8px; margin:0 0 12px; }
+  .view-tab{ flex:1; padding:10px 0; font-family:inherit; font-size:13px; font-weight:700;
+    border:1px solid var(--archive-line); border-radius:var(--radius-sm);
+    background:var(--canvas); color:var(--archive); cursor:pointer; }
+  .view-tab.on{ background:var(--archive-soft); border-color:var(--archive); }
 
   .status{ font-size:14px; color:var(--muted); margin:0 0 12px; min-height:20px; }
   .status.error{ color:var(--error); }
@@ -189,6 +200,10 @@
 
     <!-- 목록에서 고르기 -->
     <div class="finder hidden" id="browseBox">
+      <div class="view-tabs" id="viewTabs">
+        <button type="button" class="view-tab on" data-view="panel">배전반으로</button>
+        <button type="button" class="view-tab"    data-view="equip">점검대상으로</button>
+      </div>
       <div class="site-tabs" id="siteTabs2">
         <button type="button" class="site-tab on" data-site="yangsan">양산 열원</button>
         <button type="button" class="site-tab"    data-site="sasong">사송 가압장</button>
@@ -196,7 +211,7 @@
       <div class="finder-row">
         <input type="search" id="browseFilter" placeholder="배전반 이름으로 좁히기 (예: SWGR, MOV)" autocomplete="off">
       </div>
-      <p class="finder-hint">
+      <p class="finder-hint" id="browseHint">
         전압등급을 고르면 그 아래 배전반이 나옵니다. 배전반을 누르면 피더가 펼쳐지고,
         각 피더가 어떤 설비를 먹이는지 함께 보입니다.
       </p>
@@ -484,9 +499,12 @@
      현장에서 차단기를 찾아가는 순서 그대로 짚어 갈 수 있고, 피더마다 무엇을
      먹이는지 보이니 점검대상 이름이 실제로 어떻게 적혀 있는지도 알게 된다. */
   var mode = 'search';
+  var view = 'panel';       // 목록 모드 안에서 배전반으로 / 점검대상으로
   var tree = null;          // [{voltage, count, groups:[{name,count,location}]}]
   var volt = null;          // 펼쳐 본 전압등급
   var feederCache = {};     // 사업장|배전반 → 피더 목록
+  var eqTree = null;        // {types:[{type,count,items}], counts:{}}
+  var eqType = null;        // 펼쳐 본 기기 종류
 
   function setMode(next){
     mode = next;
@@ -499,7 +517,164 @@
     el('panels').classList.toggle('hidden', mode !== 'browse');
     el('foundSec').classList.toggle('hidden', mode !== 'search');
     setStatus('');
-    if(mode === 'browse') loadTree();
+    if(mode === 'browse') loadBrowse();
+  }
+
+  function setView(next){
+    view = next;
+    el('viewTabs').querySelectorAll('.view-tab').forEach(function(b){
+      b.classList.toggle('on', b.dataset.view === view);
+    });
+    el('browseFilter').value = '';
+    el('browseFilter').placeholder = view === 'panel'
+      ? '배전반 이름으로 좁히기 (예: SWGR, MOV)'
+      : '기기 이름·번호로 좁히기 (예: PUMP, 115-M-PP)';
+    el('browseHint').textContent = view === 'panel'
+      ? '전압등급을 고르면 그 아래 배전반이 나옵니다. 배전반을 누르면 피더가 펼쳐지고, 각 피더가 어떤 설비를 먹이는지 함께 보입니다.'
+      : '설비 종류를 고르면 그 기기들이 이름순으로 나옵니다. 기기를 누르면 그 기기를 점검하려고 조작해야 할 차단기가 펼쳐집니다.';
+    loadBrowse();
+  }
+
+  function loadBrowse(){
+    return view === 'panel' ? loadTree() : loadEqTree();
+  }
+
+  /* ---- 점검대상으로 보기 --------------------------------------------------
+     배전반 쪽이 "차단기가 어디 있나" 라면 이쪽은 "무슨 설비가 있나" 다.
+     조작대상이 아직 연결되지 않은 기기도 숨기지 않는다 — 안 보이면 없는 줄 안다. */
+  function loadEqTree(){
+    el('voltRow').innerHTML = '';
+    el('panels').innerHTML = '';
+    setStatus('목록을 불러오는 중입니다...');
+    RedTag.listEquipment(site).then(function(t){
+      eqTree = t;
+      var msg = '[' + siteLabel() + '] 점검대상 ' + t.counts.total + '건';
+      if(t.counts.noFeeder) msg += ' · 그중 조작대상 미연결 ' + t.counts.noFeeder + '건';
+      setStatus(msg);
+      if(!eqType || !t.types.some(function(x){ return x.type === eqType; })){
+        eqType = t.types.length
+          ? t.types.slice().sort(function(a,b){ return b.count - a.count; })[0].type
+          : null;
+      }
+      renderEqTypes();
+      renderEqItems();
+    }).catch(function(err){
+      console.error(err);
+      setStatus('목록을 불러오지 못했습니다: ' + ((err && err.message) || '알 수 없는 오류'), true);
+    });
+  }
+
+  function renderEqTypes(){
+    var row = el('voltRow');
+    row.innerHTML = '';
+    (eqTree ? eqTree.types : []).forEach(function(t){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'volt-chip' + (t.type === eqType ? ' on' : '');
+      b.innerHTML = '<span class="vname"></span><small></small>';
+      b.querySelector('.vname').textContent = t.type;
+      b.querySelector('small').textContent = t.count;
+      b.addEventListener('click', function(){
+        eqType = t.type;
+        renderEqTypes();
+        renderEqItems();
+      });
+      row.appendChild(b);
+    });
+  }
+
+  function renderEqItems(){
+    var box = el('panels');
+    box.innerHTML = '';
+    var t = (eqTree ? eqTree.types : []).filter(function(x){ return x.type === eqType; })[0];
+    if(!t) return;
+    var q = el('browseFilter').value.trim().toLowerCase();
+    var items = t.items.filter(function(it){
+      return !q || it.name.toLowerCase().indexOf(q) !== -1
+                || (it.number || '').toLowerCase().indexOf(q) !== -1;
+    });
+    if(!items.length){
+      box.innerHTML = '<p class="empty">이 종류에서 찾은 기기가 없습니다.</p>';
+      return;
+    }
+    items.forEach(function(it){ box.appendChild(eqEl(it)); });
+  }
+
+  function eqEl(it){
+    var wrap = document.createElement('div');
+    wrap.className = 'panel' + (it.feeders.length ? '' : ' bare');
+    wrap.innerHTML =
+      '<button type="button" class="panel-head">' +
+        '<span class="panel-caret">▼</span>' +
+        '<span><span class="panel-name"></span><br><span class="panel-sub"></span></span>' +
+        (it.feeders.length
+          ? '<span class="panel-n"></span>'
+          : '<span class="panel-warn">조작대상 없음</span>') +
+      '</button>' +
+      '<div class="panel-body"></div>';
+    wrap.querySelector('.panel-name').textContent = it.name;
+    var sub = [it.number, it.voltage, it.facilityGroup || it.subType]
+      .filter(function(x){ return x; }).join(' · ');
+    wrap.querySelector('.panel-sub').textContent = sub || '—';
+    if(it.feeders.length) wrap.querySelector('.panel-n').textContent = it.feeders.length;
+
+    var body = wrap.querySelector('.panel-body');
+    var filled = false;
+    wrap.querySelector('.panel-head').addEventListener('click', function(){
+      wrap.classList.toggle('open');
+      if(!wrap.classList.contains('open') || filled) return;
+      filled = true;
+      if(!it.feeders.length){
+        body.innerHTML = '<p class="panel-loading">이 기기는 조작할 차단기가 아직 연결되어 있지 않습니다. '
+          + '확정 전 자료라 그렇습니다 — 필요하면 빈 행으로 직접 적어 담으세요.</p>';
+        return;
+      }
+      fillEqPanel(body, it.feeders);
+    });
+    return wrap;
+  }
+
+  function fillEqPanel(body, rows){
+    body.innerHTML =
+      '<div class="table-wrap"><table><thead><tr>' +
+        '<th>조작대상(차단기명)</th><th class="nowrap">조작</th>' +
+        '<th>그룹</th><th>위치</th><th class="col-pick"></th>' +
+      '</tr></thead><tbody></tbody></table></div>' +
+      '<div class="panel-acts">' +
+        '<button type="button" class="all">이 기기 전체 선택</button>' +
+        '<button type="button" class="go">담기</button>' +
+      '</div>';
+    var tb = body.querySelector('tbody');
+    rows.forEach(function(r, i){
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="dev"></td>' +
+        '<td class="nowrap"><span class="' + opClass(r.operation) + '"></span></td>' +
+        '<td class="grp muted"></td><td class="loc"></td>' +
+        '<td class="col-pick"><input type="checkbox" data-i="' + i + '" aria-label="선택"></td>';
+      tr.querySelector('.dev').textContent = r.deviceName;
+      tr.querySelector('.op').textContent = r.operation || '—';
+      tr.querySelector('.grp').textContent = r.groupName || '—';
+      tr.querySelector('.loc').textContent = r.location || '—';
+      tb.appendChild(tr);
+    });
+    body.querySelector('.all').addEventListener('click', function(){
+      var boxes = tb.querySelectorAll('input[type="checkbox"]');
+      var on = !Array.prototype.every.call(boxes, function(b){ return b.checked; });
+      boxes.forEach(function(b){ b.checked = on; });
+    });
+    body.querySelector('.go').addEventListener('click', function(){
+      var picked = [];
+      tb.querySelectorAll('input[type="checkbox"]:checked').forEach(function(b){
+        var r = rows[Number(b.dataset.i)];
+        if(r) picked.push(r);
+      });
+      if(!picked.length){ showToast('담을 조작대상을 먼저 선택해 주세요.'); return; }
+      var res = addRows(picked);
+      tb.querySelectorAll('input[type="checkbox"]').forEach(function(b){ b.checked = false; });
+      showToast(res.added + '건 담았습니다.'
+        + (res.dup ? ' (이미 담은 ' + res.dup + '건 제외)' : ''));
+    });
   }
 
   function loadTree(){
@@ -735,13 +910,20 @@
     renderSiteTabs();
     found = [];
     renderFound();
-    loadTree();
+    loadBrowse();
+  });
+
+  el('viewTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.view-tab');
+    if(btn && btn.dataset.view !== view) setView(btn.dataset.view);
   });
 
   var filterTimer = null;
   el('browseFilter').addEventListener('input', function(){
     clearTimeout(filterTimer);
-    filterTimer = setTimeout(renderPanels, 180);
+    filterTimer = setTimeout(function(){
+      if(view === 'panel') renderPanels(); else renderEqItems();
+    }, 180);
   });
 
   el('siteTabs').addEventListener('click', function(e){
