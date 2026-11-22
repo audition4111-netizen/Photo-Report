@@ -30,10 +30,9 @@
     --canvas:#ffffff;
     --surface-soft:#f7f7f7;
     --surface-strong:#f2f2f2;
-    /* 문서 보관함 전용 — 만들기(주 동작, 빨강)와 성격이 다른 '찾아보기'임을
-       색으로 알리되, 더 눈에 띄지는 않도록 차분한 파랑 계열로 둔다. */
+    /* 보관함으로 가는 링크 전용 — 만들기(주 동작, 빨강)와 성격이 다른
+       '찾아보기'임을 색으로 알리되, 더 눈에 띄지는 않도록 차분한 파랑 계열. */
     --archive:#0b6bab;
-    --archive-muted:#4d7fa2;
     --archive-soft:#eff6fb;
     --archive-soft-active:#e0eef8;
     --archive-line:#bcd9ec;
@@ -273,30 +272,18 @@
      그대로 두고, 모바일에서만 위로 붙여 만들기 버튼과 왼쪽 아래 개선요청
      버튼 사이 간격을 확보한다. */
   @media (max-width:480px){
-    /* flex-start 로 두는 이유: 내용이 화면보다 길어질 때 가운데 정렬이면
-       위쪽이 잘려 스크롤로도 못 본다. 남는 공간 분배는 아래 auto 여백이 맡는다. */
     .mode-select-screen{
       align-items:flex-start;
       padding:16px 20px calc(92px + env(safe-area-inset-bottom));
     }
-    /* 예전에는 517px 짜리 덩어리가 위에 붙어 있어, 큰 화면일수록 아래가
-       크게 비었다(390px 폰에서 251px, 412px 폰에서 322px).
-       이제 세로 flex 로 두고 배너는 맨 위에 남긴 채, 로고 묶음과 버튼들을
-       남는 공간 가운데로 모은다. 화면이 커지면 위아래 여백만 함께 늘어난다. */
-    /* 아래 기본 규칙들이 이 미디어쿼리보다 뒤에 있어서, 같은 특정도면
-       나중 규칙에 덮인다. 부모를 붙여 특정도를 올려 순서와 무관하게 이긴다. */
-    .mode-select-screen .mode-select-inner{ display:flex; flex-direction:column; min-height:100%; }
-    .mode-select-screen .mode-select-head{ margin:0 0 24px; }
-    .mode-select-screen .mode-title-row{ margin:auto 0 8px; }
-    .mode-select-screen .mode-select-sub{ margin:0 0 28px; }
-    /* 위(title-row)의 auto 여백과 짝을 이뤄 남는 공간을 반씩 나눠 갖는다 */
-    .mode-select-screen .mode-choice-btn.archive{ margin-bottom:auto; }
+    .mode-select-head{ margin-bottom:28px; }
+    .mode-title-row{ margin-bottom:8px; }
+    .mode-select-sub{ margin-bottom:24px; }
   }
   .pm-credit{ position:fixed; right:14px; bottom:calc(10px + env(safe-area-inset-bottom)); font-size:11px; color:var(--muted-soft); }
   .mode-select-inner{ width:100%; max-width:360px; text-align:center; }
   .mode-select-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 44px; }
-  /* 오른쪽 슬로건(22px)보다 조금 크게 둬야 심볼이 눌려 보이지 않는다. */
-  .mode-select-logo{ height:30px; width:auto; display:block; flex:none; }
+  .mode-select-logo{ height:38px; width:auto; display:block; }
   .mode-select-banner{ height:22px; width:auto; display:block; }
   /* 마스코트 + 제목을 하나의 로고처럼 묶어 첫눈에 각인되도록 크게 보여 준다.
      마스코트 높이는 em 단위라 제목 글자 크기를 바꾸면 같이 따라온다. */
@@ -318,32 +305,22 @@
     -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
     -webkit-tap-highlight-color:transparent;
   }
-  /* "보관함 조회" 줄이 빠지면서(일반 사용자에겐 mode-auth-row가 안 보임) 생긴
-     빈자리만큼 여기서 여백을 더 줘 제목과 버튼 사이 균형을 맞춘다. */
-  /* 앱이 무엇을 해 주는지 한 줄로 알리는 문구라, 흐린 회색 대신 본문색으로
-     굵게 둬서 로고 다음으로 눈에 들어오게 한다. (14.5px -> 17px, 약 2pt 증가) */
-  .mode-select-sub{ font-size:17px; font-weight:700; color:var(--ink); margin:0 0 44px; }
+  .mode-select-sub{ font-size:14.5px; font-weight:500; color:var(--muted); margin:0 0 36px; line-height:1.6; word-break:keep-all; text-wrap:balance; }
+  .mode-select-sub .sub-line{ display:block; }
 
   /* 좁은 화면에서 로고가 넘치지 않게 */
   @media (max-width:359px){
     .mode-title-row{ font-size:33px; }
     .mode-select-title{ letter-spacing:-1.2px; }
   }
-  /* 세 버튼 사이 간격은 이 값 하나로 맞춘다. 보관함만 앞을 더 띄우면 간격이
-     달라 보여서, 구분은 색으로만 하고 간격은 동일하게 둔다.
-     화면 높이에 비례시키되 위아래를 묶어 둔 이유: 640px 짜리 작은 화면은
-     남는 공간이 거의 없어 더 벌리면 스크롤이 생기고, 큰 화면은 22px 로
-     고정하면 옹색해 보인다. 세 간격은 어느 크기에서든 서로 같다. */
-  .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:clamp(22px, 3.2vh, 34px); }
+  .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
-  /* 문서 보관함은 '만들기'가 아니라 '찾아보기'라, 위 두 버튼과 묶여 보이지
-     않도록 간격을 벌리고 색을 달리한다. */
-  .mode-choice-btn.archive{ background:var(--archive-soft); border-color:var(--archive-line); }
-  .mode-choice-btn.archive:active{ background:var(--archive-soft-active); }
-  .mode-choice-btn.archive .mode-choice-title{ color:var(--archive); }
-  .mode-choice-btn.archive .mode-choice-desc{ color:var(--archive-muted); }
-  .mode-choice-icon{ margin-right:7px; }
+  /* 조작대상 찾기는 "문서를 만드는 일" 이 아니라 "찾아보는 일" 이라, 위의 만들기
+     세 개와 한눈에 구분되도록 보관함과 같은 계열 색을 쓴다. */
+  .mode-choice-btn.lookup{ border-color:#bcd9ec; background:#eff6fb; }
+  .mode-choice-btn.lookup .mode-choice-title{ color:#0b6bab; }
+  .mode-choice-btn.lookup:active{ background:#e0eef8; }
   /* 로그인 상태 줄은 로그인한 뒤에만 나타난다. 로그아웃 상태의 첫 화면에는
      로그인 관련 요소가 전혀 보이지 않고, 만들기를 누르는 순간 팝업으로 뜬다. */
   .mode-auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 22px; }
@@ -353,17 +330,51 @@
   /* 눈에 잘 띄도록 키우고 진하게 — 예전엔 12px 연한 회색이라 놓치기 쉬웠다. */
   .mode-indicator{ display:inline-block; font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; }
   /* 모드 변경(왼쪽)·보관함 조회(오른쪽)를 한 행에 둬서 줄 수를 줄인다. */
-  .mode-header-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 14px; }
+  .mode-header-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 14px; flex-wrap:wrap; }
+  /* 보관함에 있던 문서를 고치는 중이라는 표시 — 새 문서를 만드는 것과 헷갈리면
+     같은 문서가 두 건이 된 줄 알게 되므로 눈에 띄게 둔다. */
+  .edit-badge{ display:inline-block; font-size:13px; font-weight:700; color:#0b6bab;
+    background:#eff6fb; border:1px solid #bcd9ec; border-radius:var(--radius-full);
+    padding:7px 14px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .edit-badge[hidden]{ display:none; }
+
+  /* 문서 비밀번호 — 보관함에 넣기 직전에 묻는다. 보관함 조회의 잠금창과
+     같은 모양으로 맞춰, 쓰는 사람이 같은 것으로 알아보게 한다. */
+  .docpw-modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:600;
+    display:flex; align-items:center; justify-content:center; padding:24px; }
+  .docpw-modal[hidden]{ display:none; }
+  .docpw-card{ width:100%; max-width:330px; background:var(--canvas);
+    border-radius:var(--radius-md); padding:24px 22px; text-align:center; }
+  .docpw-title{ font-size:18px; font-weight:800; color:var(--ink); margin:0 0 18px; letter-spacing:-0.3px; }
+  .docpw-boxes{ display:flex; justify-content:center; gap:10px; margin:0 0 16px; }
+  .docpw-boxes input{ width:52px; height:60px; padding:0; text-align:center;
+    font-family:inherit; font-size:26px; font-weight:700; color:var(--ink);
+    border:2px solid var(--hairline); border-radius:var(--radius-sm);
+    background:var(--canvas); -webkit-appearance:none; appearance:none; }
+  .docpw-boxes input:focus{ outline:none; border-color:var(--ink); }
+  .docpw-boxes input.filled{ border-color:var(--ink); }
+  .docpw-notes{ margin:0 0 20px; }
+  .docpw-notes p{ font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.5; }
+  .docpw-notes p:last-child{ margin-bottom:0; }
+  .docpw-msg{ font-size:13px; color:var(--error); min-height:19px; margin:0 0 8px; }
+  .docpw-btns{ display:flex; gap:10px; }
+  .docpw-btns button{ flex:1; height:46px; font-family:inherit; font-size:15px; font-weight:700;
+    border-radius:var(--radius-sm); cursor:pointer; }
+  .docpw-skip{ border:1px solid var(--hairline); background:var(--canvas); color:var(--ink); }
+  .docpw-go{ border:1px solid #0b6bab; background:#0b6bab; color:#fff; }
+  .docpw-card.shake{ animation:docpw-shake .3s; }
+  @keyframes docpw-shake{ 0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-7px); } 75%{ transform:translateX(7px); } }
   .mode-header-row #archiveLink[hidden]{ display:none; }
-  /* 첫 화면의 "문서 보관함" 버튼과 같은 곳으로 가는 링크라 색도 같게 맞춘다.
-     회색 칩으로 두면 옆의 "모드 변경"과 구분이 되지 않는다. */
-  .mode-header-row #archiveLink{ background:var(--archive-soft); border-color:var(--archive-line); color:var(--archive); }
-  .mode-header-row #archiveLink:active{ background:var(--archive-soft-active); }
 
   .auth-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 14px; }
   .auth-row[hidden]{ display:none; }
   .auth-chip{ font-size:14px; font-weight:600; color:var(--ink); background:var(--surface-soft); border:1px solid var(--hairline); border-radius:var(--radius-full); padding:8px 16px; cursor:pointer; text-decoration:none; }
   .auth-chip:active{ background:var(--hairline); }
+  /* 보관함으로 가는 링크는 첫 화면·작성 화면 어디에 있든 같은 색으로 둔다.
+     회색 칩이면 바로 옆 '모드 변경'과 구분이 되지 않는다. */
+  .auth-chip.archive-chip{ background:var(--archive-soft); border-color:var(--archive-line); color:var(--archive); }
+  .auth-chip.archive-chip:active{ background:var(--archive-soft-active); }
   /* 관리자 모드일 때는 눈에 확 띄도록 색을 채운다 — 지금 관리자 권한으로
      보고 있다는 걸 놓치면 안 되고, 로그아웃 버튼 위치도 바로 보여야 한다. */
   #adminChip, #modeAdminChip{ background:var(--primary); border-color:var(--primary); color:#fff; }
@@ -493,7 +504,7 @@
 <div class="mode-select-screen" id="modeSelectScreen">
   <div class="mode-select-inner">
     <div class="mode-select-head">
-      <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-logo">
+      <img src="manual-logo.gif" alt="한국지역난방공사" class="mode-select-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="mode-select-banner">
     </div>
     <div class="mode-title-row">
@@ -503,14 +514,20 @@
       <img src="mascot.png" alt="뚝딱이" class="mode-select-mascot" id="adminEntryTrigger" draggable="false">
       <h1 class="mode-select-title">뚝 <span id="adminEntryTrigger2"><span class="t-doc">DOC</span>!</span></h1>
     </div>
-    <p class="mode-select-sub">현장에서 5분만에 만드는 매뉴얼</p>
+    <p class="mode-select-sub">
+      <span class="sub-line">한난 일잘러들의 필수 어플</span>
+      <span class="sub-line">현장 자료의 문서 전환 앱 뚝닥!</span>
+    </p>
 
-    <!-- "보관함 조회" 링크는 뺐다 — 아래 버튼 중 "문서 보관함"이 같은 역할을 한다.
-         이 줄은 이제 관리자로 로그인했을 때 상태 표시·로그아웃 용도로만 남는다. -->
     <div class="mode-auth-row" id="modeAuthRow" hidden>
+      <a class="auth-chip archive-chip" href="search.html">보관함 조회</a>
       <span class="auth-chip" id="modeAdminChip" hidden></span>
     </div>
 
+    <button type="button" class="mode-choice-btn" id="chooseReportModeBtn">
+      <span class="mode-choice-title">사진대장 만들기</span>
+      <span class="mode-choice-desc">현장 사진과 설명을 정리하는 보고서</span>
+    </button>
     <button type="button" class="mode-choice-btn" id="chooseManualModeBtn">
       <span class="mode-choice-title">매뉴얼 만들기</span>
       <span class="mode-choice-desc">사진마다 순번을 매겨 절차를 안내하는 문서</span>
@@ -519,10 +536,11 @@
       <span class="mode-choice-title">고장 보고서 만들기</span>
       <span class="mode-choice-desc">고장 요약과 관련 사진을 정리하는 핫라인 메모</span>
     </button>
-    <button type="button" class="mode-choice-btn archive" id="openArchiveModeBtn">
-      <span class="mode-choice-title"><span class="mode-choice-icon" aria-hidden="true">🗂️</span>문서 보관함</span>
-      <span class="mode-choice-desc">저장된 매뉴얼·고장 보고서를 찾아보기</span>
-    </button>
+    <!-- 문서를 만드는 기능이 아니라 찾아보는 기능이라 모드 전환 없이 바로 넘어간다. -->
+    <a class="mode-choice-btn lookup" id="redtagLink" href="redtag.html">
+      <span class="mode-choice-title">조작대상 찾기</span>
+      <span class="mode-choice-desc">점검할 기기로 조작할 차단기와 그 위치를 찾습니다</span>
+    </a>
   </div>
   <span class="pm-credit">Project Manager : Steven Kim</span>
   <button type="button" class="feedback-fab" id="feedbackFabBtn" title="개선요청">
@@ -539,13 +557,14 @@
       <img src="manual-logo.gif" alt="한국지역난방공사" class="app-banner">
       <img src="banner.png" alt="깨끗한 에너지로 세상을 따뜻하게" class="app-banner">
     </div>
-    <h1 class="app-title" id="appTitle">매뉴얼</h1>
+    <h1 class="app-title" id="appTitle">사진대장</h1>
 
     <!-- 모드 변경과 보관함 조회를 한 행 가운데에 나란히 묶어 줄 수를 줄인다.
          보관함 조회는 Supabase가 연결됐을 때만 개별적으로 나타난다. -->
     <div class="mode-header-row">
-      <span class="mode-indicator" id="modeIndicator">매뉴얼 모드 · 변경</span>
-      <a class="auth-chip" id="archiveLink" href="search.html" hidden>보관함 조회</a>
+      <span class="mode-indicator" id="modeIndicator">사진대장 모드 · 변경</span>
+      <a class="auth-chip archive-chip" id="archiveLink" href="search.html" hidden>보관함 조회</a>
+      <span class="edit-badge" id="editBadge" hidden></span>
     </div>
 
     <!-- 관리자로 로그인했을 때만 나타난다. 일반 사용자에게는 보이지 않는다. -->
@@ -577,7 +596,7 @@
 
     <div class="field-group">
       <label class="field-label" for="fileNameInput">파일명</label>
-      <input type="text" id="fileNameInput" class="field-input" placeholder="예: 현장 매뉴얼">
+      <input type="text" id="fileNameInput" class="field-input" placeholder="예: 사진대장">
     </div>
 
     <!-- 로그인이 없어 작성자는 여기서 직접 입력받는다(매뉴얼·고장 보고서 전용).
@@ -590,7 +609,7 @@
       </div>
       <div class="field-group" id="revisionGroup" hidden>
         <label class="field-label" for="revisionInput">개정번호</label>
-        <input type="text" id="revisionInput" class="field-input" placeholder="예: 1">
+        <select id="revisionInput" class="field-input"></select>
       </div>
     </div>
 
@@ -767,7 +786,7 @@
         <ol>
           <li>파일명(문서 제목)과 내용을 입력 합니다.</li>
           <li>[사진 추가]를 눌러 "이미지에서 선택"(앨범에서 한 장 또는 여러 장) 또는 "카메라로 촬영" 중 선택합니다.</li>
-          <li>카메라로 촬영한 사진은 촬영 즉시 목록에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
+          <li>카메라로 촬영한 사진은 촬영 즉시 사진대장에 등록됩니다. 사진을 더 찍으려면 [사진 추가] → [카메라로 촬영]을 다시 눌러 주세요.</li>
           <li>사진 아래 설명을 입력합니다.</li>
           <li>매뉴얼에서는 [텍스트 추가]로 사진 없이 글만 들어가는 순번을 만들 수 있습니다. 사진과 텍스트는 누른 순서대로 번호가 이어집니다. (텍스트 최대 30개)</li>
           <li>필요한 만큼 사진을 반복해서 등록합니다. (최대 30장)</li>
@@ -779,7 +798,7 @@
         </ol>
         <b>사용 가이드 추천</b>
         <ol>
-          <li>매뉴얼, 고장 보고서 작성 시 사용
+          <li>사진대장, 매뉴얼, 고장 보고서 작성 시 사용
             <ul>
               <li>[메일로 전송]을 통해 회사메일로 전송</li>
               <li>자료 교환 후 사용</li>
@@ -905,6 +924,25 @@
   </div>
 </div>
 
+<!-- 보관함에 넣기 직전에 뜬다. 출력·메일 전송 둘 다 같은 자리에서 묻는다. -->
+<div class="docpw-modal" id="docPwModal" hidden>
+  <div class="docpw-card" id="docPwCard">
+    <p class="docpw-title" id="docPwTitle">문서 비밀번호 입력</p>
+    <div class="docpw-boxes" id="docPwBoxes">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 1번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 2번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 3번째 자리">
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="문서 비밀번호 4번째 자리">
+    </div>
+    <div class="docpw-notes" id="docPwNotes"></div>
+    <p class="docpw-msg" id="docPwMsg"></p>
+    <div class="docpw-btns">
+      <button type="button" class="docpw-skip" id="docPwSkip">보관 안 함</button>
+      <button type="button" class="docpw-go" id="docPwGo">보관함 저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="resume-modal" id="resumeModal">
   <div class="resume-card">
     <h2>이어서 작성하시겠습니까?</h2>
@@ -997,13 +1035,9 @@
   /* 서비스 워커 등록 — 앱 설치와 오프라인 실행에 필요하다.
      file:// 로 열면(사내망 단일 파일 사본) 등록이 불가능하고 콘솔 오류만 나므로
      http(s) 로 열렸을 때만 시도한다. */
-  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (err) {
-        console.error('서비스 워커 등록 실패:', err);
-      });
-    });
-  }
+  /* 등록과 자동 갱신은 아래 본문 스크립트의 setupAutoUpdate() 에서 한다.
+     새 버전으로 갈아 끼워도 되는 때인지 판단하려면 작성 중인지를 알아야 하는데,
+     그 정보가 본문 스크립트 안에 있기 때문이다. */
 </script>
 
 <script>
@@ -1024,7 +1058,7 @@
   var idCounter = 0;
   var replaceTargetId = null;
   var isGenerating = false;
-  var appMode = 'manual';
+  var appMode = 'report';
 
   function isTextItem(item){ return !!item && item.kind === 'text'; }
   function photoItems(){ return photos.filter(function(p){ return !isTextItem(p); }); }
@@ -1033,6 +1067,28 @@
   var fileNameInputEl = document.getElementById('fileNameInput');
   var revisionInputEl = document.getElementById('revisionInput');
   var revisionGroupEl = document.getElementById('revisionGroup');
+
+  /* 개정번호는 직접 적는 대신 고르게 한다. 최초 작성본이 1 이다. */
+  var REVISION_MIN = 1;
+  var REVISION_MAX = 20;
+  (function fillRevisionOptions(){
+    var html = '<option value="">선택</option>';
+    for(var i = REVISION_MIN; i <= REVISION_MAX; i++) html += '<option value="' + i + '">' + i + '</option>';
+    revisionInputEl.innerHTML = html;
+  })();
+
+  /* 목록에 없는 값(예전에 손으로 적어 둔 값, 자동으로 올라가 20을 넘긴 값)이
+     들어와도 그대로 선택되도록 없으면 만들어 넣는다. */
+  function setRevision(value){
+    var v = value == null ? '' : String(value).trim();
+    if(v && !revisionInputEl.querySelector('option[value="' + v.replace(/"/g, '\\"') + '"]')){
+      var opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      revisionInputEl.appendChild(opt);
+    }
+    revisionInputEl.value = v;
+  }
   var docTypeSelectEl = document.getElementById('docTypeSelect');
   var docTypeGroupEl = document.getElementById('docTypeGroup');
   var fieldSelectEl = document.getElementById('fieldSelect');
@@ -1077,10 +1133,11 @@
   var cancelChoiceBtn = document.getElementById('cancelChoiceBtn');
 
   var modeSelectScreen = document.getElementById('modeSelectScreen');
+  var chooseReportModeBtn = document.getElementById('chooseReportModeBtn');
   var chooseManualModeBtn = document.getElementById('chooseManualModeBtn');
   var chooseFaultModeBtn = document.getElementById('chooseFaultModeBtn');
-  var openArchiveModeBtn = document.getElementById('openArchiveModeBtn');
   var modeIndicatorEl = document.getElementById('modeIndicator');
+  var editBadgeEl = document.getElementById('editBadge');
   var appTitleEl = document.getElementById('appTitle');
 
   var modeAuthRowEl = document.getElementById('modeAuthRow');
@@ -1165,9 +1222,9 @@
     if(mode === 'fault') prefillFaultTimes();
     modeSelectScreen.classList.add('closed');
   }
+  chooseReportModeBtn.addEventListener('click', function(){ selectMode('report'); });
   chooseManualModeBtn.addEventListener('click', function(){ selectMode('manual'); });
   chooseFaultModeBtn.addEventListener('click', function(){ selectMode('fault'); });
-  openArchiveModeBtn.addEventListener('click', function(){ location.href = 'search.html'; });
   modeIndicatorEl.addEventListener('click', function(){
     modeSelectScreen.classList.remove('closed');
   });
@@ -2523,8 +2580,9 @@
       descBox.className = 'desc-box';
       var descText = document.createElement('div');
       descText.className = 'desc-text';
-      // 사진 설명은 가운데로 맞춘 짧은 칸이라, 문장이 "(1)"·"※"·"- " 같은 단락기호로
-      // 시작해도 목록처럼 왼쪽으로 떼지 않고 통째로 가운데 정렬한다.
+      // "1." · "(1)" · "※" · "- " 같은 행머리 기호는 왼쪽 칸에 따로 세우고 본문은
+      // 그 오른쪽에서만 흐르게 한다. 줄이 넘어가면 기호 자리가 아니라 기호 뒤
+      // 첫 글자에 맞춰 붙는다.
       fillWrappedText(descText, item.description || '');
       descBox.appendChild(descText);
 
@@ -3056,8 +3114,8 @@
 
         var cap = document.createElement('div');
         cap.className = 'fr-photo-cap';
-        // 사진 설명은 가운데로 맞춘 짧은 칸이라, 단락기호로 시작해도 목록처럼
-        // 왼쪽으로 떼지 않고 통째로 가운데 정렬한다.
+        // 행머리 기호는 왼쪽 칸에 따로 세워, 줄이 넘어가면 기호 뒤 첫 글자에
+        // 맞춰 붙게 한다.
         fillWrappedText(cap, item.description || '');
 
         cell.appendChild(box);
@@ -3313,16 +3371,14 @@
     authMsgEl.className = 'auth-msg' + (text ? ' show ' + (kind || '') : '');
   }
 
-  // 작성 화면 헤더의 "보관함 조회" 링크는 로그인과 무관하게 항상 보인다(모드
-  // 변경과 같은 행). 첫 화면에는 같은 역할을 하는 "문서 보관함" 버튼이 따로
-  // 있어 여기엔 안 둔다. authRow·mode-auth-row는 이제 관리자 상태 표시·
-  // 로그아웃 전용이라 관리자로 로그인했을 때만 나타난다.
+  // 보관함 조회 링크는 로그인과 무관하게 항상 보인다(모드 변경과 같은 행).
+  // 관리자 칩은 관리자로 로그인했을 때만 나타난다(일반 사용자는 볼 일이 없다).
   function renderAuthState(){
     archiveLinkEl.hidden = !archiveAvailable();
+    modeAuthRowEl.hidden = !archiveAvailable();
 
     var isAdmin = !!(window.Archive && Archive.isAdmin(adminUser));
     authRowEl.hidden = !isAdmin;
-    modeAuthRowEl.hidden = !isAdmin;
     adminChipEl.hidden = !isAdmin;
     modeAdminChipEl.hidden = !isAdmin;
     if(isAdmin){
@@ -3916,13 +3972,168 @@
     return meta;
   }
 
+  /* ---- 문서 비밀번호 ------------------------------------------------------
+     로그인이 없어 서버가 사람을 구분하지 못하므로, 보관함에 넣을 때 네 자리를
+     걸어 두고 지울 때 맞추게 한다. 번호는 이 기기에 기억해 두었다가 다음부터
+     미리 채워 준다 — 외워 두기만 하면 다른 기기에서도 그대로 쓸 수 있다. */
+  var DOC_PW_KEY = 'ddoc-doc-pw';
+  var docPwModal = document.getElementById('docPwModal');
+  var docPwCard = document.getElementById('docPwCard');
+  var docPwTitle = document.getElementById('docPwTitle');
+  var docPwNotes = document.getElementById('docPwNotes');
+  var docPwMsg = document.getElementById('docPwMsg');
+  var docPwSkipBtn = document.getElementById('docPwSkip');
+  var docPwGoBtn = document.getElementById('docPwGo');
+  var docPwInputs = Array.prototype.slice.call(document.querySelectorAll('#docPwBoxes input'));
+  var docPwDone = null;          // 팝업이 닫힐 때 부를 함수
+  var pendingArchivePw = null;   // 이번 출력에서 쓸 비밀번호 (없으면 보관 안 함)
+
+  function rememberedDocPw(){
+    try{
+      var v = localStorage.getItem(DOC_PW_KEY) || '';
+      return /^[0-9]{4}$/.test(v) ? v : '';
+    }catch(e){ return ''; }
+  }
+
+  function rememberDocPw(v){
+    try{ localStorage.setItem(DOC_PW_KEY, v); }catch(e){ /* 사생활 보호 모드 등 */ }
+  }
+
+  function docPwValue(){
+    return docPwInputs.map(function(i){ return i.value; }).join('');
+  }
+
+  function fillDocPw(v){
+    for(var i = 0; i < docPwInputs.length; i++){
+      docPwInputs[i].value = v.charAt(i) || '';
+      docPwInputs[i].classList.toggle('filled', !!docPwInputs[i].value);
+    }
+  }
+
+  docPwInputs.forEach(function(input, idx){
+    input.addEventListener('input', function(){
+      input.value = input.value.replace(/[^0-9]/g, '').slice(-1);
+      input.classList.toggle('filled', input.value !== '');
+      docPwMsg.textContent = '';
+      if(input.value && idx < docPwInputs.length - 1) docPwInputs[idx + 1].focus();
+    });
+    input.addEventListener('keydown', function(e){
+      if(e.key === 'Backspace' && !input.value && idx > 0){
+        e.preventDefault();
+        docPwInputs[idx - 1].value = '';
+        docPwInputs[idx - 1].classList.remove('filled');
+        docPwInputs[idx - 1].focus();
+        return;
+      }
+      if(e.key === 'Enter') docPwGoBtn.click();
+    });
+  });
+
+  function closeDocPw(){
+    docPwModal.hidden = true;
+    docPwDone = null;
+  }
+
+  /* 네 자리가 안 찼으면 흔들어 알리고 닫지 않는다. */
+  docPwGoBtn.addEventListener('click', function(){
+    var v = docPwValue();
+    if(!/^[0-9]{4}$/.test(v)){
+      docPwMsg.textContent = '네 자리를 모두 입력해 주세요.';
+      docPwCard.classList.remove('shake');
+      void docPwCard.offsetWidth;
+      docPwCard.classList.add('shake');
+      return;
+    }
+    var done = docPwDone;
+    closeDocPw();
+    rememberDocPw(v);
+    if(done) done(v);
+  });
+
+  docPwSkipBtn.addEventListener('click', function(){
+    var done = docPwDone;
+    closeDocPw();
+    if(done) done(null);
+  });
+
+  function openDocPw(done){
+    var saved = rememberedDocPw();
+    docPwTitle.textContent = saved ? '문서 비밀번호 확인' : '문서 비밀번호 입력';
+    /* 처음 정할 때든 확인할 때든 같은 말을 한다. 번호를 처음 고르는 순간이
+       오히려 기억해 달라고 말해야 할 자리다. */
+    docPwNotes.innerHTML = '<p>삭제 시 비밀번호가 됩니다</p><p>반드시 기억해주세요</p>';
+    docPwMsg.textContent = '';
+    fillDocPw(saved);
+    docPwDone = done;
+    docPwModal.hidden = false;
+    setTimeout(function(){
+      var next = docPwInputs.filter(function(i){ return !i.value; })[0] || docPwInputs[0];
+      next.focus();
+    }, 60);
+  }
+
+  // 보관함에 저장될 출력인지 — 사진대장과 미설정은 묻지 않는다
+  function willArchive(){
+    if(!window.Archive || !Archive.isEnabled()) return false;
+    return appMode === 'manual' || appMode === 'fault';
+  }
+
+  /* 출력을 시작하기 전에 비밀번호를 먼저 받는다.
+
+     ⚠️ 메일 전송은 Gmail 창을 window.open 으로 여는데, 브라우저는 "사용자가
+        방금 누른 것" 이 아니면 창 열기를 막는다. 그래서 run 은 팝업 버튼을
+        누른 그 자리에서 바로 불러야 한다 — 사이에 기다리는 일을 두면 안 된다.
+        (예전처럼 저장 단계에서 물으면 팝업이 Gmail 탭 뒤에 가려졌다) */
+  function withArchivePassword(run){
+    pendingArchivePw = null;
+    if(editingDoc || !willArchive()){
+      run();              // 개정은 처음 번호를 그대로 쓰고, 사진대장은 저장 안 함
+      return;
+    }
+    openDocPw(function(pw){
+      pendingArchivePw = pw;
+      run();
+    });
+  }
+
   function archiveGeneratedPdf(pdf, filename){
     if(!window.Archive || !Archive.isEnabled()) return;
     // 사진대장은 보관하지 않는다 — 조회 대상이 아니므로 안내도 띄우지 않는다.
     if(appMode !== 'manual' && appMode !== 'fault') return;
+    // 팝업에서 [보관 안 함] 을 고른 경우. 개정 중에는 번호를 묻지 않으므로 예외.
+    if(!editingDoc && !pendingArchivePw){
+      showToast('PDF 는 저장했습니다. 보관함에는 넣지 않았습니다.');
+      return;
+    }
 
     var pageCount = computeDocPages().length;
     var meta = buildArchiveMeta(filename, pageCount);
+
+    /* 작성 화면을 그대로 되살릴 수 있는 원본 꾸러미. PDF 는 눌러 찍은 결과물이라
+       되돌릴 수 없어서, 나중에 수정하려면 이것이 따로 저장돼 있어야 한다. */
+    var source = collectDraft();
+    delete source.editing;
+
+    var blob;
+    try{ blob = pdf.output('blob'); }catch(e){ return; }
+
+    // 수정 중이면 새로 쌓지 않고 있던 문서를 덮어쓴다.
+    if(editingDoc){
+      Archive.updateDocument(editingDoc, meta, blob, source).then(function(res){
+        editingDoc = res.row || editingDoc;
+        updateEditBadge();
+        if(res.oldFileRemoved === false){
+          showToast('수정했습니다. 다만 저장 자리가 바뀌어 예전 PDF 파일이 보관소에 남았습니다.');
+          return;
+        }
+        showToast('보관함의 문서를 수정했습니다.');
+      }).catch(function(err){
+        console.error(err);
+        showToast('수정 저장에 실패했습니다: ' + ((err && err.message) || '알 수 없는 오류')
+          + ' (PDF 다운로드는 정상 완료되었습니다.)');
+      });
+      return;
+    }
 
     // PDF 출력·메일 전송을 여러 번 누르면 같은 문서가 보관함에 계속 쌓인다.
     // 저장 전에 같은 제목·같은 작성자 이름의 문서가 이미 있는지 먼저 확인하고,
@@ -3942,9 +4153,29 @@
           return;
         }
       }
-      var blob;
-      try{ blob = pdf.output('blob'); }catch(e){ return; }
-      return Archive.saveDocument(meta, blob).then(function(){
+      return Archive.saveDocument(meta, blob, source).then(function(saved){
+        // 바로 이어서 고칠 수 있도록, 저장한 문서를 수정 대상으로 잡아 둔다
+        if(saved && saved.source_path){
+          editingDoc = saved;
+          updateEditBadge();
+        }
+        /* 비밀번호 걸기. 실패해도 문서는 이미 저장된 뒤라 되돌리지 않고,
+           "관리자만 지울 수 있는 문서" 가 될 뿐이므로 알리기만 한다. */
+        if(saved && saved.id && pendingArchivePw){
+          Archive.setDocumentPassword(saved.id, pendingArchivePw).then(function(set){
+            if(!set) showToast('저장했지만 문서 비밀번호를 걸지 못했습니다. 이 문서는 관리자만 지울 수 있습니다.');
+          }).catch(function(err){
+            console.error(err);
+            showToast('저장했지만 문서 비밀번호를 걸지 못했습니다: ' + ((err && err.message) || '알 수 없는 오류'));
+          });
+        }
+        /* 원본을 못 올리면 이 문서는 나중에 수정할 수 없다. 조용히 넘기면
+           보관함에 수정 버튼이 왜 없는지 알 길이 없으므로 이유를 알린다. */
+        if(saved && saved.__sourceError){
+          showToast('보관함에 저장했지만 수정용 원본을 올리지 못해 이 문서는 수정할 수 없습니다: '
+            + saved.__sourceError);
+          return;
+        }
         showToast('보관함에 저장했습니다.');
       });
     }).catch(function(err){
@@ -3965,6 +4196,8 @@
     if(!filename) return;
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
+
+    withArchivePassword(function(){
     setGenerating(true, '생성 중...', null);
 
     buildPdfDocument().then(function(pdf){
@@ -3980,6 +4213,7 @@
       console.error(err);
       showToast('문서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setGenerating(false);
+    });
     });
   }
 
@@ -4011,6 +4245,9 @@
     if(!ensureSelectionsForOutput()) return;
     if(!ensurePhotosForOutput()) return;
 
+    withArchivePassword(function(){
+    /* 이 줄은 반드시 팝업 버튼을 누른 흐름 안에서 바로 실행돼야 한다.
+       앞에 기다리는 일이 끼면 브라우저가 창 열기를 막는다. */
     var preOpenedWindow = window.open('', '_blank');
     if(preOpenedWindow){
       preOpenedWindow.document.write('<p style="font-family:sans-serif;padding:24px;color:#374151;">PDF를 준비하고 있습니다. 잠시만 기다려 주세요...</p>');
@@ -4047,6 +4284,7 @@
       showToast('메일 전송 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setGenerating(false);
     });
+    });
   }
 
   mailBtn.addEventListener('click', generateMail);
@@ -4061,6 +4299,61 @@
 
   function draftAvailable(){
     return !!(window.Draft && Draft.isEnabled());
+  }
+
+  /* ---- 보관함 문서 수정 ----------------------------------------------------
+     보관함에서 [수정]을 누르면 문서 id 만 넘어온다. 원본 꾸러미가 수 MB 라
+     주소나 세션에 실어 보내지 않고, 이 화면에서 직접 받아 되살린다.
+     수정 중에 출력하면 새 문서를 쌓지 않고 있던 문서를 덮어쓴다. */
+  var EDIT_REQUEST_KEY = 'ddoc-edit-doc-id';
+  var editingDoc = null;         // 수정 중인 보관함 행 (없으면 새 문서)
+
+  function updateEditBadge(){
+    if(!editingDoc){
+      editBadgeEl.hidden = true;
+      editBadgeEl.textContent = '';
+      return;
+    }
+    editBadgeEl.hidden = false;
+    editBadgeEl.textContent = '수정 중 · ' + (editingDoc.title || '보관함 문서');
+  }
+
+  /* 보관함에 적힌 개정번호의 다음 번호. 비어 있거나 숫자가 아니면 1 로 본다.
+     수정 화면에 들어올 때 한 번만 올린다 — 출력할 때 또 올리면, 한 번 고치는
+     동안 번호가 두 번 뛰어 어디까지 올라갈지 알 수 없게 된다. 다른 번호로
+     내보내고 싶으면 화면에서 직접 고르면 된다. */
+  function nextRevision(value){
+    var n = parseInt(String(value == null ? '' : value).trim(), 10);
+    return String(isNaN(n) ? 1 : n + 1);
+  }
+
+  function pendingEditId(){
+    try{ return sessionStorage.getItem(EDIT_REQUEST_KEY); }catch(e){ return null; }
+  }
+
+  function startPendingEdit(id){
+    try{ sessionStorage.removeItem(EDIT_REQUEST_KEY); }catch(e){}
+    showToast('보관함에서 문서를 불러오는 중입니다...');
+    var row = null;
+    return Archive.getDocument(id).then(function(found){
+      if(!found) throw new Error('보관함에서 문서를 찾지 못했습니다.');
+      row = found;
+      if(!row.source_path) throw new Error('이 문서는 수정할 수 있는 원본이 없습니다.');
+      return Archive.loadSource(row.source_path);
+    }).then(function(payload){
+      return applyDraft(payload).then(function(){
+        editingDoc = row;
+        /* 들어오는 순간 개정번호를 하나 올려 보여 준다. 몇 번으로 나갈지 미리
+           알고, 필요하면 직접 고를 수 있다. 목록에 없는 번호(20 초과)여도
+           setRevision 이 만들어 넣는다. */
+        if(row.doc_type === 'manual') setRevision(nextRevision(row.revision));
+        updateEditBadge();
+        showToast('"' + (row.title || '문서') + '" 을(를) 수정합니다. 출력하면 덮어쓰기 됩니다.');
+      });
+    }).catch(function(err){
+      console.error(err);
+      showToast((err && err.message) || '문서를 불러오지 못했습니다.');
+    });
   }
 
   var DRAFT_FIELD_IDS = ['fileNameInput', 'authorInput', 'revisionInput', 'docTypeSelect', 'fieldSelect',
@@ -4089,6 +4382,9 @@
       manualSkip: manualSkip,
       manualPrepTable: manualPrepTable,
       idCounter: idCounter,
+      /* 수정 도중 임시저장했다가 이어서 작성할 때, 어떤 문서를 고치던 중이었는지
+         잊지 않도록 함께 담는다. 보관함에 올리는 원본 꾸러미에서는 지운다. */
+      editing: editingDoc ? { row: editingDoc } : null,
       photos: photos.map(function(p){
         // 텍스트 칸은 이미지 관련 항목이 통째로 없다
         if(isTextItem(p)) return { id: p.id, kind: 'text', description: p.description };
@@ -4135,6 +4431,10 @@
   function applyDraft(payload){
     appMode = payload.appMode || 'report';
     updateModeIndicator();
+
+    // 임시저장에서 돌아온 경우에만 값이 있다. 보관함 원본에는 들어 있지 않다.
+    editingDoc = (payload.editing && payload.editing.row) || null;
+    updateEditBadge();
 
     var fields = payload.fields || {};
     DRAFT_FIELD_IDS.forEach(function(id){
@@ -4241,9 +4541,77 @@
     });
   }
 
+  /* ---- 새 버전 자동 적용 --------------------------------------------------
+     HTML 과 JS 는 서버에서 늘 새로 받는다(sw.js 의 networkFirst). 하지만 그건
+     "앱을 여는" 순간의 이야기다. 홈 화면 앱은 화면을 껐다 켜거나 다른 앱에
+     다녀와도 다시 열리는 것이 아니라 멈춰 둔 것이 깨어날 뿐이라, 처음 띄웠을
+     때의 코드가 며칠이고 그대로 돈다. 실제로 그 사이에 새 기능이 빠진 채
+     저장되어, 나중에 개정할 수 없는 문서가 생겼다.
+
+     그래서 앱이 화면 앞으로 돌아올 때마다 새 버전이 있는지 확인하고, 작성
+     중이 아닐 때만 조용히 새로 불러온다. 묻지 않는다 — 미룰 수 있게 하면
+     사람마다 버전이 갈려 같은 일이 또 생긴다. */
+  function safeToReloadForUpdate(){
+    if(isGenerating) return false;                                   // 만드는 중
+    if(!modeSelectScreen.classList.contains('closed')) return true;  // 아직 고르기 전
+    if(!photos.length && !fileNameInputEl.value.trim()) return true; // 열었지만 빈 화면
+    return false;                                                    // 작성 중 — 건드리지 않는다
+  }
+
+  (function setupAutoUpdate(){
+    /* file:// 로 열면(사내망 단일 파일 사본) 등록 자체가 안 되고 콘솔 오류만
+       난다. http(s) 로 열렸을 때만 시도한다. */
+    if(!('serviceWorker' in navigator) || location.protocol.indexOf('http') !== 0) return;
+
+    var UPDATE_CHECK_GAP = 5 * 60 * 1000;   // 앞으로 올 때마다 묻지 않고 5분에 한 번
+    var hadController = !!navigator.serviceWorker.controller;
+    var lastCheck = 0;
+    var updateReady = false;
+    var reloading = false;
+
+    function reloadIfSafe(){
+      if(!updateReady || reloading) return;
+      if(!safeToReloadForUpdate()) return;   // 지금은 말고, 다음에 올 때 다시 본다
+      reloading = true;
+      location.reload();
+    }
+
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      /* 이 기기에 처음 설치되는 경우에는 갈아 끼울 옛 화면이 없다. 다만 그때
+         부터는 "맡고 있는 워커가 있는" 상태가 되므로 표시를 바꿔 둔다 —
+         안 그러면 그 뒤에 올라오는 새 버전도 전부 그냥 지나친다. */
+      if(!hadController){ hadController = true; return; }
+      updateReady = true;
+      reloadIfSafe();
+    });
+
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').then(function(reg){
+        document.addEventListener('visibilitychange', function(){
+          if(document.visibilityState !== 'visible') return;
+          reloadIfSafe();                      // 아까 미뤄 둔 것이 있으면 지금
+          var now = Date.now();
+          if(now - lastCheck < UPDATE_CHECK_GAP) return;
+          lastCheck = now;
+          reg.update().catch(function(){});    // 새 버전이 올라왔는지 확인
+        });
+      }).catch(function(err){
+        console.error('서비스 워커 등록 실패:', err);
+      });
+    });
+  })();
+
   updateCountDisplay();
   renderList();
-  offerResume();
+
+  /* 보관함에서 [수정]을 눌러 넘어온 경우에는 임시저장을 묻지 않는다. 둘 다
+     뜨면 어느 쪽을 여는 것인지 알 수 없다. */
+  var pendingId = pendingEditId();
+  if(pendingId && window.Archive && Archive.isEnabled()){
+    startPendingEdit(pendingId);
+  }else{
+    offerResume();
+  }
 })();
 </script>
 </body>

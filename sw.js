@@ -11,7 +11,7 @@
  * ⚠️ 파일을 고쳐 배포할 때 CACHE_VERSION 을 올려 주세요.
  *    올리면 예전 캐시가 모두 지워지고 새로 받습니다.
  */
-var CACHE_VERSION = 'v31';
+var CACHE_VERSION = 'v50';
 var CACHE = 'ddoc-' + CACHE_VERSION;
 
 // 오프라인에서도 앱이 켜지도록 미리 받아 두는 것들
@@ -19,12 +19,17 @@ var PRECACHE = [
   './',
   './index.html',
   './search.html',
+  './redtag.html',
   './archive.js',
+  './redtag.js',
   './draft.js',
   './supabase-config.js',
   './libs/html2canvas.min.js',
   './libs/jspdf.umd.min.js',
   './libs/supabase.min.js',
+  /* libs/exceljs.min.js 와 redtag-template.xlsx 는 여기 넣지 않는다 —
+     합쳐 1MB 가 넘는데 조작대상 찾기에서만 쓴다. 처음 쓸 때 받아 두면
+     그 뒤로는 캐시에서 나온다(libs/ 는 캐시 우선 규칙). */
   './manual-logo.gif',
   './banner.png',
   './mascot.png',

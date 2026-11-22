@@ -14,3 +14,21 @@ window.SUPABASE_CONFIG = {
   url: 'https://fmgxmkccmpbadmomfhbw.supabase.co',
   anonKey: 'sb_publishable_cdBgTZgdjvMaFg3FQPCxVg_A036RJ8h'
 };
+
+// 조작대상 찾기 전용 — 위와는 다른 Supabase 프로젝트입니다.
+//
+// 정전조작 데이터(점검대상 기기 ↔ 조작할 차단기 ↔ 위치)는 red-tag-manager 에서
+// 몇 달에 걸쳐 만든 것이라 그쪽 프로젝트에 그대로 있습니다. 사진대장·매뉴얼
+// 보관함과는 아무 관계가 없어 합치지 않고 따로 연결합니다.
+//
+// 이 값이 비어 있으면 "조작대상 찾기" 화면만 꺼지고 나머지는 그대로 동작합니다.
+//
+// 이 키는 공개되는 값입니다(저장소가 public 이라 누구나 봅니다). 원래 그러라고
+// 있는 키이고, 실제 방어는 DB 권한이 합니다 — db/redtag-01-schema.sql 이
+// 익명 쓰기를 모두 거두고 조회만 남겨 두었습니다(2026-11-22 확인).
+// 데이터를 고치는 일은 red-tag-manager 쪽에서 SQL 로만 합니다.
+// 준비용 SQL 은 db/redtag-01-schema.sql 부터 번호대로.
+window.REDTAG_CONFIG = {
+  url: 'https://pqiqfdzcrrvagkccqnpz.supabase.co',
+  anonKey: 'sb_publishable_q1QqkcQtiReGTogORu3cJQ_nuJzte3K'
+};
