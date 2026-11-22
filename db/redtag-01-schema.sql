@@ -120,7 +120,8 @@ comment on column switch_device.group_name is
 --    빠뜨렸다가 시드가 중간에 통째로 막힌 적이 있다.
 alter table equipment     drop constraint if exists equipment_equipment_type_check;
 alter table equipment     add  constraint equipment_equipment_type_check
-  check (equipment_type in ('GIS','변압기','발전기','전동기','부속기기','수배전반'));
+  check (equipment_type in
+    ('GIS','변압기','발전기','GT 발전기','ST 발전기','전동기','부속기기','수배전반'));
 
 alter table equipment     drop constraint if exists equipment_system_category_check;
 alter table equipment     add  constraint equipment_system_category_check
@@ -270,7 +271,7 @@ where conrelid in ('equipment'::regclass,'switch_device'::regclass,
                    'equipment_switch_map'::regclass,'sld_drawing'::regclass)
   and contype = 'c'
 order by conname;
--- equipment_equipment_type_check 에 '수배전반','부속기기' 가 보여야 한다
+-- equipment_equipment_type_check 에 '수배전반','부속기기','GT 발전기','ST 발전기' 가 보여야 한다
 
 -- 4) 지금 들어 있는 양
 select
