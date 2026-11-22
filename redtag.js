@@ -210,32 +210,70 @@
 
   /* 고른 배전반의 피더를 그 피더가 무엇을 먹이는지와 함께 가져온다.
      점검대상 이름이 실제로 어떻게 적혀 있는지 여기서 눈으로 익히게 된다. */
+  /* 배전반 하나를 펼친다.
+     ⚠️ 연결표(equipment_switch_map)에서 출발하면 점검대상이 아직 안 붙은
+        조작대상이 통째로 사라진다 — 실제로 1,478건 중 462건이 그렇고,
+        배전반 머리의 건수와 펼친 줄 수가 어긋나 있었다(CT MOV 54 vs 40).
+        그래서 조작대상에서 출발해 연결을 나중에 붙인다. 안 붙은 것도
+        "점검대상 미지정" 으로 그대로 내보낸다 — 안 보이면 없는 줄 안다. */
   function listFeeders(site, group) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('조작대상 데이터에 연결되어 있지 않습니다.'));
 
-    var req = c.from('equipment_switch_map')
-      .select(
-        'operation_order,operation_type,remarks,' +
-        'equipment:equipment_id(id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class),' +
-        'switch:switch_device_id!inner(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
-      )
-      .limit(PAGE);
+    var devs = fetchAllPaged(function (a, b) {
+      var q = c.from('switch_device')
+        .select('id,device_name,group_name,location,device_type,device_subtype,' +
+                'voltage_class,default_operation,description')
+        .order('device_name', { ascending: true })
+        .range(a, b);
+      q = group === NO_GROUP ? q.is('group_name', null) : q.eq('group_name', group);
+      return site === 'sasong'
+        ? q.ilike('location', '%사송%')
+        : q.or('location.not.ilike.%사송%,location.is.null');
+    });
 
-    req = group === NO_GROUP
-      ? req.is('switch.group_name', null)
-      : req.eq('switch.group_name', group);
-    req = site === 'sasong'
-      ? req.ilike('switch.location', '%사송%')
-      : req.or('location.not.ilike.%사송%,location.is.null', { referencedTable: 'switch' });
+    return devs.then(function (list) {
+      if (!list.length) return [];
+      var ids = list.map(function (d) { return d.id; });
 
-    return req.then(function (res) {
-      if (res.error) throw res.error;
-      var rows = (res.data || []).map(toRow).filter(function (r) { return r.deviceName; });
-      rows.sort(function (a, b) {
-        return a.deviceName.localeCompare(b.deviceName, 'ko', { numeric: true });
+      return fetchAllPaged(function (a, b) {
+        return c.from('equipment_switch_map')
+          .select('switch_device_id,operation_order,operation_type,remarks,' +
+                  'equipment:equipment_id(id,equipment_name,equipment_number,' +
+                  'equipment_type,sub_type,voltage_class)')
+          .in('switch_device_id', ids)
+          .order('switch_device_id', { ascending: true })
+          .range(a, b);
+      }).then(function (links) {
+        var byDev = {};
+        links.forEach(function (m) {
+          (byDev[m.switch_device_id] = byDev[m.switch_device_id] || []).push(m);
+        });
+
+        var rows = [];
+        list.forEach(function (d) {
+          var mine = byDev[d.id];
+          if (mine && mine.length) {
+            mine.forEach(function (m) {
+              rows.push(toRow({ operation_order: m.operation_order,
+                                operation_type: m.operation_type,
+                                remarks: m.remarks,
+                                equipment: m.equipment, switch: d }));
+            });
+          } else {
+            // 점검대상이 아직 안 붙은 조작대상 — 숨기지 않는다
+            var r = toRow({ switch: d });
+            r.noEquipment = true;
+            rows.push(r);
+          }
+        });
+
+        rows.sort(function (a, b) {
+          return a.deviceName.localeCompare(b.deviceName, 'ko', { numeric: true }) ||
+                 (a.order - b.order);
+        });
+        return rows;
       });
-      return rows;
     });
   }
 

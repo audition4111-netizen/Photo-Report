@@ -88,6 +88,9 @@
   .panel-loading{ padding:16px 14px; font-size:14px; color:var(--muted); }
   /* 조작대상이 아직 연결되지 않은 기기 — 숨기지 않고 그렇다고 적어 둔다 */
   .panel.bare .panel-head{ background:#fff7f5; }
+  /* 점검대상이 아직 안 붙은 조작대상 — 담을 수는 있고, 기기명은 직접 적는다 */
+  tr.no-eq .eq{ color:var(--error); font-style:normal; }
+  .panel-note{ margin:0; padding:10px 14px 0; font-size:12px; color:var(--muted); }
   .panel-warn{ flex:none; font-size:11px; font-weight:700; color:var(--error);
     border:1px solid var(--error); border-radius:var(--radius-full); padding:2px 8px; }
   .panel-sub{ font-size:12px; color:var(--muted); }
@@ -771,26 +774,34 @@
 
   function fillPanel(body, rows){
     if(!rows.length){
-      body.innerHTML = '<p class="panel-loading">이 배전반에는 연결된 점검대상이 아직 없습니다.</p>';
+      body.innerHTML = '<p class="panel-loading">이 배전반에는 조작대상이 없습니다.</p>';
       return;
     }
+    var bare = rows.filter(function(r){ return r.noEquipment; }).length;
     body.innerHTML =
       '<div class="table-wrap"><table><thead><tr>' +
         '<th>점검대상</th><th>조작대상(차단기명)</th>' +
         '<th class="nowrap">조작</th><th class="col-pick"></th>' +
       '</tr></thead><tbody></tbody></table></div>' +
+      (bare ? '<p class="panel-note"></p>' : '') +
       '<div class="panel-acts">' +
         '<button type="button" class="all">이 배전반 전체 선택</button>' +
         '<button type="button" class="go">담기</button>' +
       '</div>';
+    if(bare){
+      body.querySelector('.panel-note').textContent =
+        '※ ' + bare + '건은 점검대상이 아직 연결되지 않았습니다. 담은 뒤 작업 리스트에서 직접 적어 주세요.';
+    }
     var tb = body.querySelector('tbody');
     rows.forEach(function(r, i){
       var tr = document.createElement('tr');
+      if(r.noEquipment) tr.className = 'no-eq';
       tr.innerHTML =
         '<td class="eq muted"></td><td class="dev"></td>' +
         '<td class="nowrap"><span class="' + opClass(r.operation) + '"></span></td>' +
         '<td class="col-pick"><input type="checkbox" data-i="' + i + '" aria-label="선택"></td>';
-      tr.querySelector('.eq').textContent = r.equipmentName || '—';
+      tr.querySelector('.eq').textContent = r.noEquipment
+        ? '점검대상 미지정' : (r.equipmentName || '—');
       tr.querySelector('.dev').textContent = r.deviceName;
       tr.querySelector('.op').textContent = r.operation || '—';
       tb.appendChild(tr);

@@ -103,7 +103,8 @@ where equipment_type = '부속기기' order by equipment_name;
 --       TO 2 / GT LUBE OIL HEATER #3 TO 4 / GT TURBINE COMPARTMENT HEATER /
 --       ST CONTROL OIL TANK HEATING HEATER / ST CONTROL OIL TANK HEATING
 --       HEATER(추가) / ST LUBE OIL TANK HEATING HEATER
---       ※ 사송 부속기기 5건은 사업장이 달라 여기 섞여 나온다.
+--       ※ 9건 전부 양산 기기다. 사송에는 제 부속기기가 없다 — 화면의 사송
+--         '부속기기 5건' 은 조작대상이 안 붙어 양쪽에 함께 보이던 것들이다.
 
 -- 5) MOV 위치가 다 찼는지
 select group_name, location, count(*) as 건수
