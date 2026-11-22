@@ -34,6 +34,13 @@
 
   /* ---- 검색 ---- */
   .finder{ border:1px solid var(--hairline); border-radius:var(--radius-md); padding:14px; margin:0 0 16px; background:var(--surface-soft); }
+  /* 사업장을 먼저 고르게 한다. 양산과 사송에 이름이 같은 차단기가 있어서,
+     섞어 찾으면 어느 것인지 가릴 수가 없다. */
+  .site-tabs{ display:flex; gap:8px; margin:0 0 12px; }
+  .site-tab{ flex:1; padding:11px 0; font-family:inherit; font-size:14px; font-weight:700;
+    border:1px solid var(--hairline); border-radius:var(--radius-sm);
+    background:var(--canvas); color:var(--muted); cursor:pointer; }
+  .site-tab.on{ background:var(--archive); border-color:var(--archive); color:#fff; }
   .finder-row{ display:flex; gap:8px; }
   .finder-row input{ flex:1; min-width:0; height:46px; padding:0 13px; font-family:inherit; font-size:16px;
     border:1px solid var(--hairline); border-radius:var(--radius-sm); background:var(--canvas); color:var(--ink); }
@@ -122,6 +129,10 @@
   <div id="main" class="hidden">
     <!-- 검색 -->
     <div class="finder">
+      <div class="site-tabs" id="siteTabs">
+        <button type="button" class="site-tab on" data-site="yangsan">양산 열원</button>
+        <button type="button" class="site-tab"    data-site="sasong">사송 가압장</button>
+      </div>
       <div class="finder-row">
         <input type="search" id="q" placeholder="기기명 또는 기기번호" autocomplete="off"
                enterkeyhint="search" aria-label="기기명 또는 기기번호">
@@ -133,6 +144,7 @@
       </div>
       <p class="finder-hint">
         점검할 기기를 찾으면, 그 기기를 점검하려고 조작해야 할 차단기가 위치와 함께 나옵니다.
+        고른 사업장 것만 나옵니다.
       </p>
     </div>
 
@@ -211,6 +223,15 @@
   var found = [];   // 이번 검색 결과
   var list = [];    // 담아 둔 작업 리스트 (엑셀로 나가는 것)
 
+  /* 고른 사업장. 양산과 사송에 이름이 같은 차단기가 있어서 섞어 놓으면
+     어느 것인지 가릴 수 없다. 기기에 기억해 두고 다음에도 그대로 연다. */
+  var SITE_KEY = 'ddoc-redtag-site';
+  var site = 'yangsan';
+  try{
+    var saved = localStorage.getItem(SITE_KEY);
+    if(saved === 'yangsan' || saved === 'sasong') site = saved;
+  }catch(e){}
+
   var toastTimer = null;
   function showToast(msg){
     toastEl.textContent = msg;
@@ -232,23 +253,36 @@
 
   /* ---- 검색 ------------------------------------------------------------- */
 
+  function siteLabel(){
+    return (RedTag.SITES[site] || {}).label || site;
+  }
+
+  function renderSiteTabs(){
+    el('siteTabs').querySelectorAll('.site-tab').forEach(function(b){
+      b.classList.toggle('on', b.dataset.site === site);
+    });
+    el('q').placeholder = siteLabel() + ' — 기기명 또는 기기번호';
+  }
+
   function runSearch(){
     var term = el('q').value.trim();
     if(!term){ setStatus('기기명이나 기기번호를 입력해 주세요.', true); return; }
 
     setStatus('찾는 중입니다...');
     el('searchBtn').disabled = true;
-    RedTag.search(term).then(function(rows){
+    RedTag.search(term, site).then(function(rows){
       el('searchBtn').disabled = false;
       found = rows;
       renderFound();
       if(!rows.length){
-        setStatus('"' + term + '" 로 찾은 기기가 없습니다. 이름 일부만 넣어 보세요.');
+        setStatus('[' + siteLabel() + '] 에서 "' + term + '" 로 찾은 기기가 없습니다. '
+          + '다른 사업장인지 확인하거나 이름 일부만 넣어 보세요.');
         return;
       }
       var names = {};
       rows.forEach(function(r){ names[r.equipmentName] = 1; });
-      setStatus('기기 ' + Object.keys(names).length + '건 · 조작대상 ' + rows.length + '건을 찾았습니다.');
+      setStatus('[' + siteLabel() + '] 기기 ' + Object.keys(names).length
+        + '건 · 조작대상 ' + rows.length + '건을 찾았습니다.');
     }).catch(function(err){
       el('searchBtn').disabled = false;
       console.error(err);
@@ -464,6 +498,20 @@
 
   /* ---- 이어 붙이기 -------------------------------------------------------- */
 
+  el('siteTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.site-tab');
+    if(!btn || btn.dataset.site === site) return;
+    site = btn.dataset.site;
+    try{ localStorage.setItem(SITE_KEY, site); }catch(err){}
+    renderSiteTabs();
+    /* 사업장을 바꾸면 앞의 결과는 다른 사업장 것이라 그대로 두면 헷갈린다.
+       담아 둔 작업 리스트는 건드리지 않는다 — 두 사업장을 한 번에 뽑을 수도 있다. */
+    found = [];
+    renderFound();
+    if(el('q').value.trim()) runSearch();
+    else setStatus('');
+  });
+
   el('searchBtn').addEventListener('click', runSearch);
   el('q').addEventListener('keydown', function(e){ if(e.key === 'Enter') runSearch(); });
 
@@ -504,6 +552,7 @@
     el('notConfigured').classList.remove('hidden');
   }else{
     el('main').classList.remove('hidden');
+    renderSiteTabs();
     renderList();
     el('q').focus();
   }

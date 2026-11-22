@@ -45,11 +45,31 @@
     return String(term || '').trim().replace(/[,()*%"']/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  /* 사업장 구분.
+
+     양산 열원과 사송가압장은 서로 다른 사업장인데, 사송 쪽 차단기 이름에는
+     지역 표시가 없어서 ES-101·LC-1_ACB-101 처럼 양산 것과 똑같은 이름이 있다.
+     이름만으로는 가릴 수 없으므로 "어느 사업장을 보는 중인지" 를 먼저 고르게
+     하고, 그 사업장 것만 찾는다. 섞이지 않으면 헷갈릴 일도 없다.
+
+     가르는 기준은 차단기가 실제로 놓인 자리(location)다. 대장도 조작이
+     일어나는 사업장 기준으로 나뉘므로 이것이 맞다.
+     위치가 비어 있는 것들(HRSG MCC, #1 CONTROL BLDG MCC 등)은 전부 양산
+     설비라 양산으로 본다 — 사송은 위치가 모두 채워져 있다. */
+  var SITES = {
+    yangsan: { label: '양산 열원',   sheet: 'Tag 대장(양산 열원)' },
+    sasong:  { label: '사송 가압장', sheet: 'TAG 대장(사송 가압장)' }
+  };
+
+  function siteOf(row) {
+    return (row && (row.location || '')).indexOf('사송') !== -1 ? 'sasong' : 'yangsan';
+  }
+
   /* 기기 찾기 → 그 기기들의 조작대상까지 한 번에.
 
      equipment_switch_map 을 가운데 두고 양쪽을 끌어온다. inner 로 묶어 조건에
-     맞는 기기의 행만 남긴다. */
-  function search(term) {
+     맞는 행만 남긴다 — 기기는 검색어로, 조작대상은 사업장으로 걸러진다. */
+  function search(term, site) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('조작대상 데이터에 연결되어 있지 않습니다.'));
 
@@ -57,14 +77,24 @@
     if (!q) return Promise.resolve([]);
     var like = '%' + q + '%';
 
-    return c.from('equipment_switch_map')
+    var req = c.from('equipment_switch_map')
       .select(
         'operation_order,operation_type,remarks,' +
         'equipment:equipment_id!inner(id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class),' +
-        'switch:switch_device_id(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
+        'switch:switch_device_id!inner(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
       )
       .or('equipment_name.ilike.' + like + ',equipment_number.ilike.' + like,
-          { referencedTable: 'equipment' })
+          { referencedTable: 'equipment' });
+
+    if (site === 'sasong') {
+      req = req.ilike('switch.location', '%사송%');
+    } else {
+      // 위치가 비어 있는 것도 양산으로 본다
+      req = req.or('location.not.ilike.%사송%,location.is.null',
+                   { referencedTable: 'switch' });
+    }
+
+    return req
       .order('operation_order', { ascending: true })
       .limit(500)
       .then(function (res) {
@@ -100,8 +130,7 @@
 
   // 사송가압장 것인지 — 엑셀 시트를 나눠 담을 때 쓴다
   function isSasong(row) {
-    var s = (row && (row.location || '')) + ' ' + (row && (row.deviceName || ''));
-    return s.indexOf('사송') !== -1;
+    return siteOf(row) === 'sasong';
   }
 
   // 개방 → OPEN, 투입 → CLOSE (관리대장 표기)
@@ -115,6 +144,8 @@
     isEnabled: isEnabled,
     search: search,
     isSasong: isSasong,
+    siteOf: siteOf,
+    SITES: SITES,
     operationEnglish: operationEnglish
   };
 })(window);
