@@ -128,6 +128,117 @@
     };
   }
 
+  /* ---- 목록으로 찾기 -------------------------------------------------------
+     이름을 정확히 모르면 검색이 막막하다. 그래서 단선도를 따라가듯
+     전압등급 → 배전반(그룹) → 피더 로 펼쳐 보고 고를 수 있게 한다.
+     현장에서 차단기를 찾아가는 순서가 원래 이렇고, 확정 데이터를 배치로
+     나눈 기준(GIS → SWGR → LC → MCC → MOV → UPS/DC)과도 같다. */
+
+  // 전압은 높은 쪽부터. 목록에 없는 값이 생기면 뒤로 보낸다.
+  var VOLT_ORDER = ['154kV', '22.9kV', '13.8kV', '6.9kV', '460V', '220V', '125V', '110V'];
+  var NO_GROUP = '(그룹 없음 · 단독 설비)';
+
+  var groupCache = {};   // 사업장별로 한 번만 받아 둔다
+
+  /* 서버는 한 번에 1,000건까지만 내준다(PostgREST 기본 상한). limit 을 크게
+     줘도 그 위로는 안 온다 — 실제로 6.9kV 전체가 목록에서 통째로 빠졌었다.
+     그래서 끝까지 나눠 받는다. */
+  var PAGE = 1000;
+
+  function fetchAllDevices(site) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('조작대상 데이터에 연결되어 있지 않습니다.'));
+    var all = [];
+
+    function page(from) {
+      var req = c.from('switch_device')
+        .select('id,device_name,group_name,location,voltage_class,device_type,default_operation')
+        .order('device_name', { ascending: true })
+        .range(from, from + PAGE - 1);
+      req = site === 'sasong'
+        ? req.ilike('location', '%사송%')
+        : req.or('location.not.ilike.%사송%,location.is.null');
+      return req.then(function (res) {
+        if (res.error) throw res.error;
+        var got = res.data || [];
+        all = all.concat(got);
+        // 꽉 채워 왔으면 뒤가 더 있을 수 있다
+        return got.length === PAGE ? page(from + PAGE) : all;
+      });
+    }
+    return page(0);
+  }
+
+  /* 한 사업장의 조작대상을 모두 받아 전압·그룹으로 묶는다.
+     PostgREST 에는 group by 가 없어 화면에서 묶는다. */
+  function listGroups(site) {
+    if (groupCache[site]) return Promise.resolve(groupCache[site]);
+
+    return fetchAllDevices(site).then(function (data) {
+      var byVolt = {};
+      data.forEach(function (d) {
+        var v = d.voltage_class || '기타';
+        var g = d.group_name || NO_GROUP;
+        if (!byVolt[v]) byVolt[v] = {};
+        if (!byVolt[v][g]) byVolt[v][g] = { name: g, count: 0, locations: {} };
+        byVolt[v][g].count += 1;
+        if (d.location) byVolt[v][g].locations[d.location] = 1;
+      });
+      var out = Object.keys(byVolt).sort(function (a, b) {
+        var ia = VOLT_ORDER.indexOf(a), ib = VOLT_ORDER.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      }).map(function (v) {
+        var groups = Object.keys(byVolt[v]).map(function (g) {
+          var o = byVolt[v][g];
+          var locs = Object.keys(o.locations);
+          return { name: g, count: o.count, location: locs.length === 1 ? locs[0] : (locs[0] || '') };
+        });
+        /* 단독 설비 묶음은 맨 아래로, 나머지는 이름순. 숫자가 섞인 이름
+           (LC-2 / LC-10)이 사전순으로 엉키지 않게 자연스러운 순서로 맞춘다. */
+        groups.sort(function (a, b) {
+          if (a.name === NO_GROUP) return 1;
+          if (b.name === NO_GROUP) return -1;
+          return a.name.localeCompare(b.name, 'ko', { numeric: true });
+        });
+        return { voltage: v, groups: groups,
+                 count: groups.reduce(function (n, g) { return n + g.count; }, 0) };
+      });
+      groupCache[site] = out;
+      return out;
+    });
+  }
+
+  /* 고른 배전반의 피더를 그 피더가 무엇을 먹이는지와 함께 가져온다.
+     점검대상 이름이 실제로 어떻게 적혀 있는지 여기서 눈으로 익히게 된다. */
+  function listFeeders(site, group) {
+    var c = getClient();
+    if (!c) return Promise.reject(new Error('조작대상 데이터에 연결되어 있지 않습니다.'));
+
+    var req = c.from('equipment_switch_map')
+      .select(
+        'operation_order,operation_type,remarks,' +
+        'equipment:equipment_id(id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class),' +
+        'switch:switch_device_id!inner(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
+      )
+      .limit(PAGE);
+
+    req = group === NO_GROUP
+      ? req.is('switch.group_name', null)
+      : req.eq('switch.group_name', group);
+    req = site === 'sasong'
+      ? req.ilike('switch.location', '%사송%')
+      : req.or('location.not.ilike.%사송%,location.is.null', { referencedTable: 'switch' });
+
+    return req.then(function (res) {
+      if (res.error) throw res.error;
+      var rows = (res.data || []).map(toRow).filter(function (r) { return r.deviceName; });
+      rows.sort(function (a, b) {
+        return a.deviceName.localeCompare(b.deviceName, 'ko', { numeric: true });
+      });
+      return rows;
+    });
+  }
+
   // 사송가압장 것인지 — 엑셀 시트를 나눠 담을 때 쓴다
   function isSasong(row) {
     return siteOf(row) === 'sasong';
@@ -145,6 +256,9 @@
     search: search,
     isSasong: isSasong,
     siteOf: siteOf,
+    listGroups: listGroups,
+    listFeeders: listFeeders,
+    NO_GROUP: NO_GROUP,
     SITES: SITES,
     operationEnglish: operationEnglish
   };

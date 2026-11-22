@@ -53,6 +53,40 @@
   .keep-row input{ width:20px; height:20px; accent-color:var(--archive); }
   .keep-row label{ font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; }
 
+  /* 찾는 방법 — 이름을 알면 검색, 모르면 목록에서 짚어 간다 */
+  .mode-tabs{ display:flex; gap:8px; margin:0 0 14px; }
+  .mode-tab{ flex:1; padding:12px 0; font-family:inherit; font-size:14px; font-weight:700;
+    border:1px solid var(--hairline); border-radius:var(--radius-sm);
+    background:var(--canvas); color:var(--muted); cursor:pointer; }
+  .mode-tab.on{ background:var(--ink); border-color:var(--ink); color:#fff; }
+
+  /* 전압등급 — 단선도를 위에서 아래로 내려오는 순서 */
+  .volt-row{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+  .volt-chip{ padding:9px 14px; font-family:inherit; font-size:14px; font-weight:700;
+    border:1px solid var(--archive-line); border-radius:var(--radius-full);
+    background:var(--archive-soft); color:var(--archive); cursor:pointer; }
+  .volt-chip.on{ background:var(--archive); border-color:var(--archive); color:#fff; }
+  .volt-chip small{ font-weight:600; opacity:.75; margin-left:5px; }
+
+  /* 배전반 묶음 — 눌러서 펼친다 */
+  .panel{ border:1px solid var(--hairline); border-radius:var(--radius-md); margin:0 0 10px; overflow:hidden; }
+  .panel-head{ display:flex; align-items:center; gap:10px; width:100%; padding:14px;
+    border:none; background:var(--surface-soft); cursor:pointer; text-align:left; font-family:inherit; }
+  .panel-name{ font-size:15px; font-weight:700; color:var(--ink); }
+  .panel-loc{ font-size:13px; color:var(--muted); }
+  .panel-n{ margin-left:auto; flex:none; font-size:12px; font-weight:700; color:#fff;
+    background:var(--archive); border-radius:var(--radius-full); padding:3px 10px; }
+  .panel-caret{ flex:none; font-size:13px; color:var(--muted); transition:transform .2s ease; }
+  .panel.open .panel-caret{ transform:rotate(180deg); }
+  .panel-body{ display:none; }
+  .panel.open .panel-body{ display:block; }
+  .panel-acts{ display:flex; gap:8px; padding:10px 14px; border-top:1px solid var(--hairline);
+    background:var(--canvas); }
+  .panel-acts button{ height:38px; padding:0 14px; font-family:inherit; font-size:13px; font-weight:700;
+    border-radius:var(--radius-sm); border:1px solid var(--ink); background:var(--canvas); color:var(--ink); cursor:pointer; }
+  .panel-acts .go{ margin-left:auto; border-color:var(--archive); background:var(--archive); color:#fff; }
+  .panel-loading{ padding:16px 14px; font-size:14px; color:var(--muted); }
+
   .status{ font-size:14px; color:var(--muted); margin:0 0 12px; min-height:20px; }
   .status.error{ color:var(--error); }
 
@@ -127,8 +161,13 @@
   </div>
 
   <div id="main" class="hidden">
+    <div class="mode-tabs" id="modeTabs">
+      <button type="button" class="mode-tab on" data-mode="search">검색으로 찾기</button>
+      <button type="button" class="mode-tab"    data-mode="browse">목록에서 고르기</button>
+    </div>
+
     <!-- 검색 -->
-    <div class="finder">
+    <div class="finder" id="finderBox">
       <div class="site-tabs" id="siteTabs">
         <button type="button" class="site-tab on" data-site="yangsan">양산 열원</button>
         <button type="button" class="site-tab"    data-site="sasong">사송 가압장</button>
@@ -148,10 +187,28 @@
       </p>
     </div>
 
+    <!-- 목록에서 고르기 -->
+    <div class="finder hidden" id="browseBox">
+      <div class="site-tabs" id="siteTabs2">
+        <button type="button" class="site-tab on" data-site="yangsan">양산 열원</button>
+        <button type="button" class="site-tab"    data-site="sasong">사송 가압장</button>
+      </div>
+      <div class="finder-row">
+        <input type="search" id="browseFilter" placeholder="배전반 이름으로 좁히기 (예: SWGR, MOV)" autocomplete="off">
+      </div>
+      <p class="finder-hint">
+        전압등급을 고르면 그 아래 배전반이 나옵니다. 배전반을 누르면 피더가 펼쳐지고,
+        각 피더가 어떤 설비를 먹이는지 함께 보입니다.
+      </p>
+    </div>
+
+    <div class="volt-row hidden" id="voltRow"></div>
+    <div id="panels"></div>
+
     <p class="status" id="status"></p>
 
     <!-- 검색 결과 -->
-    <div class="sec">
+    <div class="sec" id="foundSec">
       <div class="sec-head">
         <h2>검색 결과</h2>
         <span class="sec-count" id="foundCount" hidden>0</span>
@@ -258,7 +315,7 @@
   }
 
   function renderSiteTabs(){
-    el('siteTabs').querySelectorAll('.site-tab').forEach(function(b){
+    document.querySelectorAll('.site-tab').forEach(function(b){
       b.classList.toggle('on', b.dataset.site === site);
     });
     el('q').placeholder = siteLabel() + ' — 기기명 또는 기기번호';
@@ -337,14 +394,11 @@
     return a.deviceName === b.deviceName && a.equipmentName === b.equipmentName;
   }
 
-  function addPicked(){
-    var picked = pickedRows();
-    if(!picked.length){ showToast('담을 항목을 먼저 선택해 주세요.'); return; }
-
+  // 검색 결과에서든 배전반 목록에서든 담는 방법은 같다
+  function addRows(picked){
     var added = 0, dup = 0;
     picked.forEach(function(r){
-      var exists = list.some(function(x){ return sameAs(x, r); });
-      if(exists){ dup++; return; }
+      if(list.some(function(x){ return sameAs(x, r); })){ dup++; return; }
       list.push({
         location: r.location,
         groupName: r.groupName,
@@ -355,6 +409,15 @@
       added++;
     });
     renderList();
+    return { added: added, dup: dup };
+  }
+
+  function addPicked(){
+    var picked = pickedRows();
+    if(!picked.length){ showToast('담을 항목을 먼저 선택해 주세요.'); return; }
+
+    var res = addRows(picked);
+    var added = res.added, dup = res.dup;
 
     /* "기존 검색정보 유지" 가 꺼져 있으면 담은 뒤 검색 결과를 비운다.
        켜져 있으면 그대로 두어 계속 골라 담을 수 있다. */
@@ -413,6 +476,166 @@
         renderList();
       });
       listBody.appendChild(tr);
+    });
+  }
+
+  /* ---- 목록에서 고르기 ----------------------------------------------------
+     이름을 모르면 검색이 막막하다. 전압등급 → 배전반 → 피더 로 펼쳐 보면
+     현장에서 차단기를 찾아가는 순서 그대로 짚어 갈 수 있고, 피더마다 무엇을
+     먹이는지 보이니 점검대상 이름이 실제로 어떻게 적혀 있는지도 알게 된다. */
+  var mode = 'search';
+  var tree = null;          // [{voltage, count, groups:[{name,count,location}]}]
+  var volt = null;          // 펼쳐 본 전압등급
+  var feederCache = {};     // 사업장|배전반 → 피더 목록
+
+  function setMode(next){
+    mode = next;
+    el('modeTabs').querySelectorAll('.mode-tab').forEach(function(b){
+      b.classList.toggle('on', b.dataset.mode === mode);
+    });
+    el('finderBox').classList.toggle('hidden', mode !== 'search');
+    el('browseBox').classList.toggle('hidden', mode !== 'browse');
+    el('voltRow').classList.toggle('hidden', mode !== 'browse');
+    el('panels').classList.toggle('hidden', mode !== 'browse');
+    el('foundSec').classList.toggle('hidden', mode !== 'search');
+    setStatus('');
+    if(mode === 'browse') loadTree();
+  }
+
+  function loadTree(){
+    el('voltRow').innerHTML = '';
+    el('panels').innerHTML = '';
+    setStatus('목록을 불러오는 중입니다...');
+    RedTag.listGroups(site).then(function(t){
+      tree = t;
+      var total = t.reduce(function(n,v){ return n + v.count; }, 0);
+      var kinds = t.reduce(function(n,v){ return n + v.groups.length; }, 0);
+      setStatus('[' + siteLabel() + '] 배전반 ' + kinds + '종 · 조작대상 ' + total + '건');
+      // 처음 열면 가장 많은 전압등급을 펼쳐 둔다 — 대개 460V 다
+      if(!volt || !t.some(function(v){ return v.voltage === volt; })){
+        volt = t.length ? t.slice().sort(function(a,b){ return b.count - a.count; })[0].voltage : null;
+      }
+      renderVolts();
+      renderPanels();
+    }).catch(function(err){
+      console.error(err);
+      setStatus('목록을 불러오지 못했습니다: ' + ((err && err.message) || '알 수 없는 오류'), true);
+    });
+  }
+
+  function renderVolts(){
+    var row = el('voltRow');
+    row.innerHTML = '';
+    (tree || []).forEach(function(v){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'volt-chip' + (v.voltage === volt ? ' on' : '');
+      b.innerHTML = '<span class="vname"></span><small></small>';
+      b.querySelector('.vname').textContent = v.voltage;
+      b.querySelector('small').textContent = v.count;
+      b.addEventListener('click', function(){
+        volt = v.voltage;
+        renderVolts();
+        renderPanels();
+      });
+      row.appendChild(b);
+    });
+  }
+
+  function renderPanels(){
+    var box = el('panels');
+    box.innerHTML = '';
+    var v = (tree || []).filter(function(x){ return x.voltage === volt; })[0];
+    if(!v) return;
+    var q = el('browseFilter').value.trim().toLowerCase();
+    var groups = v.groups.filter(function(g){
+      return !q || g.name.toLowerCase().indexOf(q) !== -1
+                || (g.location || '').toLowerCase().indexOf(q) !== -1;
+    });
+    if(!groups.length){
+      box.innerHTML = '<p class="empty">이 전압등급에서 찾은 배전반이 없습니다.</p>';
+      return;
+    }
+    groups.forEach(function(g){ box.appendChild(panelEl(g)); });
+  }
+
+  function panelEl(g){
+    var wrap = document.createElement('div');
+    wrap.className = 'panel';
+    wrap.innerHTML =
+      '<button type="button" class="panel-head">' +
+        '<span class="panel-caret">▼</span>' +
+        '<span><span class="panel-name"></span><br><span class="panel-loc"></span></span>' +
+        '<span class="panel-n"></span>' +
+      '</button>' +
+      '<div class="panel-body"><div class="panel-loading">불러오는 중...</div></div>';
+    wrap.querySelector('.panel-name').textContent = g.name;
+    wrap.querySelector('.panel-loc').textContent = g.location || '위치 미기재';
+    wrap.querySelector('.panel-n').textContent = g.count;
+
+    var body = wrap.querySelector('.panel-body');
+    var loaded = false;
+    wrap.querySelector('.panel-head').addEventListener('click', function(){
+      wrap.classList.toggle('open');
+      if(!wrap.classList.contains('open') || loaded) return;
+      loaded = true;
+      var key = site + '|' + g.name;
+      var job = feederCache[key]
+        ? Promise.resolve(feederCache[key])
+        : RedTag.listFeeders(site, g.name).then(function(rows){ feederCache[key] = rows; return rows; });
+      job.then(function(rows){ fillPanel(body, rows); })
+         .catch(function(err){
+           console.error(err);
+           body.innerHTML = '<p class="panel-loading">불러오지 못했습니다: '
+             + ((err && err.message) || '알 수 없는 오류') + '</p>';
+           loaded = false;
+         });
+    });
+    return wrap;
+  }
+
+  function fillPanel(body, rows){
+    if(!rows.length){
+      body.innerHTML = '<p class="panel-loading">이 배전반에는 연결된 점검대상이 아직 없습니다.</p>';
+      return;
+    }
+    body.innerHTML =
+      '<div class="table-wrap"><table><thead><tr>' +
+        '<th>점검대상</th><th>조작대상(차단기명)</th>' +
+        '<th class="nowrap">조작</th><th class="col-pick"></th>' +
+      '</tr></thead><tbody></tbody></table></div>' +
+      '<div class="panel-acts">' +
+        '<button type="button" class="all">이 배전반 전체 선택</button>' +
+        '<button type="button" class="go">담기</button>' +
+      '</div>';
+    var tb = body.querySelector('tbody');
+    rows.forEach(function(r, i){
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="eq muted"></td><td class="dev"></td>' +
+        '<td class="nowrap"><span class="' + opClass(r.operation) + '"></span></td>' +
+        '<td class="col-pick"><input type="checkbox" data-i="' + i + '" aria-label="선택"></td>';
+      tr.querySelector('.eq').textContent = r.equipmentName || '—';
+      tr.querySelector('.dev').textContent = r.deviceName;
+      tr.querySelector('.op').textContent = r.operation || '—';
+      tb.appendChild(tr);
+    });
+    body.querySelector('.all').addEventListener('click', function(){
+      var boxes = tb.querySelectorAll('input[type="checkbox"]');
+      var on = !Array.prototype.every.call(boxes, function(b){ return b.checked; });
+      boxes.forEach(function(b){ b.checked = on; });
+    });
+    body.querySelector('.go').addEventListener('click', function(){
+      var picked = [];
+      tb.querySelectorAll('input[type="checkbox"]:checked').forEach(function(b){
+        var r = rows[Number(b.dataset.i)];
+        if(r) picked.push(r);
+      });
+      if(!picked.length){ showToast('담을 피더를 먼저 선택해 주세요.'); return; }
+      var res = addRows(picked);
+      tb.querySelectorAll('input[type="checkbox"]').forEach(function(b){ b.checked = false; });
+      showToast(res.added + '건 담았습니다.'
+        + (res.dup ? ' (이미 담은 ' + res.dup + '건 제외)' : ''));
     });
   }
 
@@ -497,6 +720,29 @@
   }
 
   /* ---- 이어 붙이기 -------------------------------------------------------- */
+
+  el('modeTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode-tab');
+    if(btn && btn.dataset.mode !== mode) setMode(btn.dataset.mode);
+  });
+
+  // 목록 쪽 사업장 탭도 같은 상태를 쓴다
+  el('siteTabs2').addEventListener('click', function(e){
+    var btn = e.target.closest('.site-tab');
+    if(!btn || btn.dataset.site === site) return;
+    site = btn.dataset.site;
+    try{ localStorage.setItem(SITE_KEY, site); }catch(err){}
+    renderSiteTabs();
+    found = [];
+    renderFound();
+    loadTree();
+  });
+
+  var filterTimer = null;
+  el('browseFilter').addEventListener('input', function(){
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(renderPanels, 180);
+  });
 
   el('siteTabs').addEventListener('click', function(e){
     var btn = e.target.closest('.site-tab');
