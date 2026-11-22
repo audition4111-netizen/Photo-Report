@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>뚝 DOC — 자동 문서 생성기</title>
+<title>뚝 DOC(보고용) — 자동 문서 생성기</title>
 
 <!-- 홈화면에 앱으로 설치되도록 -->
 <link rel="manifest" href="manifest.json">
@@ -313,7 +313,9 @@
     .mode-title-row{ font-size:33px; }
     .mode-select-title{ letter-spacing:-1.2px; }
   }
-  .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; }
+  /* 조작대상 찾기만 <a> 라 브라우저 기본 링크 꼴(파란 밑줄)이 비쳤다.
+     나머지 셋과 같아 보이게 글자색과 밑줄을 여기서 눌러 둔다. */
+  .mode-choice-btn{ display:block; width:100%; text-align:left; padding:18px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:var(--canvas); cursor:pointer; margin-bottom:14px; color:inherit; text-decoration:none; font-family:inherit; }
   .mode-choice-btn:last-child{ margin-bottom:0; }
   .mode-choice-btn:active{ background:var(--surface-soft); }
   /* 조작대상 찾기는 "문서를 만드는 일" 이 아니라 "찾아보는 일" 이라, 위의 만들기
