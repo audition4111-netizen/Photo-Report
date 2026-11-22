@@ -23,13 +23,12 @@ window.SUPABASE_CONFIG = {
 //
 // 이 값이 비어 있으면 "조작대상 찾기" 화면만 꺼지고 나머지는 그대로 동작합니다.
 //
-// ⚠️ 키를 아직 비워 둔 이유: 이 저장소는 공개라 여기 적는 키는 누구나 보게
-//    됩니다. 원래 공개되라고 있는 키지만(publishable), 실제 방어는 DB 쪽
-//    권한이 합니다. 확인해 보니 그 프로젝트는 지금 익명 쓰기가 열려 있어,
-//    키를 먼저 올리면 몇 달 걸려 확정한 정전조작 데이터를 누구나 지울 수
-//    있습니다. db/redtag-01-schema.sql 을 실행해 쓰기를 막은 뒤 채웁니다.
+// 이 키는 공개되는 값입니다(저장소가 public 이라 누구나 봅니다). 원래 그러라고
+// 있는 키이고, 실제 방어는 DB 권한이 합니다 — db/redtag-01-schema.sql 이
+// 익명 쓰기를 모두 거두고 조회만 남겨 두었습니다(2026-11-22 확인).
+// 데이터를 고치는 일은 red-tag-manager 쪽에서 SQL 로만 합니다.
 // 준비용 SQL 은 db/redtag-01-schema.sql 부터 번호대로.
 window.REDTAG_CONFIG = {
   url: 'https://pqiqfdzcrrvagkccqnpz.supabase.co',
-  anonKey: ''   // ← db/redtag-01-schema.sql 로 쓰기를 막은 뒤에 채웁니다
+  anonKey: 'sb_publishable_q1QqkcQtiReGTogORu3cJQ_nuJzte3K'
 };

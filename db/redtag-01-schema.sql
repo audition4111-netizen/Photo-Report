@@ -11,7 +11,8 @@
 -- 실행 순서: 이 파일 → redtag-02 → 03 → 04 → 05 → 06 (번호대로)
 --            99(검토 기록)는 선택이다.
 --
--- 여러 번 실행해도 안전하다. 다만 아래 5)의 시범 데이터 삭제는 되돌릴 수 없다.
+-- 여러 번 실행해도 안전하다. 이 파일은 데이터를 지우지 않는다 —
+-- 초기 시범 데이터(가짜 이름 32건)를 지우는 일은 redtag-07 로 따로 뺐다.
 
 -- ---------------------------------------------------------------------------
 -- 1) 표가 없으면 만든다
@@ -111,15 +112,43 @@ comment on column switch_device.group_name is
 -- ---------------------------------------------------------------------------
 -- 3) 값 제한을 시드에 맞춘다
 -- ---------------------------------------------------------------------------
--- 초기 표에는 전압등급 목록이 좁게 잡혀 있어, 13.8kV·22.9kV 같은 값이 들어가면
--- 막힌다. 확정 시드가 쓰는 값 전부를 받도록 다시 건다.
+-- 초기 표에는 값 목록이 좁게 잡혀 있다. 그 뒤에 늘어난 값(13.8kV·22.9kV,
+-- 수배전반·부속기기 …)이 들어가면 막히므로, 원본 스키마(red-tag-manager/
+-- supabase/schema.sql)의 목록 전부를 그대로 다시 건다.
+--
+-- ⚠️ 하나씩 짚어 고치지 말고 전부 다시 걸 것. 전압만 넓히고 기기 종류를
+--    빠뜨렸다가 시드가 중간에 통째로 막힌 적이 있다.
+alter table equipment     drop constraint if exists equipment_equipment_type_check;
+alter table equipment     add  constraint equipment_equipment_type_check
+  check (equipment_type in ('GIS','변압기','발전기','전동기','부속기기','수배전반'));
+
+alter table equipment     drop constraint if exists equipment_system_category_check;
+alter table equipment     add  constraint equipment_system_category_check
+  check (system_category in ('전력설비','전동기설비'));
+
+alter table equipment     drop constraint if exists equipment_facility_group_check;
+alter table equipment     add  constraint equipment_facility_group_check
+  check (facility_group in ('SWGR','LC','MCC','몰드변압기'));
+
 alter table equipment     drop constraint if exists equipment_voltage_class_check;
 alter table equipment     add  constraint equipment_voltage_class_check
   check (voltage_class in ('154kV','22.9kV','13.8kV','6.9kV','460V','220V','125V','110V'));
 
+alter table switch_device drop constraint if exists switch_device_device_type_check;
+alter table switch_device add  constraint switch_device_device_type_check
+  check (device_type in ('CB','DS','ES'));
+
+alter table switch_device drop constraint if exists switch_device_default_operation_check;
+alter table switch_device add  constraint switch_device_default_operation_check
+  check (default_operation in ('개방','투입'));
+
 alter table switch_device drop constraint if exists switch_device_voltage_class_check;
 alter table switch_device add  constraint switch_device_voltage_class_check
   check (voltage_class in ('154kV','22.9kV','13.8kV','6.9kV','460V','220V','125V','110V'));
+
+alter table equipment_switch_map drop constraint if exists equipment_switch_map_operation_type_check;
+alter table equipment_switch_map add  constraint equipment_switch_map_operation_type_check
+  check (operation_type in ('개방','투입'));
 
 alter table sld_drawing   drop constraint if exists sld_drawing_voltage_class_check;
 alter table sld_drawing   add  constraint sld_drawing_voltage_class_check
@@ -129,6 +158,15 @@ alter table sld_drawing   add  constraint sld_drawing_voltage_class_check
 -- SPACE HEATER POWER). 이름으로 막아 두면 확정 데이터가 안 들어간다.
 drop index if exists equipment_name_uidx;
 create index if not exists equipment_name_idx on equipment (equipment_name);
+
+-- 조작대상도 마찬가지다. 양산 열원과 사송가압장은 서로 다른 사업장이라
+-- 각자 ES-101·LC-1_ACB-101 같은 이름을 쓴다(사송 쪽은 지역 접두어가 없다).
+-- 이름으로 막으면 사송 데이터가 통째로 안 들어간다.
+--
+-- ⚠️ 대신 이름만으로는 어느 사업장 것인지 가릴 수 없게 된다. 화면에서는
+--    위치 칸이 구분해 주고, 엑셀도 위치를 보고 양산·사송 시트를 나눈다.
+drop index if exists switch_device_name_uidx;
+create index if not exists switch_device_name_idx on switch_device (device_name);
 
 -- ---------------------------------------------------------------------------
 -- 4) 검색이 빠르도록
@@ -146,20 +184,7 @@ create index if not exists equipment_switch_map_equipment_idx
 create index if not exists switch_device_group_idx on switch_device (group_name);
 
 -- ---------------------------------------------------------------------------
--- 5) ⚠️ 초기 시범 데이터를 비운다 (되돌릴 수 없음)
--- ---------------------------------------------------------------------------
--- 지금 들어 있는 기기 10건(GEN-1, MTR-1A, CEP-1A …)과 차단기 22건
--- (CB-154-1A …)은 구조를 시험하려고 넣은 가짜 이름이다. 그대로 두면 검색할 때
--- 실제 설비와 섞여 나온다. 확정 시드가 이것들을 대체하므로 지운다.
---
--- 혹시 남겨 두고 싶으면 아래 세 줄을 주석 처리하고 실행하면 된다.
-delete from equipment_switch_map;
-delete from interlock;
-delete from switch_device;
-delete from equipment;
-
--- ---------------------------------------------------------------------------
--- 6) 읽기만 열고 쓰기는 모두 막는다  ❗ 꼭 실행해야 한다
+-- 5) 읽기만 열고 쓰기는 모두 막는다  ❗ 꼭 실행해야 한다
 -- ---------------------------------------------------------------------------
 -- 뚝DOC 은 브라우저에서 직접 이 프로젝트를 읽는다. 그러려면 공개 키가 앱 파일에
 -- 들어가고, 그 파일은 공개 저장소에 올라간다 — 즉 키는 누구나 보게 된다.
@@ -238,9 +263,19 @@ where table_schema = 'public'
 order by table_name, grantee;
 -- 기대: 0줄 (조회 권한만 남아야 한다)
 
--- 3) 시범 데이터가 비워졌는지
+-- 3) 값 제한이 원본과 맞는지 — 좁으면 시드가 중간에 막힌다
+select conname, pg_get_constraintdef(oid) as 정의
+from pg_constraint
+where conrelid in ('equipment'::regclass,'switch_device'::regclass,
+                   'equipment_switch_map'::regclass,'sld_drawing'::regclass)
+  and contype = 'c'
+order by conname;
+-- equipment_equipment_type_check 에 '수배전반','부속기기' 가 보여야 한다
+
+-- 4) 지금 들어 있는 양
 select
   (select count(*) from equipment)            as 기기,
   (select count(*) from switch_device)        as 조작대상,
   (select count(*) from equipment_switch_map) as 연결;
--- 기대: 0 / 0 / 0  → 이어서 redtag-02 부터 순서대로 실행
+-- 시범 데이터(가짜 이름 32건)가 아직 들어 있다. 지우려면 redtag-07 을 실행한다.
+-- 지우지 않아도 02~06 은 그대로 실행된다(id 가 겹치지 않는다).
