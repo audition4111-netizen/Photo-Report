@@ -45,6 +45,22 @@
     return String(term || '').trim().replace(/[,()*%"']/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  /* 적어 넣은 말을 통째로 찾으면, 사이에 글자 하나만 달라도 안 잡힌다.
+     실제로 "SUT Cooling Fan" 으로는 "GT SUT. Cooling FAN #1" 이 안 나왔다
+     — SUT 뒤의 마침표 하나 때문이다. 그래서 띄어쓴 낱말마다 따로 찾아
+     모두 들어 있는 것만 고른다(순서도 상관없다).
+     sanitize 가 , ( ) * % " ' 를 이미 떼어 내므로 아래 식이 깨지지 않는다.
+     * 는 PostgREST 에서 % 와 같은 자리를 맡는다. */
+  function nameMatch(q) {
+    var words = q.split(' ').filter(function (w) { return w; });
+    if (words.length < 2) {
+      return 'equipment_name.ilike.*' + q + '*,equipment_number.ilike.*' + q + '*';
+    }
+    return 'and(' + words.map(function (w) {
+      return 'or(equipment_name.ilike.*' + w + '*,equipment_number.ilike.*' + w + '*)';
+    }).join(',') + ')';
+  }
+
   /* 사업장 구분.
 
      양산 열원과 사송가압장은 서로 다른 사업장인데, 사송 쪽 차단기 이름에는
@@ -75,7 +91,6 @@
 
     var q = sanitize(term);
     if (!q) return Promise.resolve([]);
-    var like = '%' + q + '%';
 
     var req = c.from('equipment_switch_map')
       .select(
@@ -83,8 +98,7 @@
         'equipment:equipment_id!inner(id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class),' +
         'switch:switch_device_id!inner(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
       )
-      .or('equipment_name.ilike.' + like + ',equipment_number.ilike.' + like,
-          { referencedTable: 'equipment' });
+      .or(nameMatch(q), { referencedTable: 'equipment' });
 
     if (site === 'sasong') {
       req = req.ilike('switch.location', '%사송%');
@@ -145,6 +159,28 @@
      그래서 끝까지 나눠 받는다. */
   var PAGE = 1000;
 
+  /* ---- 쓰지 않는 예비 회로 가리기 ------------------------------------------
+     빈 피더까지 다 보이면 목록이 쓸데없이 길어진다. 다만 "예비" 라는 말만
+     보고 지우면 위험하다 — 사송 예비선로(VCB-201 · LBS-201 · LC-2_ACB-201)는
+     이름에 "예비" 가 들어가지만 정전 때 반드시 조작하는 것들이다.
+
+     그래서 **두 가지가 동시에** 맞을 때만 뺀다:
+       ① 설명에 SPARE / 예비 로 적혀 있고 ("SPARE 아님" 이라고 확인해 둔 것은 뺀다)
+       ② 점검대상이 하나도 안 붙어 있다
+     쓰이는 회로에는 점검대상이 붙어 있으므로 ②가 안전장치 노릇을 한다.
+     실제로 이 규칙은 338건을 가리고, 점검대상이 붙은 예비선로 22건은 남긴다.
+
+     ⚠️ 위치가 비어 있다고 예비로 보지는 않는다. 위치가 빈 346건 중 41건
+        (W.T MCC · W.W.T MCC · GT PEECC MCC)은 차단기 규격까지 적힌 멀쩡한
+        피더로, 점검대상만 아직 안 붙었을 뿐이다. 그건 그대로 보여 준다. */
+  var SPARE_RE = /SPARE|예비/i;
+
+  function looksSpare(d) {
+    var t = (d && d.description) || '';
+    if (t.indexOf('SPARE 아님') !== -1 || t.indexOf('SPARE아님') !== -1) return false;
+    return SPARE_RE.test(t) || SPARE_RE.test((d && d.device_name) || '');
+  }
+
   function fetchAllDevices(site) {
     var c = getClient();
     if (!c) return Promise.reject(new Error('조작대상 데이터에 연결되어 있지 않습니다.'));
@@ -152,7 +188,7 @@
 
     function page(from) {
       var req = c.from('switch_device')
-        .select('id,device_name,group_name,location,voltage_class,device_type,default_operation')
+        .select('id,device_name,group_name,location,voltage_class,device_type,default_operation,description')
         .order('device_name', { ascending: true })
         .range(from, from + PAGE - 1);
       req = site === 'sasong'
@@ -171,12 +207,32 @@
 
   /* 한 사업장의 조작대상을 모두 받아 전압·그룹으로 묶는다.
      PostgREST 에는 group by 가 없어 화면에서 묶는다. */
+  /* 어느 조작대상에 점검대상이 붙어 있는지 — 예비를 가릴 때 쓴다 */
+  function mappedIds() {
+    if (mappedCache) return Promise.resolve(mappedCache);
+    var c = getClient();
+    return fetchAllPaged(function (a, b) {
+      return c.from('equipment_switch_map')
+        .select('switch_device_id')
+        .order('switch_device_id', { ascending: true })
+        .range(a, b);
+    }).then(function (rows) {
+      var set = {};
+      rows.forEach(function (m) { set[m.switch_device_id] = 1; });
+      mappedCache = set;
+      return set;
+    });
+  }
+  var mappedCache = null;
+
   function listGroups(site) {
     if (groupCache[site]) return Promise.resolve(groupCache[site]);
 
-    return fetchAllDevices(site).then(function (data) {
+    return Promise.all([fetchAllDevices(site), mappedIds()]).then(function (both) {
+      var data = both[0], mapped = both[1];
       var byVolt = {};
       data.forEach(function (d) {
+        if (!mapped[d.id] && looksSpare(d)) return;   // 쓰지 않는 예비
         var v = d.voltage_class || '기타';
         var g = d.group_name || NO_GROUP;
         if (!byVolt[v]) byVolt[v] = {};
@@ -264,8 +320,8 @@
                                 remarks: m.remarks,
                                 equipment: m.equipment, switch: d }));
             });
-          } else {
-            // 점검대상이 아직 안 붙은 조작대상 — 숨기지 않는다
+          } else if (!looksSpare(d)) {
+            // 점검대상이 아직 안 붙은 조작대상 — 예비가 아니면 숨기지 않는다
             var r = toRow({ switch: d });
             r.noEquipment = true;
             rows.push(r);
