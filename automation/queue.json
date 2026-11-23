@@ -1,0 +1,23 @@
+[
+  {
+    "id": "verify-mcc-locations",
+    "title": "위치가 빈 조작대상 346건 — 도면으로 위치 찾기",
+    "status": "pending",
+    "model": "opus",
+    "prompt": "redtag-drawing-verifier 에이전트를 써서 다음을 해 주세요.\n\n조작대상 346건의 '위치' 칸이 비어 있습니다. MCC 류에 몰려 있습니다:\nHRSG MCC 32 · GT PEECC MCC 31 · CWP MCC 29 · STEAM TURBINE BLDG MCC 29 ·\nHRSG BLDG MCC 27 · #1 ESSENTIAL MCC 25 · GAS TURBINE BLDG MCC 25 ·\n#2 ESSENTIAL MCC 24 · #1 CONTROL BLDG MCC 20 · STEAM TURBINE MCC 20 ·\nW.T MCC 17 · #2 CONTROL BLDG MCC 14 · W.W.T MCC 9 · 그룹도 없는 것 44.\n\n같은 배전반인데 위치가 반쯤만 채워진 그룹이 13개입니다(예: HRSG MCC 는 30건이\n'ST동 3층 전기실', 32건은 빈칸). 화면에서 같은 반이 둘로 갈라져 보입니다.\n\n도면(C:\\업무자료, 색인은 .redtag-index/find.py)에서 각 배전반(MCC·분전반)이\n**실제로 어느 건물 어느 층에 설치돼 있는지** 찾아 주세요.\nEQUIPMENT LAYOUT, POWER LAYOUT, 전기기기 목록이 단서가 됩니다.\n\n이미 확인된 것(바꾸지 말 것): GAS TURBINE BLDG MCC 와 HRSG BLDG MCC 의\n위치는 'ST동 3층 전기실' 이 맞습니다 — 사용자가 확인해 줬습니다.\n\n배전반마다 판정(확실/추정/확인 못 함)과 근거(도면 파일·쪽)를 적고,\n확실한 것만 'UPDATE 할 값' 으로 정리해 주세요. 추정인 것은 따로 모아\n사용자에게 물을 목록으로 빼 주세요. 파일을 고치거나 SQL 을 실행하지 마세요."
+  },
+  {
+    "id": "audit-duplicate-names",
+    "title": "양산·사송에 이름이 같은 조작대상 10종 — 어떻게 가릴지",
+    "status": "pending",
+    "model": "opus",
+    "prompt": "redtag-data-auditor 와 redtag-drawing-verifier 를 함께 써서 다음을 봐 주세요.\n\n양산과 사송에 **글자까지 똑같은** 조작대상이 있습니다:\nLC-1_ACB-101 / 102 / 103 / 105 / 106, LC-2_ACB-201 / 203 / 205,\nES-101, ES-201. 그룹명 LC-1 · LC-2 도 양쪽이 같습니다.\n\n화면에는 사업장 고르는 탭이 있어 섞이지는 않지만, 엑셀 관리대장으로 나가면\n기기번호 칸이 같아 어느 쪽인지 알 수 없습니다. 조작 중 엉뚱한 쪽을 끊을 위험이\n있습니다.\n\n1) 도면에서 양쪽의 정식 표기가 정말 같은지 확인해 주세요. 사송 쪽 도면\n   (C:\\업무자료\\사송 도면)에 다른 접두어나 설비번호가 붙어 있는지요.\n2) 실제 명판·도면 표기가 다르다면 어느 쪽으로 맞춰야 하는지.\n3) 둘 다 같다면, 엑셀에서 구별되게 할 방법을 제안해 주세요\n   (예: 기기번호 칸에 사업장을 덧붙이기 — 다만 대장 양식을 함부로 바꾸면\n    안 되니 선택지만 제시).\n\n판정과 근거(도면 파일·쪽)를 적어 주세요. 파일을 고치지 마세요."
+  },
+  {
+    "id": "ux-recheck",
+    "title": "화면 다시 보기 — 고친 뒤 남은 불편",
+    "status": "pending",
+    "model": "opus",
+    "prompt": "redtag-ux-reviewer 에이전트로 조작대상 찾기 화면을 다시 봐 주세요.\n\n지난번 지적 다섯 가지 중 넷을 고쳤습니다(검색에 안 나오던 기기, 500건 잘림,\n작업 리스트 날아감, 미지정 표시 사라짐). 표 칸 재배치도 반영됐을 수 있습니다.\n\n고친 것이 제대로 됐는지 코드로 확인하고, **남아 있는 불편**을 다시 다섯 개\n이하로 골라 주세요. 이미 고친 것은 다시 지적하지 마세요.\n\n특히 봐 주세요:\n- 작업 리스트를 localStorage 에 저장하는데, 사업장이 섞여 담겼을 때\n  되살리면 헷갈리지 않는지\n- 엑셀 받기가 '(점검대상 미지정 — 확인 필요)' 를 제대로 싣는지\n- 느린 망에서 목록 첫 로딩(1,478건 + 연결표 전량)이 견딜 만한지\n\n코드를 고치지 마세요. 제안만 해 주세요."
+  }
+]

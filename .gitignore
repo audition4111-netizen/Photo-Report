@@ -1,3 +1,6 @@
 .mcp.json
 .cursor/
 .vscode/
+automation/logs/
+automation/.running
+automation/STOP
