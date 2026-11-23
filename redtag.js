@@ -61,6 +61,42 @@
     }).join(',') + ')';
   }
 
+  /* ⚠️ 차단기 이름으로도 찾을 수 있어야 한다.
+
+     현장에서는 반 앞에 서서 명판에 적힌 이름부터 읽는다 — "52CG1 이 뭘
+     먹이지?" 가 먼저다. 그런데 검색이 기기명·기기번호만 보던 탓에 `52CG`
+     로 치면 0건이 나왔다. 자료에는 분명히 있는데 "찾은 기기가 없습니다"
+     라고 말해, 없는 차단기로 읽게 만든다.
+     nameMatch 와 같은 꼴로 차단기 쪽 칸을 본다. */
+  function deviceMatch(q) {
+    var words = q.split(' ').filter(function (w) { return w; });
+    function one(w) {
+      return 'or(device_name.ilike.*' + w + '*,device_number.ilike.*' + w + '*,group_name.ilike.*' + w + '*)';
+    }
+    // 한 덩이로 감싼 식을 돌려준다 — 아래에서 사업장 조건과 and 로 묶어야 한다
+    return words.length < 2 ? one(q) : 'and(' + words.map(one).join(',') + ')';
+  }
+
+  /* ⚠️ 차단기 쪽 조건은 반드시 **한 번의 or() 로** 보내야 한다.
+     or() 를 두 번 부르면 같은 이름(switch.or=)의 조건이 두 개 생겨 서로
+     부딪히고, 서버가 400 을 돌려준다 — 그러면 검색이 통째로 실패한다.
+     그래서 "이름이 맞고 그리고 이 사업장" 을 하나의 and 식으로 합친다. */
+  function deviceSiteFilter(site) {
+    return site === 'sasong'
+      ? 'location.ilike.*사송*'
+      // 위치가 비어 있는 것도 양산으로 본다
+      : 'or(location.not.ilike.*사송*,location.is.null)';
+  }
+
+  function deviceWhere(q, site) {
+    return 'and(' + deviceMatch(q) + ',' + deviceSiteFilter(site) + ')';
+  }
+
+  /* 같은 줄이 기기 쪽·차단기 쪽에서 두 번 잡힐 수 있어 열쇠를 만들어 가린다 */
+  function rowKey(r) {
+    return (r.equipmentId || '') + '|' + (r.deviceId || '');
+  }
+
   /* 사업장 구분.
 
      양산 열원과 사송가압장은 서로 다른 사업장인데, 사송 쪽 차단기 이름에는
@@ -125,15 +161,58 @@
         .range(a, b);
     });
 
-    return Promise.all([hits, bare, mappedEquipmentIds()]).then(function (all) {
-      var rows = all[0].map(toRow).filter(function (r) { return r.deviceName; });
-      var mapped = all[2];
+    /* 차단기 이름으로 찾은 것 — 그 차단기가 먹이는 기기까지 함께 끌어온다 */
+    var byDevice = fetchAllPaged(function (a, b) {
+      var req = c.from('equipment_switch_map')
+        .select(
+          'operation_order,operation_type,remarks,' +
+          'equipment:equipment_id!inner(id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class),' +
+          'switch:switch_device_id!inner(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
+        )
+        .or(deviceWhere(q, site), { referencedTable: 'switch' });
+      return req.order('operation_order', { ascending: true }).range(a, b);
+    });
+
+    /* 점검대상이 아직 안 붙은 차단기도 이름으로 찾혀야 한다. 목록 쪽
+       (listFeeders)과 같은 규칙으로, 예비가 아닌 것만 내보낸다. */
+    var bareDevice = fetchAllPaged(function (a, b) {
+      var req = c.from('switch_device')
+        .select('id,device_name,device_number,group_name,location,device_type,device_subtype,voltage_class,default_operation,description')
+        .or(deviceWhere(q, site));
+      return req.order('device_name', { ascending: true }).range(a, b);
+    });
+
+    return Promise.all([hits, bare, mappedEquipmentIds(), byDevice, bareDevice, mappedDeviceIds()])
+      .then(function (all) {
+      var rows = [];
+      var seen = {};
+      function push(r) {
+        var k = rowKey(r);
+        if (seen[k]) return;
+        seen[k] = 1;
+        rows.push(r);
+      }
+
+      all[0].map(toRow).filter(function (r) { return r.deviceName; }).forEach(push);
+      all[3].map(toRow).filter(function (r) { return r.deviceName; }).forEach(push);
+
+      var mappedEq = all[2];
       all[1].forEach(function (eq) {
-        if (mapped[eq.id]) return;                 // 조작대상이 있으면 위에서 이미 나왔다
+        if (mappedEq[eq.id]) return;               // 조작대상이 있으면 위에서 이미 나왔다
         var r = toRow({ equipment: eq, switch: null });
         r.noFeeder = true;
-        rows.push(r);
+        push(r);
       });
+
+      var mappedSw = all[5];
+      all[4].forEach(function (d) {
+        if (mappedSw[d.id]) return;                // 점검대상이 있으면 위에서 이미 나왔다
+        if (looksSpare(d)) return;                 // 쓰지 않는 예비
+        var r = toRow({ switch: d });
+        r.noEquipment = true;
+        push(r);
+      });
+
       return rows;
     });
   }
@@ -155,6 +234,24 @@
     });
   }
   var mappedEqCache = null;
+
+  /* 조작대상 가운데 점검대상이 붙어 있는 것들 */
+  function mappedDeviceIds() {
+    if (mappedSwCache) return Promise.resolve(mappedSwCache);
+    var c = getClient();
+    return fetchAllPaged(function (a, b) {
+      return c.from('equipment_switch_map')
+        .select('switch_device_id')
+        .order('switch_device_id', { ascending: true })
+        .range(a, b);
+    }).then(function (rows) {
+      var set = {};
+      rows.forEach(function (m) { set[m.switch_device_id] = 1; });
+      mappedSwCache = set;
+      return set;
+    });
+  }
+  var mappedSwCache = null;
 
   function toRow(raw) {
     var eq = raw.equipment || {};
