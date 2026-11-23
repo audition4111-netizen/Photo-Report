@@ -92,30 +92,69 @@
     var q = sanitize(term);
     if (!q) return Promise.resolve([]);
 
-    var req = c.from('equipment_switch_map')
-      .select(
-        'operation_order,operation_type,remarks,' +
-        'equipment:equipment_id!inner(id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class),' +
-        'switch:switch_device_id!inner(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
-      )
-      .or(nameMatch(q), { referencedTable: 'equipment' });
+    /* ⚠️ 500건에서 말없이 잘리던 것을 끝까지 나눠 받도록 고쳤다. 짧은 말
+       한 글자("1", "A")로 치면 1,000건이 넘어가는데, 상태줄은 "500건을
+       찾았습니다" 라고만 해 다 나온 줄 알게 됐다. */
+    var hits = fetchAllPaged(function (a, b) {
+      var req = c.from('equipment_switch_map')
+        .select(
+          'operation_order,operation_type,remarks,' +
+          'equipment:equipment_id!inner(id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class),' +
+          'switch:switch_device_id!inner(id,device_name,group_name,location,device_type,device_subtype,voltage_class,default_operation,description)'
+        )
+        .or(nameMatch(q), { referencedTable: 'equipment' });
+      req = site === 'sasong'
+        ? req.ilike('switch.location', '%사송%')
+        // 위치가 비어 있는 것도 양산으로 본다
+        : req.or('location.not.ilike.%사송%,location.is.null', { referencedTable: 'switch' });
+      return req.order('operation_order', { ascending: true }).range(a, b);
+    });
 
-    if (site === 'sasong') {
-      req = req.ilike('switch.location', '%사송%');
-    } else {
-      // 위치가 비어 있는 것도 양산으로 본다
-      req = req.or('location.not.ilike.%사송%,location.is.null',
-                   { referencedTable: 'switch' });
-    }
+    /* ⚠️ 위 질의는 연결표에서 출발하므로, 조작대상이 한 건도 안 붙은 기기는
+       검색 결과에 한 줄도 안 나왔다. 그런데 화면은 "찾은 기기가 없습니다"
+       라고 말해, 자료에 있는 기기를 없는 기기로 읽게 만들었다 — 조작대상이
+       미확정인 기기를 아무 조작 없이 지나칠 수 있다. 실제로 10건이 그랬다
+       (소방 JOCKEY PUMP, #1 AMMONIA SUPPLY PUMP MOTOR, ST AVR 등).
+       그래서 기기 표에서도 따로 찾아, 연결이 없는 것은 목록 쪽과 똑같이
+       "조작대상 없음" 으로 내보낸다. */
+    var bare = fetchAllPaged(function (a, b) {
+      return c.from('equipment')
+        .select('id,equipment_name,equipment_number,equipment_type,sub_type,voltage_class')
+        .or(nameMatch(q))
+        .order('equipment_name', { ascending: true })
+        .range(a, b);
+    });
 
-    return req
-      .order('operation_order', { ascending: true })
-      .limit(500)
-      .then(function (res) {
-        if (res.error) throw res.error;
-        return (res.data || []).map(toRow).filter(function (r) { return r.deviceName; });
+    return Promise.all([hits, bare, mappedEquipmentIds()]).then(function (all) {
+      var rows = all[0].map(toRow).filter(function (r) { return r.deviceName; });
+      var mapped = all[2];
+      all[1].forEach(function (eq) {
+        if (mapped[eq.id]) return;                 // 조작대상이 있으면 위에서 이미 나왔다
+        var r = toRow({ equipment: eq, switch: null });
+        r.noFeeder = true;
+        rows.push(r);
       });
+      return rows;
+    });
   }
+
+  /* 점검대상 가운데 조작대상이 붙어 있는 것들 */
+  function mappedEquipmentIds() {
+    if (mappedEqCache) return Promise.resolve(mappedEqCache);
+    var c = getClient();
+    return fetchAllPaged(function (a, b) {
+      return c.from('equipment_switch_map')
+        .select('equipment_id')
+        .order('equipment_id', { ascending: true })
+        .range(a, b);
+    }).then(function (rows) {
+      var set = {};
+      rows.forEach(function (m) { set[m.equipment_id] = 1; });
+      mappedEqCache = set;
+      return set;
+    });
+  }
+  var mappedEqCache = null;
 
   function toRow(raw) {
     var eq = raw.equipment || {};
