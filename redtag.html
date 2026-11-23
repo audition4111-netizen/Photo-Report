@@ -126,6 +126,15 @@
   td.nowrap, th.nowrap{ white-space:nowrap; }
   .col-pick{ width:46px; text-align:center; }
   .col-pick input{ width:20px; height:20px; accent-color:var(--archive); }
+  /* 체크박스는 20px 이라 장갑 낀 손가락에는 작다. 줄 아무 데나 눌러도
+     선택되게 해 두었으니(아래 foundBody click) 손가락은 줄 전체를 겨냥하면
+     된다. 누를 수 있다는 걸 알려 주려고 커서와 누른 느낌만 둔다. */
+  #foundBody tr{ cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  #foundBody tr:active{ background:var(--surface-strong); }
+  /* 검색 결과 표 아래에도 전체 선택·담기 — 폰에서 표를 끝까지 훑고 나면
+     위로 되돌아갈 일이 없게. 배전반 펼친 표(.panel-acts)와 같은 모양이다.
+     그쪽은 패널 안에 있어 윗선이 필요하지만 이쪽은 표 바깥이라 뗀다. */
+  .found-acts{ border-top:none; margin-top:10px; padding:0; background:transparent; }
   .op{ font-weight:700; }
   .op.open{ color:var(--error); }
   .op.close{ color:var(--archive); }
@@ -240,16 +249,25 @@
       <div class="table-wrap">
         <table>
           <thead>
+            <!-- 선택 칸만 맨 왼쪽이다. 표가 min-width:620px 인데 폰 가로는
+                 여백 빼고 358px 쯤이라, 선택 칸이 맨 오른쪽이면 한 줄 고르려고
+                 매번 표를 옆으로 밀어야 했다. 나머지 다섯 칸(점검대상 ·
+                 조작대상 · 조작 · 그룹 · 위치)의 순서는 사용자가 콕 집어
+                 지정한 것이라 그대로 둔다. -->
             <tr>
+              <th class="col-pick"><input type="checkbox" id="pickHead" aria-label="전체 선택"></th>
               <th>점검대상</th><th>조작대상(차단기명)</th>
               <th class="nowrap">조작</th><th>그룹</th><th>위치</th>
-              <th class="col-pick"><input type="checkbox" id="pickHead" aria-label="전체 선택"></th>
             </tr>
           </thead>
           <tbody id="foundBody">
             <tr><td colspan="6" class="empty">기기명을 찾아 보세요.</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="panel-acts found-acts">
+        <button type="button" id="pickAllBtnBottom">전체 선택</button>
+        <button type="button" class="go" id="addPickedBtnBottom">담기</button>
       </div>
     </div>
 
@@ -401,11 +419,12 @@
          "그런 설비는 대장에 없구나" 로 읽혔다 — 미확정 기기를 아무 조작 없이
          지나칠 수 있었다. */
       if(r.noFeeder) tr.className = 'no-eq';
+      /* 선택 칸이 맨 왼쪽 — 머리글(thead)과 순서가 같아야 한다. */
       tr.innerHTML =
+        '<td class="col-pick"><input type="checkbox" data-i="' + i + '" aria-label="선택"></td>' +
         '<td class="eq"></td><td class="dev"></td>' +
         '<td class="nowrap"><span class="' + opClass(r.operation) + '"></span></td>' +
-        '<td class="grp muted"></td><td class="loc"></td>' +
-        '<td class="col-pick"><input type="checkbox" data-i="' + i + '" aria-label="선택"></td>';
+        '<td class="grp muted"></td><td class="loc"></td>';
       tr.querySelector('.eq').textContent = r.equipmentName;
       tr.querySelector('.dev').textContent = r.noFeeder ? '조작대상 없음(확정 전)' : r.deviceName;
       if(r.noFeeder) tr.querySelector('.dev').classList.add('panel-warn-text');
@@ -1000,14 +1019,37 @@
     var on = el('pickHead').checked;
     foundBody.querySelectorAll('input[type="checkbox"]').forEach(function(b){ b.checked = on; });
   });
-  el('pickAllBtn').addEventListener('click', function(){
+  function togglePickAll(){
     var boxes = foundBody.querySelectorAll('input[type="checkbox"]');
     if(!boxes.length) return;
     var on = !el('pickHead').checked;
     el('pickHead').checked = on;
     boxes.forEach(function(b){ b.checked = on; });
-  });
+  }
+  /* 같은 단추가 표 위와 아래에 하나씩 있다. 둘이 따로 동작하면 아래 것으로
+     켜고 위 것으로 또 눌러 꺼 버리는 일이 생기니 같은 함수를 물린다. */
+  el('pickAllBtn').addEventListener('click', togglePickAll);
+  el('pickAllBtnBottom').addEventListener('click', togglePickAll);
   el('addPickedBtn').addEventListener('click', addPicked);
+  el('addPickedBtnBottom').addEventListener('click', addPicked);
+
+  /* 줄 아무 데나 눌러도 그 줄이 선택되게 — 체크박스가 20px 라 장갑 낀
+     손가락으로는 겨냥하기 어렵다.
+     ⚠️ 함정: 체크박스를 직접 눌렀을 때는 브라우저가 이미 토글해 주고,
+        그 click 이 tr 까지 올라온다. 여기서 또 뒤집으면 눌러도 안 바뀐 것처럼
+        보인다 — 그래서 input 에서 난 click 은 그냥 지나친다.
+        빈 결과 줄(.empty)에는 체크박스가 없으니 null 검사도 둔다. */
+  foundBody.addEventListener('click', function(e){
+    if(e.target && e.target.tagName === 'INPUT') return;
+    var tr = e.target && e.target.closest ? e.target.closest('tr') : null;
+    if(!tr) return;
+    var box = tr.querySelector('input[type="checkbox"]');
+    if(!box) return;
+    box.checked = !box.checked;
+    /* 한 줄이라도 손으로 끄면 머리글 체크는 "전체 선택" 상태가 아니다.
+       그대로 켜 두면 다음 '전체 선택'이 꺼지는 쪽으로 동작해 헷갈린다. */
+    if(!box.checked) el('pickHead').checked = false;
+  });
 
   el('addBlankBtn').addEventListener('click', function(){
     list.push(blankRow());
